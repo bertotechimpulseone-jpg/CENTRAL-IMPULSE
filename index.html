@@ -7847,7 +7847,8 @@ async function updateClientField(cliId, field, value){
     meet_url:'meet_url', mlabs_url:'mlabs_url', site_url:'site_url',
     contrato_url:'contrato_url', criativos_url:'criativos_url',
     relatorios_url:'relatorios_url', whatsapp_url:'whatsapp_url',
-    observacoes:'observacoes'
+    observacoes:'observacoes',
+    plan_observacao:'plan_observacao'
   };
   const col = mapping[field];
   if(!col){
@@ -8999,6 +9000,15 @@ function paneFinanceiro(cli){
           </div>
           <!-- Valor do plano removido — fica salvo no banco mas nao aparece na UI -->
         </div>
+      </div>
+
+      <!-- ===== Observação do plano ===== -->
+      <div class="card mb-4" data-field="plan_observacao">
+        <div class="section-title" style="margin-top:0">📝 Observações do plano</div>
+        <textarea id="planObsInput" onblur="updateClientField(${cli.id},'plan_observacao',this.value)"
+          placeholder="Anotações sobre o plano deste cliente — combinados, exceções, detalhes de cobrança, o que precisar lembrar..."
+          style="width:100%;min-height:96px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13.5px;color:var(--text);font-family:inherit;resize:vertical;line-height:1.55">${escapeHtml(cli.plan_observacao||'')}</textarea>
+        <div class="text-xs text-3" style="margin-top:6px">Salva sozinho quando você clica fora do campo. 💾</div>
       </div>
 
       <!-- ===== Campos editáveis ===== -->
