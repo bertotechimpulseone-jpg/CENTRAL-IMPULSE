@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05050A">
+<title>Manual de LinkedIn · Comercial Impulse One</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  :root{
+    --black:#05050A; --bg:#07070D; --bg-2:#0B0B14;
+    --surface:rgba(255,255,255,.04); --surface-2:rgba(255,255,255,.06);
+    --hair:rgba(255,255,255,.10); --hair-soft:rgba(255,255,255,.06);
+    --magenta:#FF2E9A; --violet:#7C5CFF; --cyan:#2FE3E3; --orange:#FF6A3D;
+    --grad:linear-gradient(100deg,var(--magenta) 0%,var(--violet) 52%,var(--cyan) 100%);
+    --grad-text:linear-gradient(100deg,#FF54AE 0%,#9B7BFF 50%,#46ECEC 100%);
+    --ink:#fff; --ink-2:#C9CBD8; --ink-3:#8C8FA3; --ink-4:#5C5F70;
+    --display:"Space Grotesk",system-ui,sans-serif;
+    --body:"Inter",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; scroll-padding-top:80px; }
+  body{ font-family:var(--body); color:var(--ink); background:var(--black); -webkit-font-smoothing:antialiased; line-height:1.6; overflow-x:hidden;
+    background-image:
+      radial-gradient(70% 40% at 88% -5%, rgba(124,92,255,.16), transparent 60%),
+      radial-gradient(60% 40% at -8% 8%, rgba(255,46,154,.12), transparent 55%),
+      radial-gradient(90% 60% at 50% 106%, rgba(47,227,227,.06), transparent 60%);
+    background-attachment:fixed; background-repeat:no-repeat; }
+  .wrap{ width:100%; max-width:900px; margin:0 auto; padding:0 clamp(20px,5vw,48px); }
+  .grad{ background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .kicker{ font-family:var(--mono); font-size:clamp(11px,2.4vw,13px); letter-spacing:.26em; text-transform:uppercase; color:var(--cyan); display:inline-flex; align-items:center; gap:12px; }
+  .kicker::before{ content:""; width:26px; height:1.5px; background:var(--grad); flex:0 0 auto; }
+  h1,h2,h3,h4{ font-family:var(--display); font-weight:700; letter-spacing:-.02em; line-height:1.08; }
+  a{ color:var(--cyan); text-decoration:none; }
+
+  .top{ position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:12px clamp(16px,5vw,40px);
+    background:rgba(5,5,10,.72); backdrop-filter:blur(10px); border-bottom:1px solid var(--hair-soft); }
+  .top img{ height:26px; display:block; }
+  .top .tag{ font-family:var(--mono); font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-3); }
+  @media (max-width:560px){ .top .tag{ display:none; } }
+
+  .hero{ padding:clamp(56px,10vw,110px) 0 clamp(30px,5vw,50px); }
+  .hero h1{ font-size:clamp(2.3rem,8vw,4.6rem); margin:22px 0 0; }
+  .hero .sub{ color:var(--ink-2); font-size:clamp(1.1rem,3.4vw,1.5rem); margin-top:24px; max-width:640px; }
+  .hero .for{ display:inline-flex; align-items:center; gap:12px; margin-top:34px; padding:12px 20px; border-radius:14px;
+    border:1px solid var(--hair); background:var(--surface); }
+  .hero .for .av{ width:40px; height:40px; border-radius:50%; flex:0 0 auto; display:grid; place-items:center; font-family:var(--display); font-weight:700;
+    color:#0a0512; background:var(--grad); }
+  .hero .for div div:first-child{ font-family:var(--display); font-weight:700; font-size:1rem; }
+  .hero .for div div:last-child{ font-size:.85rem; color:var(--ink-3); }
+
+  /* índice */
+  .toc{ margin:clamp(20px,3vw,30px) 0 0; padding:clamp(22px,3vw,30px); border-radius:18px; border:1px solid var(--hair); background:var(--surface); }
+  .toc .cap{ font-family:var(--mono); font-size:12px; letter-spacing:.2em; text-transform:uppercase; color:var(--cyan); margin-bottom:16px; }
+  .toc ol{ list-style:none; counter-reset:t; display:grid; grid-template-columns:1fr 1fr; gap:9px 30px; }
+  @media (max-width:640px){ .toc ol{ grid-template-columns:1fr; } }
+  .toc li{ counter-increment:t; }
+  .toc a{ display:flex; gap:12px; align-items:baseline; color:var(--ink-2); font-size:clamp(.95rem,2.6vw,1.05rem); padding:4px 0; }
+  .toc a::before{ content:counter(t,decimal-leading-zero); font-family:var(--mono); font-size:.8rem; color:var(--magenta); font-weight:700; flex:0 0 auto; }
+  .toc a:hover{ color:#fff; }
+
+  /* seções */
+  section.sec{ padding:clamp(44px,7vw,80px) 0; border-top:1px solid var(--hair-soft); }
+  .sec .num{ font-family:var(--mono); font-size:13px; letter-spacing:.16em; color:var(--cyan); }
+  .sec h2{ font-size:clamp(1.7rem,5.5vw,2.7rem); margin:12px 0 0; }
+  .sec .lead{ color:var(--ink-2); font-size:clamp(1.05rem,3vw,1.2rem); margin-top:16px; max-width:680px; }
+  .sec h3{ font-size:clamp(1.2rem,3.6vw,1.5rem); margin:clamp(26px,4vw,38px) 0 12px; }
+  .sec h4{ font-size:1.05rem; margin:20px 0 8px; color:#fff; }
+  .sec p{ color:var(--ink-2); margin:10px 0; }
+  .sec p.big{ font-size:1.1rem; }
+  ul.list{ list-style:none; display:flex; flex-direction:column; gap:11px; margin:14px 0; }
+  ul.list li{ display:flex; gap:12px; align-items:flex-start; color:var(--ink-2); line-height:1.5; }
+  ul.list li::before{ content:""; flex:0 0 auto; width:8px; height:8px; border-radius:50%; margin-top:9px; background:var(--grad); }
+  ul.list li b{ color:#fff; font-weight:600; }
+  strong{ color:#fff; font-weight:600; }
+
+  /* callout / dica */
+  .callout{ margin:22px 0; padding:20px 24px; border-radius:16px; border:1px solid var(--hair); background:var(--surface-2);
+    border-left:3px solid var(--magenta); }
+  .callout .t{ font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--magenta); margin-bottom:8px; }
+  .callout.ok{ border-left-color:#4ee0a0; } .callout.ok .t{ color:#4ee0a0; }
+  .callout.no{ border-left-color:#ff5c7a; } .callout.no .t{ color:#ff5c7a; }
+  .callout p{ margin:6px 0; color:var(--ink-2); }
+
+  /* script / template */
+  .script{ margin:16px 0; border-radius:16px; border:1px solid var(--hair); background:#0a0a12; overflow:hidden; }
+  .script .h{ display:flex; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--hair-soft); background:rgba(255,255,255,.02); }
+  .script .h .dot{ width:9px; height:9px; border-radius:50%; background:var(--grad); flex:0 0 auto; }
+  .script .h span{ font-family:var(--mono); font-size:12px; letter-spacing:.08em; color:var(--ink-2); text-transform:uppercase; }
+  .script .b{ padding:18px 20px; font-size:1.02rem; color:var(--ink); line-height:1.6; }
+  .script .b em{ color:var(--cyan); font-style:normal; background:rgba(47,227,227,.08); padding:1px 6px; border-radius:5px; }
+
+  /* grid de cards (fórmula / pilares) */
+  .cards{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin:24px 0; }
+  @media (max-width:820px){ .cards{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:520px){ .cards{ grid-template-columns:1fr; } }
+  .cards.two{ grid-template-columns:1fr 1fr; } @media (max-width:640px){ .cards.two{ grid-template-columns:1fr; } }
+  .fc{ padding:22px 24px; border-radius:18px; border:1px solid var(--hair); background:var(--surface); }
+  .fc .n{ font-family:var(--display); font-weight:700; font-size:1.6rem; background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; margin-bottom:8px; }
+  .fc h4{ margin:0 0 6px; font-size:1.15rem; }
+  .fc p{ color:var(--ink-3); font-size:.96rem; margin:0; }
+
+  /* checklist */
+  .check{ display:grid; grid-template-columns:1fr 1fr; gap:10px 30px; margin:16px 0; }
+  @media (max-width:640px){ .check{ grid-template-columns:1fr; } }
+  .check .it{ display:flex; gap:12px; align-items:flex-start; color:var(--ink-2); }
+  .check .it .box{ flex:0 0 auto; width:22px; height:22px; border-radius:6px; border:1.5px solid transparent; margin-top:2px;
+    background:linear-gradient(var(--bg-2),var(--bg-2)) padding-box, var(--grad) border-box; position:relative; }
+  .check .it .box::after{ content:"✓"; position:absolute; inset:0; display:grid; place-items:center; font-size:12px; color:var(--cyan); }
+
+  /* footer cta */
+  .end{ padding:clamp(50px,8vw,90px) 0; border-top:1px solid var(--hair-soft); }
+  .end h2{ font-size:clamp(1.8rem,6vw,3rem); max-width:760px; }
+  .end .cta-line{ font-family:var(--display); font-weight:700; font-size:clamp(1.4rem,5vw,2.2rem); margin-top:28px; }
+  footer{ border-top:1px solid var(--hair-soft); padding:30px 0; }
+  footer .wrap{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  footer img{ height:26px; } footer span{ color:var(--ink-4); font-family:var(--mono); font-size:11.5px; letter-spacing:.08em; }
+  @media (prefers-reduced-motion:reduce){ html{ scroll-behavior:auto; } }
+</style>
+</head>
+<body>
+
+<div class="top">
+  <img src="assets/logo.png" alt="Impulse One">
+  <span class="tag">Manual de LinkedIn · Comercial</span>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Playbook de Prospecção</div>
+    <h1>LinkedIn que <span class="grad">gera clientes.</span></h1>
+    <p class="sub">O manual completo pra transformar um perfil pessoal numa máquina de relacionamento e vendas — do zero ao primeiro cliente fechado.</p>
+    <div class="for">
+      <div class="av">F</div>
+      <div><div>Personalizado para Franciele</div><div>Comercial · Impulse One</div></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="toc">
+    <div class="cap">O que você vai dominar</div>
+    <ol>
+      <li><a href="#mindset">A virada de chave (mindset)</a></li>
+      <li><a href="#formula">A fórmula: o ciclo que vende</a></li>
+      <li><a href="#perfil">Perfil magnético (biografia)</a></li>
+      <li><a href="#icp">Seu cliente ideal (para quem falar)</a></li>
+      <li><a href="#prospeccao">Como encontrar e prospectar</a></li>
+      <li><a href="#relacionamento">Relacionamento antes da venda</a></li>
+      <li><a href="#conteudo">Conteúdo e assuntos da Impulse</a></li>
+      <li><a href="#abordagem">Abordagem e mensagens (scripts)</a></li>
+      <li><a href="#rotina">Rotina, metas e métricas</a></li>
+      <li><a href="#plano">Seu plano de 30 dias + checklist</a></li>
+    </ol>
+  </nav>
+</div>
+
+<!-- 1 · MINDSET -->
+<section class="sec" id="mindset">
+  <div class="wrap">
+    <div class="num">01</div>
+    <h2>A virada de chave</h2>
+    <p class="lead">Antes de qualquer técnica: o LinkedIn não é um currículo online. É a maior sala de reuniões do mundo — onde donos de negócio, gestores e decisores passam o dia. Seu trabalho é <strong>entrar nessa sala, ser reconhecida e criar relacionamento</strong> até virar a pessoa em quem eles pensam quando o assunto é marketing.</p>
+    <div class="cards two">
+      <div class="fc"><h4>❌ O erro comum</h4><p>Perfil de currículo + pedir reunião no primeiro "oi". Resultado: parece vendedor chato, ninguém responde.</p></div>
+      <div class="fc"><h4>✅ O jeito Impulse</h4><p>Perfil de autoridade + relacionamento genuíno + conteúdo que ensina. A venda vira consequência.</p></div>
+    </div>
+    <div class="callout"><div class="t">Princípio nº 1</div><p>As pessoas compram de quem elas <strong>conhecem, gostam e confiam</strong>. No LinkedIn, você constrói os três — nessa ordem — antes de falar em proposta.</p></div>
+    <p>Você não está "caçando" clientes. Você está construindo uma reputação que <strong>atrai</strong> clientes e abrindo conversas que, no tempo certo, viram negócio.</p>
+  </div>
+</section>
+
+<!-- 2 · FÓRMULA -->
+<section class="sec" id="formula">
+  <div class="wrap">
+    <div class="num">02</div>
+    <h2>A fórmula: <span class="grad">o ciclo que vende</span></h2>
+    <p class="lead">LinkedIn bem estruturado não é uma lista de tarefas soltas — é um ciclo que se retroalimenta. Perfil forte facilita a prospecção; conteúdo aquece o relacionamento; o relacionamento gera a conversa; a conversa vira cliente. E cada cliente/conteúdo alimenta o próximo ciclo.</p>
+    <div class="cards">
+      <div class="fc"><div class="n">01</div><h4>Perfil</h4><p>Vitrine que passa autoridade em 3 segundos.</p></div>
+      <div class="fc"><div class="n">02</div><h4>Alvo</h4><p>Saber exatamente quem você quer alcançar.</p></div>
+      <div class="fc"><div class="n">03</div><h4>Prospecção</h4><p>Encontrar e adicionar as pessoas certas.</p></div>
+      <div class="fc"><div class="n">04</div><h4>Relacionamento</h4><p>Aquecer com interações antes de vender.</p></div>
+      <div class="fc"><div class="n">05</div><h4>Conteúdo</h4><p>Postar o que gera autoridade e atrai.</p></div>
+      <div class="fc"><div class="n">06</div><h4>Conversão</h4><p>Abordagem que puxa pra uma conversa real.</p></div>
+    </div>
+    <div class="callout ok"><div class="t">A regra de ouro</div><p>Faça um pouco dos 6 passos <strong>todo dia</strong>. Constância vale mais que intensidade — 30 minutos diários batem 5 horas uma vez por mês.</p></div>
+  </div>
+</section>
+
+<!-- 3 · PERFIL -->
+<section class="sec" id="perfil">
+  <div class="wrap">
+    <div class="num">03</div>
+    <h2>Perfil magnético</h2>
+    <p class="lead">Todo prospect que você abordar vai fazer uma coisa antes de responder: abrir seu perfil. Ele precisa passar, em segundos, a mensagem "essa pessoa entende de marketing e pode me ajudar a vender mais". Cada elemento tem uma função.</p>
+
+    <h3>Foto & banner</h3>
+    <ul class="list">
+      <li><b>Foto:</b> rosto nítido, sorrindo, fundo limpo, boa luz. Nada de foto cortada em grupo ou selfie. Transmite confiança.</li>
+      <li><b>Banner (capa):</b> é um outdoor grátis. Coloque o que a Impulse faz + uma frase de valor + logo. Ex.: "Marketing que posiciona sua marca e gera vendas · Impulse One".</li>
+    </ul>
+
+    <h3>Headline (a linha embaixo do nome)</h3>
+    <p>É o elemento mais importante — aparece em buscas, comentários e convites. Não escreva só o cargo. Escreva <strong>o que você faz + para quem + o resultado</strong>.</p>
+    <div class="script"><div class="h"><span class="dot"></span><span>Modelos de headline</span></div><div class="b">
+      • Ajudo negócios a venderem mais com marketing estratégico | Comercial na Impulse One<br>
+      • Marketing, branding e vendas para empresas que querem crescer | Impulse One<br>
+      • Conecto empresas a resultados reais nas redes | Consultora comercial · Impulse One
+    </div></div>
+
+    <h3>Seção "Sobre" (o resumo)</h3>
+    <p>Escreva em primeira pessoa, como se estivesse conversando. Estrutura que funciona: <strong>gancho → o que você/a Impulse resolve → prova → chamada</strong>.</p>
+    <div class="script"><div class="h"><span class="dot"></span><span>Modelo de "Sobre" · adapte</span></div><div class="b">
+      Todo negócio bom merece ser visto — e vender de verdade.<br><br>
+      Sou a Franciele, do comercial da Impulse One. Ajudo empresas a saírem do "posto e não vende nada" para uma presença digital que posiciona a marca e gera oportunidade real.<br><br>
+      Na Impulse a gente cuida de tudo: <em>estratégia, redes sociais, design, tráfego, captação e branding</em> — com processo, dados e um time que respira resultado.<br><br>
+      Se a sua empresa quer crescer e ser lembrada, bora conversar. Me chama aqui ou no WhatsApp. 🚀
+    </div></div>
+
+    <h3>Ajustes que fecham o perfil</h3>
+    <ul class="list">
+      <li><b>Destaques / conteúdo em destaque:</b> fixe cases, depoimentos e um post de apresentação.</li>
+      <li><b>URL personalizada:</b> deixe linkedin.com/in/franciele-impulse (facilita compartilhar).</li>
+      <li><b>Experiência:</b> na Impulse One, descreva com resultados ("ajudei X clientes a...") e não só função.</li>
+      <li><b>Modo criador (creator mode):</b> ative — libera botão "seguir", hashtags e mais alcance.</li>
+      <li><b>Recomendações:</b> peça 3-5 para clientes e colegas. Prova social pesa muito.</li>
+      <li><b>Foto de fundo com CTA:</b> "Fale comigo" + contato.</li>
+    </ul>
+    <div class="callout"><div class="t">Teste dos 5 segundos</div><p>Mostre seu perfil pra alguém por 5 segundos e pergunte: "o que essa pessoa faz e como ela pode te ajudar?". Se não souber responder, o perfil ainda não está pronto.</p></div>
+  </div>
+</section>
+
+<!-- 4 · ICP -->
+<section class="sec" id="icp">
+  <div class="wrap">
+    <div class="num">04</div>
+    <h2>Seu cliente ideal</h2>
+    <p class="lead">Você não quer "qualquer empresa". Quer as que precisam da Impulse, valorizam marketing e podem pagar. Quanto mais claro o alvo, mais fácil encontrar, falar a língua certa e fechar.</p>
+    <h3>Quem a Impulse quer captar</h3>
+    <ul class="list">
+      <li><b>Cargo:</b> donos e sócios de empresas, CEOs, diretores e gerentes de marketing/comercial.</li>
+      <li><b>Porte:</b> pequenas e médias empresas que já vendem, mas querem crescer / se posicionar melhor.</li>
+      <li><b>Segmentos que combinam com a Impulse:</b> saúde e clínicas, indústria, construção, educação, serviços B2B, condomínios, beleza/estética, alimentação, tecnologia.</li>
+      <li><b>Região:</b> comece pela sua praça (facilita a reunião presencial e a confiança), depois expanda.</li>
+    </ul>
+    <h3>Sinais de que é um bom lead</h3>
+    <ul class="list">
+      <li>Posta pouco ou mal nas redes (dor clara), mas o negócio é bom.</li>
+      <li>Está contratando, expandindo, inaugurando — momento de investir em marca.</li>
+      <li>Interage com conteúdo de marketing/gestão (mostra interesse).</li>
+      <li>Concorrentes dele aparecem mais que ele (gatilho perfeito).</li>
+    </ul>
+    <div class="callout ok"><div class="t">Faça agora</div><p>Escreva em uma frase o seu ICP: "Quero falar com <strong>[cargo]</strong> de <strong>[segmento]</strong> em <strong>[região]</strong> que <strong>[dor]</strong>." Toda sua prospecção sai dessa frase.</p></div>
+  </div>
+</section>
+
+<!-- 5 · PROSPECÇÃO -->
+<section class="sec" id="prospeccao">
+  <div class="wrap">
+    <div class="num">05</div>
+    <h2>Como encontrar e prospectar</h2>
+    <p class="lead">Com o alvo definido, o LinkedIn vira uma lista infinita de clientes potenciais. O segredo é ter fontes fixas e uma lista nova toda semana.</p>
+    <h3>Onde achar as pessoas certas</h3>
+    <ul class="list">
+      <li><b>Busca avançada:</b> pesquise por cargo + palavra-chave + local. Ex.: "dono OR sócio OR CEO" + "clínica" + sua cidade. Use os filtros (localização, empresa, setor).</li>
+      <li><b>Quem comentou/curtiu:</b> em posts de marketing, de concorrentes ou de líderes do setor — quem interage é quem se interessa.</li>
+      <li><b>Grupos e eventos:</b> entre em grupos do segmento e da sua região; participe de eventos (os inscritos ficam visíveis).</li>
+      <li><b>"Quem viu seu perfil":</b> quem te visitou já demonstrou curiosidade — aborde.</li>
+      <li><b>Conexões das conexões (2º grau):</b> peça indicação ou use o vínculo em comum na abordagem.</li>
+      <li><b>Sales Navigator (se investir):</b> filtros muito mais potentes, listas salvas e alertas. Vale quando o volume crescer.</li>
+    </ul>
+    <div class="callout"><div class="t">Sistema de listas</div><p>Toda segunda, monte uma lista de <strong>20 a 30 perfis</strong> do seu ICP. Salve num documento simples (nome, empresa, gancho de abordagem). Trabalhe essa lista a semana toda.</p></div>
+    <div class="callout no"><div class="t">Cuidado com limites</div><p>Não dispare centenas de convites de uma vez — o LinkedIn bloqueia. Fique em torno de <strong>15-25 convites por dia</strong>, sempre com nota e contexto. Qualidade &gt; quantidade.</p></div>
+  </div>
+</section>
+
+<!-- 6 · RELACIONAMENTO -->
+<section class="sec" id="relacionamento">
+  <div class="wrap">
+    <div class="num">06</div>
+    <h2>Relacionamento antes da venda</h2>
+    <p class="lead">Aqui mora o "pulo do gato". A maioria erra vendendo no primeiro contato. Você vai <strong>aquecer</strong> o prospect antes — pra quando falar com ele, já não ser uma estranha.</p>
+    <h3>Como aquecer (o "pré-venda")</h3>
+    <ul class="list">
+      <li><b>Antes de mandar convite:</b> curta e comente 1-2 posts recentes da pessoa. Comentário que agrega, não "top!".</li>
+      <li><b>Depois de conectar:</b> não venda. Interaja com o conteúdo dele por alguns dias. Faça-se presente.</li>
+      <li><b>Dê antes de pedir:</b> compartilhe uma dica, um elogio genuíno ao trabalho dele, um material útil.</li>
+      <li><b>Cadência:</b> 3 a 5 toques (interações + mensagens leves) ao longo de 1-2 semanas antes de propor uma conversa.</li>
+    </ul>
+    <div class="callout ok"><div class="t">Comentário que abre portas</div><p>Em vez de "ótimo post!", escreva algo com valor: "Isso que você falou sobre atendimento é o que mais vejo travar as vendas dos negócios que acompanho. Faz total sentido." Você vira memorável.</p></div>
+    <div class="callout no"><div class="t">O que NÃO fazer</div><p>Mandar proposta/portfólio na primeira mensagem. Copiar-colar o mesmo texto pra todo mundo. Sumir depois do "oi". Pressionar. Isso queima o perfil e a marca da Impulse.</p></div>
+  </div>
+</section>
+
+<!-- 7 · CONTEÚDO -->
+<section class="sec" id="conteudo">
+  <div class="wrap">
+    <div class="num">07</div>
+    <h2>Conteúdo e assuntos da Impulse</h2>
+    <p class="lead">Conteúdo é o que faz o cliente vir até você. Postando com constância, você vira autoridade — e quem prospecta com autoridade recebe "sim" muito mais fácil. Como a Impulse é agência de marketing, você tem assunto de sobra.</p>
+    <h3>Os 5 pilares de conteúdo</h3>
+    <div class="cards">
+      <div class="fc"><h4>💡 Ensinar</h4><p>Dicas práticas de marketing, vendas e redes que o dono aplica hoje.</p></div>
+      <div class="fc"><h4>📈 Provar</h4><p>Cases, antes/depois, resultados de clientes (com permissão) e bastidores das entregas.</p></div>
+      <div class="fc"><h4>🎯 Posicionar</h4><p>Sua visão sobre marketing, erros comuns, o que funciona e o que não funciona.</p></div>
+      <div class="fc"><h4>🤝 Conectar</h4><p>Histórias, opinião, o dia a dia do comercial, o time Impulse. Humaniza.</p></div>
+      <div class="fc"><h4>📣 Chamar</h4><p>Convites diretos: "quer uma análise gratuita da sua presença?", vagas, novidades.</p></div>
+      <div class="fc"><h4>🔁 Reaproveitar</h4><p>Transforme um post do cliente, uma reunião ou um resultado em conteúdo.</p></div>
+    </div>
+    <h3>Ideias de post prontas</h3>
+    <ul class="list">
+      <li>"3 erros que fazem uma empresa postar todo dia e não vender nada."</li>
+      <li>"O que eu diria pra qualquer dono de [segmento] que quer aparecer no Google."</li>
+      <li>"Antes e depois: como estruturamos a presença digital de um cliente em 30 dias."</li>
+      <li>"Por que o concorrente do seu tamanho aparece mais que você (e como virar isso)."</li>
+      <li>"O passo a passo que uso pra planejar 1 mês de conteúdo de um cliente."</li>
+    </ul>
+    <div class="callout"><div class="t">Frequência ideal</div><p>2 a 3 posts por semana já constroem autoridade. Escreva simples, direto, sem enrolação. Termine sempre com uma pergunta ou um convite pra comentar — engajamento gera alcance.</p></div>
+  </div>
+</section>
+
+<!-- 8 · ABORDAGEM -->
+<section class="sec" id="abordagem">
+  <div class="wrap">
+    <div class="num">08</div>
+    <h2>Abordagem e mensagens</h2>
+    <p class="lead">A hora da verdade. Boas mensagens são curtas, personalizadas e sem cara de robô. Substitua o que está entre <em>colchetes</em> por algo real da pessoa — é isso que muda tudo.</p>
+
+    <h3>1 · Pedido de conexão (com nota)</h3>
+    <div class="script"><div class="h"><span class="dot"></span><span>Convite · até 300 caracteres</span></div><div class="b">
+      Oi <em>[nome]</em>, tudo bem? Vi seu trabalho na <em>[empresa]</em> e curti demais o que vocês fazem em <em>[algo específico]</em>. Trabalho com marketing aqui na Impulse e adoro trocar ideia com quem toca negócio de verdade. Bora se conectar? 🙌
+    </div></div>
+
+    <h3>2 · Primeira mensagem (depois de aceitar)</h3>
+    <div class="script"><div class="h"><span class="dot"></span><span>Sem vender · gerar conversa</span></div><div class="b">
+      Obrigada por aceitar, <em>[nome]</em>! Acompanhei alguns posts da <em>[empresa]</em> e fiquei curiosa: como vocês têm trabalhado a presença de vocês nas redes hoje? Pergunto porque vivo isso o dia todo aqui na Impulse e sempre aprendo com quem está na operação. 😊
+    </div></div>
+
+    <h3>3 · Oferta de valor (o gancho)</h3>
+    <div class="script"><div class="h"><span class="dot"></span><span>Depois de 1-2 trocas</span></div><div class="b">
+      <em>[nome]</em>, olhei rapidinho o perfil de vocês e tenho 2 ou 3 ideias simples que dariam pra aplicar já pra aparecer mais e gerar contato. Posso te mandar em 5 minutinhos numa call rápida essa semana? Sem compromisso nenhum — é só troca boa. 🚀
+    </div></div>
+
+    <h3>4 · Follow-up (quem não respondeu)</h3>
+    <div class="script"><div class="h"><span class="dot"></span><span>3-4 dias depois · leve</span></div><div class="b">
+      Oi <em>[nome]</em>, imagino a correria! Só deixo o convite de pé: se fizer sentido trocar uma ideia sobre a presença digital da <em>[empresa]</em>, tô por aqui. Qualquer coisa, me chama. 🙏
+    </div></div>
+
+    <div class="callout ok"><div class="t">Regras de ouro das mensagens</div><p>Curtas (o dono lê no celular). Uma pergunta por vez. Sempre algo específico da pessoa. Ofereça <strong>valor primeiro</strong> (ideia, análise, dica), reunião depois. E facilite o "sim": proponha dia/horário.</p></div>
+    <div class="callout no"><div class="t">Mate esses vícios</div><p>Áudio gigante no primeiro contato. "Deixa eu te apresentar nossos planos." Textão com portfólio. Emoji demais. Sumir depois do interesse. Cada um desses derruba a taxa de resposta.</p></div>
+  </div>
+</section>
+
+<!-- 9 · ROTINA -->
+<section class="sec" id="rotina">
+  <div class="wrap">
+    <div class="num">09</div>
+    <h2>Rotina, metas e métricas</h2>
+    <p class="lead">Resultado no LinkedIn vem de ritmo. Aqui está a rotina que mantém o funil sempre cheio sem tomar seu dia.</p>
+    <h3>Rotina diária (30-45 min)</h3>
+    <ul class="list">
+      <li><b>10 min · Aquecer:</b> curta e comente posts de prospects e do setor.</li>
+      <li><b>10 min · Prospectar:</b> mande 15-20 convites com nota da lista da semana.</li>
+      <li><b>15 min · Conversar:</b> responda mensagens, faça follow-ups, avance quem está aquecido.</li>
+      <li><b>2x na semana · Postar:</b> publique 1 conteúdo dos pilares.</li>
+    </ul>
+    <h3>Metas semanais (ajuste ao seu ritmo)</h3>
+    <div class="cards">
+      <div class="fc"><div class="n">80-120</div><h4>Convites</h4><p>com nota personalizada.</p></div>
+      <div class="fc"><div class="n">15-25</div><h4>Conversas iniciadas</h4><p>que saem do "oi".</p></div>
+      <div class="fc"><div class="n">3-5</div><h4>Calls agendadas</h4><p>o que vira proposta.</p></div>
+    </div>
+    <h3>O que medir</h3>
+    <ul class="list">
+      <li>Taxa de aceite dos convites (mire acima de 30%).</li>
+      <li>Taxa de resposta às mensagens (melhora com perfil + aquecimento).</li>
+      <li>Conversas → calls → propostas → clientes (seu funil).</li>
+      <li>Registre cada lead quente no sistema da Impulse pra não perder o timing.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 10 · PLANO 30 DIAS -->
+<section class="sec" id="plano">
+  <div class="wrap">
+    <div class="num">10</div>
+    <h2>Seu plano de 30 dias</h2>
+    <p class="lead">Um caminho pronto pra sair do zero ao funil rodando — uma semana de cada vez.</p>
+    <div class="cards two">
+      <div class="fc"><div class="n">Semana 1</div><h4>Fundação</h4><p>Reformule foto, banner, headline e "Sobre". Ative modo criador. Peça 3 recomendações. Defina seu ICP em 1 frase.</p></div>
+      <div class="fc"><div class="n">Semana 2</div><h4>Presença</h4><p>Publique 2 posts. Monte sua 1ª lista de 25 prospects. Comece a aquecer (curtidas + comentários de valor).</p></div>
+      <div class="fc"><div class="n">Semana 3</div><h4>Prospecção</h4><p>Convites diários com nota. Inicie conversas. Mais 2 posts. Faça follow-ups.</p></div>
+      <div class="fc"><div class="n">Semana 4</div><h4>Conversão</h4><p>Ofereça valor e puxe as primeiras calls. Registre os leads. Revise o que deu mais resposta e dobre a aposta.</p></div>
+    </div>
+    <h3>Checklist do perfil pronto</h3>
+    <div class="check">
+      <div class="it"><span class="box"></span><span>Foto profissional e sorridente</span></div>
+      <div class="it"><span class="box"></span><span>Banner com proposta de valor + logo</span></div>
+      <div class="it"><span class="box"></span><span>Headline com o que faz + para quem</span></div>
+      <div class="it"><span class="box"></span><span>"Sobre" no formato gancho → valor → CTA</span></div>
+      <div class="it"><span class="box"></span><span>URL personalizada</span></div>
+      <div class="it"><span class="box"></span><span>Modo criador ativado</span></div>
+      <div class="it"><span class="box"></span><span>Destaques com cases/depoimentos</span></div>
+      <div class="it"><span class="box"></span><span>3+ recomendações pedidas</span></div>
+      <div class="it"><span class="box"></span><span>ICP definido em 1 frase</span></div>
+      <div class="it"><span class="box"></span><span>1ª lista de 25 prospects montada</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ENCERRAMENTO -->
+<section class="end">
+  <div class="wrap">
+    <div class="kicker">A fórmula mágica, em uma frase</div>
+    <h2>Perfil de <span class="grad">autoridade</span> + relacionamento genuíno + constância = clientes chegando todo mês.</h2>
+    <p class="big" style="color:var(--ink-2); margin-top:22px; max-width:720px;">Não existe truque. Existe método rodando todo dia. Faça o ciclo virar, apareça de verdade, ajude antes de vender — e o LinkedIn passa a trabalhar por você.</p>
+    <p class="cta-line">Bora <span class="grad">encher o funil</span>, Franciele? 🚀</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <img src="assets/logo.png" alt="Impulse One">
+    <span>Impulse One · Manual de LinkedIn para o Comercial</span>
+  </div>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Jeito Impulse · Manual da Assistente</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  :root{
+    /* fundos */
+    --bg:#08080C; --bg-2:#0D0D14; --card:#121219; --card-2:#16161F;
+    /* texto */
+    --ink:#FFFFFF; --ink-soft:#A6A6B4; --ink-dim:#6C6C7A;
+    /* linhas */
+    --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
+    /* gradiente da marca */
+    --g1:#F7941E; --g2:#EC1E79; --g3:#A23BD6; --g4:#29ABE2;
+    --grad:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2);
+    --accent-solid:#F25FA8;
+    /* semânticas de prioridade */
+    --pri-red:#FF5A5A; --pri-amber:#FFB020; --pri-green:#39D98A;
+    /* fontes (Sora/Inter oficiais; fallback de sistema quando a fonte não carrega) */
+    --display:"Sora","Segoe UI",system-ui,-apple-system,sans-serif;
+    --body:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    --mono:"Consolas",ui-monospace,monospace;
+  }
+
+  *{box-sizing:border-box;}
+
+  .page{
+    background:var(--bg); color:var(--ink-soft);
+    font-family:var(--body); font-size:16px; line-height:1.6;
+    -webkit-font-smoothing:antialiased; position:relative; overflow:hidden;
+    text-wrap:pretty;
+  }
+  .page ::selection{background:rgba(236,30,121,.28); color:#fff;}
+
+  /* progress bar */
+  .progress{position:fixed; top:0; left:0; height:3px; width:0; background:var(--grad); z-index:50; transition:width .1s linear;}
+
+  /* background blobs */
+  .blob{position:fixed; border-radius:50%; filter:blur(58px); opacity:.32; z-index:0; pointer-events:none; will-change:transform;}
+  .blob.b1{width:520px;height:520px;background:radial-gradient(circle,#EC1E79,transparent 68%); top:-160px; left:-120px; animation:float1 22s ease-in-out infinite;}
+  .blob.b2{width:460px;height:460px;background:radial-gradient(circle,#29ABE2,transparent 68%); top:40%; right:-160px; animation:float2 26s ease-in-out infinite;}
+  .blob.b3{width:420px;height:420px;background:radial-gradient(circle,#A23BD6,transparent 68%); bottom:-160px; left:30%; animation:float1 30s ease-in-out infinite;}
+  @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(40px,-30px)}}
+  @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-40px,30px)}}
+
+  .shell{position:relative; z-index:1;}
+
+  /* ---------- Masthead ---------- */
+  .masthead{max-width:1180px; margin:0 auto; padding:2.2rem 28px 0;}
+  .brandbar{display:flex; align-items:center; gap:.7rem; padding:1rem 0 2.6rem;}
+  .brandbar .sq{width:26px;height:26px;border-radius:7px;background:var(--grad); box-shadow:0 4px 18px rgba(236,30,121,.4);}
+  .brandbar .wm{font-family:var(--display); font-weight:700; letter-spacing:-.02em; color:#fff; font-size:1.05rem;}
+  .brandbar .wm span{color:var(--ink-dim); font-weight:500;}
+
+  .hero{padding:1.4rem 0 3.4rem; border-bottom:1px solid var(--line);}
+  .eyebrow{display:inline-flex; align-items:center; gap:.55rem; font-size:.74rem; letter-spacing:.16em; text-transform:uppercase; font-weight:600; color:var(--ink); background:var(--card); border:1px solid var(--line-2); padding:.4rem .85rem; border-radius:999px; margin-bottom:1.4rem;}
+  .eyebrow .pulse{width:7px;height:7px;border-radius:50%; background:var(--grad);}
+  .hero h1{font-family:var(--display); font-weight:800; letter-spacing:-.025em; line-height:1.03; color:#fff; margin:0 0 1rem; font-size:clamp(2.3rem,6vw,3.9rem); text-wrap:balance; max-width:16ch;}
+  .hero .lede{font-size:clamp(1.05rem,2.2vw,1.22rem); color:var(--ink-soft); max-width:60ch; margin:0;}
+  .hero .lede b{color:#fff; font-weight:600;}
+  .meta-row{display:flex; flex-wrap:wrap; gap:.7rem; margin-top:2rem;}
+  .chip{display:inline-flex; align-items:center; gap:.5rem; font-size:.82rem; color:var(--ink-soft); background:var(--card); border:1px solid var(--line); border-radius:999px; padding:.4rem .9rem;}
+  .chip .dot{width:7px;height:7px;border-radius:50%; background:var(--grad);}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1180px; margin:0 auto; padding:2.6rem 28px 5rem; display:grid; grid-template-columns:236px minmax(0,1fr); gap:3.4rem; align-items:start;}
+
+  /* ---------- Sidebar ---------- */
+  nav.toc{position:sticky; top:1.2rem; font-size:.9rem; max-height:calc(100vh - 2.4rem); overflow-y:auto;}
+  nav.toc .lbl{font-size:.66rem; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-dim); font-weight:600; padding:0 .9rem; margin:0 0 .8rem;}
+  nav.toc ol{list-style:none; margin:0 0 1.2rem; padding:0; counter-reset:c;}
+  nav.toc a{display:flex; gap:.65rem; align-items:baseline; text-decoration:none; color:var(--ink-dim); padding:.4rem .9rem; border-left:2px solid transparent; line-height:1.3; transition:color .18s, border-color .18s, background .18s;}
+  nav.toc a .n{font-family:var(--mono); font-size:.72rem; color:var(--ink-dim); min-width:1.4em;}
+  nav.toc a:hover{color:#fff;}
+  nav.toc a.active{color:#fff; border-left-color:transparent; background:linear-gradient(90deg,rgba(236,30,121,.16),transparent); position:relative;}
+  nav.toc a.active::before{content:""; position:absolute; left:0; top:.35rem; bottom:.35rem; width:2px; background:var(--grad); border-radius:2px;}
+  nav.toc a.active .n{color:var(--accent-solid);}
+
+  /* ---------- Content ---------- */
+  main{min-width:0;}
+  section.ch{scroll-margin-top:1.2rem; padding-bottom:2.8rem;}
+  section.ch + section.ch{border-top:1px solid var(--line); padding-top:2.8rem;}
+  .ch-head{display:flex; align-items:baseline; gap:.9rem; margin-bottom:1.1rem;}
+  .ch-head .k{font-family:var(--mono); font-size:.9rem; color:var(--accent-solid); font-weight:600; padding-top:.15rem;}
+  .ch h2{font-family:var(--display); font-weight:700; letter-spacing:-.02em; line-height:1.06; color:#fff; margin:0; font-size:clamp(1.6rem,3.6vw,2.15rem); text-wrap:balance;}
+  .ch h3{font-family:var(--display); font-size:1.08rem; font-weight:600; color:#fff; margin:2rem 0 .7rem; letter-spacing:-.01em;}
+  .ch p{margin:0 0 1rem;}
+  .ch p.intro{font-size:1.08rem; color:var(--ink-soft);}
+  .ch strong{color:#fff; font-weight:600;}
+  .ch a.inline{color:var(--accent-solid); text-decoration:none; border-bottom:1px solid rgba(242,95,168,.4);}
+
+  ul.list{margin:0 0 1rem; padding:0; list-style:none;}
+  ul.list li{position:relative; padding-left:1.5rem; margin-bottom:.6rem;}
+  ul.list li::before{content:""; position:absolute; left:.1rem; top:.6em; width:6px; height:6px; border-radius:50%; background:var(--grad);}
+  ul.list li b, ul.list li strong{color:#fff;}
+
+  /* cards grid */
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1.3rem 0;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:18px; padding:1.2rem 1.25rem; transition:border-color .2s, background .2s, transform .2s;}
+  .card:hover{border-color:var(--line-2); background:var(--card-2); transform:translateY(-2px);}
+  .card .ic{width:34px;height:34px;border-radius:10px; display:grid; place-items:center; margin-bottom:.75rem; background:rgba(236,30,121,.14); border:1px solid var(--line); font-size:1.05rem;}
+  .card h4{font-family:var(--display); margin:0 0 .35rem; font-size:.98rem; font-weight:600; color:#fff;}
+  .card p{margin:0; font-size:.9rem; color:var(--ink-soft);}
+
+  /* golden rule callout */
+  .golden{position:relative; border-radius:20px; padding:1px; background:var(--grad); margin:1.5rem 0;}
+  .golden-in{background:var(--bg-2); border-radius:19px; padding:1.5rem 1.6rem;}
+  .golden .tag{font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; font-weight:700; color:var(--accent-solid); margin:0 0 .5rem;}
+  .golden p.q{font-family:var(--display); font-size:1.3rem; font-weight:700; color:#fff; margin:0 0 .5rem; letter-spacing:-.01em; line-height:1.2;}
+  .golden p.s{margin:0; font-size:.95rem; color:var(--ink-soft);}
+
+  /* timeline (rituals with time) */
+  .timeline{margin:1.3rem 0; position:relative; padding-left:1.6rem;}
+  .timeline::before{content:""; position:absolute; left:5px; top:.4rem; bottom:.4rem; width:2px; background:linear-gradient(180deg,var(--g1),var(--g2),var(--g3),var(--g4));}
+  .tl{position:relative; padding:0 0 1.4rem 0;}
+  .tl::before{content:""; position:absolute; left:-1.6rem; top:.25rem; width:12px; height:12px; border-radius:50%; background:var(--bg); border:2px solid var(--g2); box-shadow:0 0 0 3px rgba(236,30,121,.15);}
+  .tl .when{display:inline-block; font-family:var(--mono); font-size:.78rem; color:var(--accent-solid); font-weight:600; margin-bottom:.35rem;}
+  .tl h4{font-family:var(--display); margin:0 0 .5rem; font-size:1.02rem; color:#fff; font-weight:600;}
+  .tl ul{margin:0; padding:0; list-style:none;}
+  .tl li{position:relative; padding-left:1.3rem; margin-bottom:.4rem; font-size:.94rem;}
+  .tl li::before{content:"→"; position:absolute; left:0; top:0; color:var(--ink-dim); font-size:.85rem;}
+
+  /* priority dots */
+  .prio{display:grid; gap:.7rem; margin:1.2rem 0;}
+  .prio .row{display:grid; grid-template-columns:auto 1fr; gap:.85rem; align-items:start; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:.9rem 1.1rem;}
+  .prio .d{width:14px;height:14px;border-radius:50%; margin-top:.25rem;}
+  .prio .d.r{background:var(--pri-red); box-shadow:0 0 12px rgba(255,90,90,.5);}
+  .prio .d.a{background:var(--pri-amber); box-shadow:0 0 12px rgba(255,176,32,.5);}
+  .prio .d.g{background:var(--pri-green); box-shadow:0 0 12px rgba(57,217,138,.5);}
+  .prio b{color:#fff;}
+  .prio .row p{margin:.15rem 0 0; font-size:.9rem;}
+
+  /* approval traffic light */
+  .appr{display:grid; gap:.85rem; margin:1.3rem 0;}
+  .appr .row{display:grid; grid-template-columns:auto 1fr; gap:1rem; align-items:start; border:1px solid var(--line); border-radius:16px; padding:1.1rem 1.2rem; background:var(--card);}
+  .appr .tag{display:inline-flex; align-items:center; gap:.5rem; font-size:.76rem; font-weight:700; letter-spacing:.02em; padding:.35rem .75rem; border-radius:999px; white-space:nowrap;}
+  .appr .tag .l{width:9px;height:9px;border-radius:50%;}
+  .appr .go .tag{background:rgba(57,217,138,.14); color:var(--pri-green);} .appr .go .l{background:var(--pri-green);}
+  .appr .warn .tag{background:rgba(255,176,32,.14); color:var(--pri-amber);} .appr .warn .l{background:var(--pri-amber);}
+  .appr .stop .tag{background:rgba(255,90,90,.14); color:var(--pri-red);} .appr .stop .l{background:var(--pri-red);}
+  .appr .body{font-size:.94rem;} .appr .body b{color:#fff;}
+
+  /* agenda colors */
+  .agcolors{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:.7rem; margin:1.2rem 0;}
+  .agc{display:flex; align-items:center; gap:.6rem; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:.7rem .9rem; font-size:.9rem;}
+  .agc .sw{width:16px;height:16px;border-radius:5px; flex:none;}
+
+  /* message templates */
+  .msg{border:1px solid var(--line); border-radius:16px; margin:.8rem 0; background:var(--card); overflow:hidden;}
+  .msg > summary{cursor:pointer; list-style:none; display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.2rem; color:#fff; font-family:var(--display); font-weight:600; font-size:.98rem;}
+  .msg > summary::-webkit-details-marker{display:none;}
+  .msg > summary .caret{color:var(--ink-dim); transition:transform .2s; font-size:.8rem;}
+  .msg[open] > summary .caret{transform:rotate(90deg);}
+  .msg > summary .when-tag{font-family:var(--mono); font-size:.72rem; color:var(--accent-solid); font-weight:600; margin-left:auto; margin-right:.4rem;}
+  .msg-in{padding:0 1.2rem 1.2rem;}
+  .msg-body{background:var(--bg-2); border:1px solid var(--line); border-radius:12px; padding:1rem 1.1rem; font-size:.92rem; color:var(--ink-soft); white-space:pre-wrap; line-height:1.55;}
+  .copy{margin-top:.7rem; display:inline-flex; align-items:center; gap:.5rem; font-family:var(--body); font-size:.82rem; font-weight:600; color:#fff; background:transparent; border:1px solid var(--line-2); border-radius:999px; padding:.45rem .9rem; cursor:pointer; transition:background .2s, border-color .2s;}
+  .copy:hover{background:var(--card-2); border-color:var(--g2);}
+  .copy.done{color:var(--pri-green); border-color:var(--pri-green);}
+
+  /* steps */
+  ol.steps{counter-reset:s; list-style:none; margin:1.1rem 0; padding:0;}
+  ol.steps li{counter-increment:s; position:relative; padding:0 0 1.1rem 2.6rem; font-size:.96rem;}
+  ol.steps li::before{content:counter(s); position:absolute; left:0; top:-.1rem; width:1.8rem;height:1.8rem; border-radius:50%; background:rgba(236,30,121,.14); border:1px solid var(--line-2); color:var(--accent-solid); display:grid; place-items:center; font-size:.82rem; font-weight:700; font-family:var(--mono);}
+  ol.steps li:not(:last-child)::after{content:""; position:absolute; left:.88rem; top:1.8rem; bottom:.1rem; width:1px; background:var(--line-2);}
+  ol.steps li b{color:#fff;}
+
+  /* never box */
+  .never{border:1px solid rgba(255,90,90,.28); background:linear-gradient(180deg,rgba(255,90,90,.06),transparent); border-radius:18px; padding:1.3rem 1.4rem; margin:1.2rem 0;}
+  .never h3{margin-top:0; color:#fff;}
+  .never ul.list li::before{background:var(--pri-red);}
+
+  /* tofill */
+  .tofill{border:1px dashed var(--line-2); background:var(--bg-2); border-radius:14px; padding:1rem 1.2rem; margin:1.1rem 0; font-size:.9rem; color:var(--ink-dim); display:flex; gap:.75rem; align-items:flex-start;}
+  .tofill .pin{font-size:.64rem; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:var(--accent-solid); background:rgba(236,30,121,.14); border-radius:6px; padding:.2rem .5rem; white-space:nowrap; margin-top:.05rem;}
+  .tofill b{color:var(--ink-soft);}
+
+  /* footer */
+  footer.foot{max-width:1180px; margin:0 auto; padding:2.4rem 28px 3rem; border-top:1px solid var(--line); color:var(--ink-dim); font-size:.82rem; display:flex; justify-content:space-between; flex-wrap:wrap; gap:.6rem;}
+
+  /* reveal */
+  html.js .reveal{opacity:0; transform:translateY(16px);}
+  html.js .reveal.in{opacity:1; transform:none; transition:opacity .6s cubic-bezier(.22,1,.36,1), transform .6s cubic-bezier(.22,1,.36,1);}
+
+  html{scroll-behavior:smooth;}
+
+  @media (max-width:860px){
+    .wrap{grid-template-columns:1fr; gap:1.4rem; padding-top:1.6rem;}
+    nav.toc{position:static; max-height:none; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:1rem .5rem;}
+    nav.toc ol{margin-bottom:.4rem; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.1rem;}
+    nav.toc a{border-left:none;} nav.toc a.active::before{display:none;} nav.toc a.active{border-radius:8px;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{scroll-behavior:auto !important;}
+    .blob{animation:none !important;}
+    html.js .reveal{opacity:1 !important; transform:none !important;}
+    .card{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+<div class="blob b3"></div>
+
+<div class="page"><div class="shell">
+
+  <header class="masthead">
+    <div class="brandbar">
+      <span class="sq"></span>
+      <span class="wm">impulse one <span>· central operacional</span></span>
+    </div>
+    <div class="hero">
+      <span class="eyebrow"><span class="pulse"></span> Manual Operacional · Documento Vivo</span>
+      <h1>O Jeito Impulse de Operar</h1>
+      <p class="lede">Como o trabalho é feito aqui: a postura, os rituais e as decisões que você toma sozinha ou traz para aprovação. Escrito para a <b>função</b>, não para a pessoa. Serve para você hoje e para quem vier depois.</p>
+      <div class="meta-row">
+        <span class="chip"><span class="dot"></span> Em construção permanente</span>
+        <span class="chip">Versão 1.0</span>
+        <span class="chip">Base: POP Impulse + alinhamento operacional</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <nav class="toc" aria-label="Índice">
+      <p class="lbl">Índice</p>
+      <ol>
+        <li><a href="#sobre"><span class="n">00</span><span>Sobre este manual</span></a></li>
+        <li><a href="#mentalidade"><span class="n">01</span><span>Mentalidade Impulse</span></a></li>
+        <li><a href="#dia"><span class="n">02</span><span>O dia, hora a hora</span></a></li>
+        <li><a href="#checklist"><span class="n">03</span><span>Checklist do grupo</span></a></li>
+        <li><a href="#atendimento"><span class="n">04</span><span>Jeito de atender</span></a></li>
+        <li><a href="#agenda"><span class="n">05</span><span>Agenda e reuniões</span></a></li>
+        <li><a href="#captacao"><span class="n">06</span><span>Captações</span></a></li>
+        <li><a href="#sistema"><span class="n">07</span><span>O sistema é a verdade</span></a></li>
+        <li><a href="#mensagens"><span class="n">08</span><span>Modelos de mensagem</span></a></li>
+        <li><a href="#aprovacao"><span class="n">09</span><span>O que precisa de OK</span></a></li>
+        <li><a href="#reunioes"><span class="n">10</span><span>Padrão em reuniões</span></a></li>
+        <li><a href="#sigilo"><span class="n">11</span><span>Sigilo e limites</span></a></li>
+        <li><a href="#primeiros"><span class="n">12</span><span>Primeiros dias</span></a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <section class="ch reveal" id="sobre">
+        <div class="ch-head"><span class="k">00</span><h2>Sobre este manual</h2></div>
+        <p class="intro">Este é o manual da <strong>função de assistente da Impulse One</strong>. Ele descreve como as coisas são feitas aqui, independente de quem esteja no cargo.</p>
+        <p>Por isso ele nunca cita nomes de pessoas: fala sempre com <strong>você</strong>, quem quer que esteja na função. Papéis como "o gestor", "o responsável pelo tráfego" ou "o designer" aparecem pela função, não pelo nome. Assim o manual serve para você hoje e para quem vier depois, sem reescrever nada.</p>
+        <p>É um <strong>documento vivo</strong>. Nada aqui é definitivo: quando um jeito melhor de fazer algo aparecer, ele entra. Encontrou algo desatualizado, confuso ou faltando? Isso não é problema, é o próximo item a melhorar. Anote e traga.</p>
+        <ul class="list">
+          <li>Leia inteiro uma vez. Depois volte por seções, pelo índice ao lado.</li>
+          <li>Na dúvida entre duas leituras de uma regra, escolha a mais cuidadosa e pergunte.</li>
+          <li>O que não estiver escrito aqui ainda não virou regra: pergunte antes de assumir.</li>
+        </ul>
+      </section>
+
+      <section class="ch reveal" id="mentalidade">
+        <div class="ch-head"><span class="k">01</span><h2>Mentalidade Impulse</h2></div>
+        <p class="intro">Antes das tarefas, a maneira de estar no trabalho. O atendimento Impulse é <strong>proativo, ágil, claro e solucionador</strong>. O cliente precisa sentir segurança em cada mensagem.</p>
+
+        <div class="golden reveal">
+          <div class="golden-in">
+            <p class="tag">Regra de ouro</p>
+            <p class="q">"O que pode dar problema depois disso?"</p>
+            <p class="s">Pergunte isso antes de fechar qualquer coisa. Se houver risco (captação sem roteiro, reunião sem confirmar, material sem endereço), resolva antes, não depois.</p>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card"><div class="ic">🎯</div><h4>Antecipe, não reaja</h4><p>Enxergue o próximo passo antes de ele ser pedido. Saia do modo reativo: aja antes de alguém precisar cobrar.</p></div>
+          <div class="card"><div class="ic">🔍</div><h4>Nunca assuma, confirme</h4><p>Nada de "achei que", "me disseram que". Valide horário, duração, local e responsável na fonte. Confirmação elimina ruído.</p></div>
+          <div class="card"><div class="ic">🗺️</div><h4>Visão do todo</h4><p>Não olhe só a tarefa da vez. Tenha o status de todos os clientes na cabeça e saiba o que está parado e por quê.</p></div>
+          <div class="card"><div class="ic">✅</div><h4>Traga solução</h4><p>Não leve só o problema. Chegue com o problema e um caminho. Dono do que assume até concluir ou devolver com clareza.</p></div>
+          <div class="card"><div class="ic">💬</div><h4>Comunique cedo</h4><p>Dúvida, atraso ou risco: avise no começo, não no fim. Surpresa boa é bem-vinda, surpresa ruim em cima da hora não.</p></div>
+          <div class="card"><div class="ic">📈</div><h4>Do operacional ao estratégico</h4><p>O domínio começa na rotina bem-feita e evolui, com o tempo, para enxergar e propor melhorias sozinha.</p></div>
+        </div>
+      </section>
+
+      <section class="ch reveal" id="dia">
+        <div class="ch-head"><span class="k">02</span><h2>O dia, hora a hora</h2></div>
+        <p class="intro">O ritmo do dia é fixo. Estes rituais são <strong>obrigatórios</strong> e rodam sem ninguém precisar lembrar. Sempre que entrar na Impulse, abra a agenda e siga os protocolos.</p>
+
+        <div class="timeline">
+          <div class="tl">
+            <span class="when">Início do dia</span>
+            <h4>Abrir e mapear</h4>
+            <ul>
+              <li>Abrir a agenda e o sistema</li>
+              <li>Passar por todos os clientes, um por um: o que está atrasado, o que vence hoje ou amanhã, o que está faltando</li>
+              <li>Listar as pendências do dia</li>
+              <li>Enviar o checklist do dia no grupo (ver seção 03)</li>
+            </ul>
+          </div>
+          <div class="tl">
+            <span class="when">13:30</span>
+            <h4>Confirmar as reuniões do dia</h4>
+            <ul>
+              <li>Confirmar todas as reuniões do dia</li>
+              <li>Validar horário, link e participantes</li>
+              <li>Se o cliente não confirmar, cobrar</li>
+            </ul>
+          </div>
+          <div class="tl">
+            <span class="when">14:00 · seg / qua / sex</span>
+            <h4>Enviar os POPs para os clientes</h4>
+            <ul>
+              <li>Rotina fixa, sem depender de cobrança manual</li>
+            </ul>
+          </div>
+          <div class="tl">
+            <span class="when">Durante o dia · loop principal</span>
+            <h4>Rodar cliente por cliente</h4>
+            <ul>
+              <li>O status está atualizado no sistema?</li>
+              <li>Tem algo parado? Já cobrei quem precisa?</li>
+              <li>Falta aprovação? Falta agendamento?</li>
+              <li>Se sim para qualquer um: agir na hora</li>
+              <li>Atualizar o sistema várias vezes ao dia (status, prazos, links, acessos)</li>
+            </ul>
+          </div>
+          <div class="tl">
+            <span class="when">Final do dia</span>
+            <h4>Fechar e preparar o amanhã</h4>
+            <ul>
+              <li>Confirmar as reuniões do dia seguinte</li>
+              <li>Revisar o sistema completo: nada ficou parado, tudo atualizado</li>
+              <li>Enviar o checklist de fechamento no grupo</li>
+              <li>Listar as pendências de amanhã</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section class="ch reveal" id="checklist">
+        <div class="ch-head"><span class="k">03</span><h2>Checklist do grupo</h2></div>
+        <p class="intro">Obrigatório, enviado no grupo <strong>na primeira hora do dia</strong> e <strong>ao final do expediente</strong>. Ele lista todas as demandas classificadas por prioridade.</p>
+
+        <div class="prio">
+          <div class="row"><span class="d r"></span><div><b>Vermelho · Prioridade do dia</b><p>Urgente, precisa ser resolvido hoje.</p></div></div>
+          <div class="row"><span class="d a"></span><div><b>Amarelo · Em atenção</b><p>Importante, mas não urgente.</p></div></div>
+          <div class="row"><span class="d g"></span><div><b>Verde · Sem prioridade</b><p>Pode ser feito conforme a disponibilidade.</p></div></div>
+        </div>
+
+        <p>O objetivo é <strong>concluir todo o checklist dentro do dia</strong>. Se não der: reclassifique a prioridade, justifique no checklist e leve como prioridade no dia seguinte. Atualize o checklist ao longo do dia e use ele como guia principal.</p>
+
+        <h3>Modelo para copiar e colar</h3>
+        <details class="msg reveal">
+          <summary>Checklist diário <span class="caret">▸</span></summary>
+          <div class="msg-in">
+            <div class="msg-body">📅 Checklist – [DATA]
+
+🔴 Prioridades do dia:
+•
+•
+
+🟡 Em atenção:
+•
+•
+
+🟢 Sem prioridade:
+•
+•
+
+✅ Status final do dia:
+( ) Concluído
+( ) Pendente → Justificar:</div>
+            <button class="copy">Copiar modelo</button>
+          </div>
+        </details>
+      </section>
+
+      <section class="ch reveal" id="atendimento">
+        <div class="ch-head"><span class="k">04</span><h2>Jeito Impulse de atender</h2></div>
+        <p class="intro">Toda vez que o cliente falar algo, <strong>cumprimente e responda sobre a demanda</strong>. O cliente precisa sentir segurança em cada mensagem.</p>
+        <ul class="list">
+          <li><b>Sempre se identifique</b> ao iniciar a conversa ("aqui é a [seu nome]") e <b>chame o cliente pelo nome</b>.</li>
+          <li>Pergunte se está tudo bem, com leveza.</li>
+          <li><b>Nunca deixe o cliente mais de 10 a 15 minutos sem resposta.</b> Se não souber responder: "vou verificar e já te retorno".</li>
+          <li>Tente resolver na hora. Se não der, <b>dê um prazo</b>.</li>
+          <li>Registre a solicitação e encaminhe para a equipe ou o gestor. Mantenha a conversa desarquivada enquanto estiver aberta.</li>
+          <li>Não use <b>CAIXA ALTA</b>. Emoji pode, com bom senso.</li>
+          <li>Traga sempre a solução, não só o problema. Não prometa prazo sem confirmar.</li>
+          <li>Depois de resolver, <b>arquive a conversa</b>. Mantenha o WhatsApp organizado e limpo.</li>
+        </ul>
+        <div class="tofill"><span class="pin">Completar</span><span>Se houver uma ferramenta de apoio ao atendimento, descreva aqui quando e como usá-la.</span></div>
+      </section>
+
+      <section class="ch reveal" id="agenda">
+        <div class="ch-head"><span class="k">05</span><h2>Agenda e reuniões</h2></div>
+        <p class="intro">A gestão de agenda é prioridade diária. Abra no início do dia e confira todas as reuniões.</p>
+
+        <h3>Confirmação de reuniões</h3>
+        <ul class="list">
+          <li>Reuniões no <b>mesmo dia</b>: confirmar pela manhã.</li>
+          <li>Reuniões <b>muito cedo</b>: confirmar no dia anterior.</li>
+          <li>Validar sempre: horário, link e participantes. Sem confirmação, cobrar.</li>
+        </ul>
+
+        <h3>Cores da agenda (padrão)</h3>
+        <div class="agcolors">
+          <div class="agc"><span class="sw" style="background:#5B2A86"></span> Roxo escuro · reuniões importantes / clientes</div>
+          <div class="agc"><span class="sw" style="background:#B085D9"></span> Roxo claro · reuniões internas</div>
+          <div class="agc"><span class="sw" style="background:#FFC93C"></span> Amarelo · assuntos particulares</div>
+          <div class="agc"><span class="sw" style="background:#39D98A"></span> Verde · assuntos particulares</div>
+          <div class="agc"><span class="sw" style="background:#F25FA8"></span> Rosa · lembretes</div>
+          <div class="agc"><span class="sw" style="background:#8A8A99"></span> Cinza · deslocamento</div>
+        </div>
+
+        <h3>Regras de agendamento</h3>
+        <ul class="list">
+          <li>Marcar reunião com cliente <b>no mínimo 2 dias após o recebimento do material</b>, sempre prevendo tempo de análise antes.</li>
+          <li>Ao agendar, <b>sempre oferecer opções de horário</b> (2 a 3). Só mandar o link de agenda automática em último caso, se o cliente não aceitar os sugeridos.</li>
+          <li>Prazo padrão com o designer: até as 12h do dia combinado. Marcar a reunião com o cliente no mínimo 2 dias depois, garantindo revisões, ajustes e correções.</li>
+          <li>Reuniões com tráfego: verificar a disponibilidade do responsável antes de marcar. Se o gestor não participar, solicitar o relatório após a reunião.</li>
+        </ul>
+      </section>
+
+      <section class="ch reveal" id="captacao">
+        <div class="ch-head"><span class="k">06</span><h2>Captações</h2></div>
+        <p class="intro">O ponto onde mais aparece "problema depois". A regra: <strong>nunca marcar captação sem garantir que existe roteiro ou script antes</strong>, e nunca assumir o endereço.</p>
+
+        <h3>Passo a passo</h3>
+        <ol class="steps">
+          <li><b>Confirmar com o profissional</b> (videomaker ou responsável pela captação).</li>
+          <li><b>Confirmar com o cliente:</b> horário, duração e endereço. Sempre pedir o endereço, nunca assumir. Confirmar também quem vai receber no local.</li>
+          <li><b>Validar todos os dados</b> e preencher o protocolo de captação completo.</li>
+          <li><b>Atualizar o sistema</b> por inteiro.</li>
+          <li><b>Enviar as informações</b> para o responsável.</li>
+          <li><b>Garantir que tudo está documentado</b> (briefing, roteiro, prazo e onde o material será armazenado).</li>
+        </ol>
+
+        <h3>Protocolo de captação (campos a preencher)</h3>
+        <ul class="list">
+          <li>Cliente / nome da empresa</li>
+          <li>Responsável no local e telefone</li>
+          <li>Endereço, data e horário da captação</li>
+          <li>Tipo de captação (foto / vídeo / drone / depoimentos / conteúdo para redes)</li>
+          <li>Objetivo do material (redes / tráfego pago / institucional / outro)</li>
+          <li>Atividades a realizar e material prioritário (não pode faltar)</li>
+          <li>Referência de estilo (link) e onde o material deve ser armazenado</li>
+          <li>Prazo de entrega</li>
+        </ul>
+      </section>
+
+      <section class="ch reveal" id="sistema">
+        <div class="ch-head"><span class="k">07</span><h2>O sistema é a fonte da verdade</h2></div>
+        <p class="intro">O sistema, não o Trello e nem o WhatsApp, é a verdade. Ele precisa <strong>refletir a realidade</strong>, sempre. Nunca confie no que "parece".</p>
+        <ul class="list">
+          <li>Atualize o status real de tudo, várias vezes ao dia.</li>
+          <li>Registre prazos, links e acessos. <b>Senhas ficam no cofre de senhas</b>, nunca soltas e nunca neste manual.</li>
+          <li>Garanta que sistema = realidade antes de encerrar o dia.</li>
+        </ul>
+        <h3>Trello e organização</h3>
+        <ul class="list">
+          <li>Todos os cards com relatórios atualizados, contratos (solicitar ao administrativo quando necessário) e planejamento de conteúdo do mês atual e do próximo.</li>
+          <li>Limpar boards antigos e desnecessários, padronizar a estrutura e garantir que tudo relevante também esteja no sistema.</li>
+        </ul>
+      </section>
+
+      <section class="ch reveal" id="mensagens">
+        <div class="ch-head"><span class="k">08</span><h2>Modelos de mensagem</h2></div>
+        <p class="intro">Os POPs de comunicação prontos. Copie, troque o que está entre [colchetes] e envie. Assinar sempre como <strong>Equipe Impulse One</strong>.</p>
+
+        <details class="msg reveal">
+          <summary>Materiais prontos para aprovação <span class="when-tag">aprovação</span><span class="caret">▸</span></summary>
+          <div class="msg-in"><div class="msg-body">Olá, Time [nome da empresa]!
+Esperamos que todos estejam muito bem! 😊
+
+Chegamos à ETAPA DE APROVAÇÃO! 🚀
+Mês de planejamento: [mês/ano]
+✅ Planejamento de conteúdo
+✅ Criação de arte
+❌ Aprovação do cliente
+❌ Agendamento
+
+👉 Para APROVAR, basta clicar no link do Trello abaixo 👇
+[LINK DO TRELLO]
+
+Se houver alguma dúvida ou se precisarem de suporte, estamos à disposição.
+Ótimo dia!
+Att, Equipe Impulse One 🚀✨</div><button class="copy">Copiar mensagem</button></div>
+        </details>
+
+        <details class="msg reveal">
+          <summary>Lembrete de aprovação <span class="when-tag">follow-up</span><span class="caret">▸</span></summary>
+          <div class="msg-in"><div class="msg-body">Olá [nome do cliente],
+Esperamos que esteja tudo bem com vocês! 👋
+
+Estamos entrando em contato para lembrar que os criativos prontos para sua APROVAÇÃO estão disponíveis no Trello. Após a aprovação, agendaremos as publicações antes de iniciar o mês de [mês].
+
+👉 Para APROVAR, basta clicar no link do Trello abaixo 👇
+[LINK DO TRELLO]
+
+Em caso de dúvidas, estamos por aqui pelo WhatsApp. Se preferirem, podemos agendar uma breve reunião.
+Att, Equipe Impulse One 🚀✨</div><button class="copy">Copiar mensagem</button></div>
+        </details>
+
+        <details class="msg reveal">
+          <summary>Aprovação urgente <span class="when-tag">prazo curto</span><span class="caret">▸</span></summary>
+          <div class="msg-in"><div class="msg-body">Olá [nome do cliente]!
+Faltam apenas [X dias] para [mês] começar! 👋
+
+Precisamos da sua aprovação para continuar com os agendamentos e garantir que tudo comece no prazo certo.
+Se você já aprovou, ignore esta mensagem.
+
+Atenciosamente, Equipe Impulse One 🚀✨</div><button class="copy">Copiar mensagem</button></div>
+        </details>
+
+        <div class="tofill"><span class="pin">Cofre</span><span>Mensagem de <b>dados de pagamento (PIX)</b> existe, mas os dados bancários ficam no cofre seguro, não aqui. O manual só aponta o caminho.</span></div>
+      </section>
+
+      <section class="ch reveal" id="aprovacao">
+        <div class="ch-head"><span class="k">09</span><h2>O que precisa de OK</h2></div>
+        <p class="intro">A regra mais importante: saber o que você decide sozinha e o que passa antes. Na dúvida, suba um nível.</p>
+        <div class="appr">
+          <div class="row go"><span class="tag"><span class="l"></span>Pode sozinha</span><span class="body"><b>Rotina.</b> Confirmar reuniões, responder mensagens padrão, enviar os POPs no horário, atualizar o sistema, arquivar conversas, cobrar pendências combinadas, oferecer opções de horário.</span></div>
+          <div class="row warn"><span class="tag"><span class="l"></span>Faça e avise</span><span class="body"><b>Fora do trivial, mas necessário.</b> Resolva e deixe registrado o que foi feito. Mudanças ficam visíveis, nunca silenciosas.</span></div>
+          <div class="row stop"><span class="tag"><span class="l"></span>Peça OK antes</span><span class="body"><b>Dinheiro, contratos, envios externos e o que é difícil de desfazer.</b> Nada que afete gente de fora sai sem aprovação explícita.</span></div>
+        </div>
+        <div class="tofill"><span class="pin">Completar</span><span>Vamos listar exemplos reais em cada faixa conforme aparecerem no dia a dia. Quanto mais concreto, menos dúvida.</span></div>
+      </section>
+
+      <section class="ch reveal" id="reunioes">
+        <div class="ch-head"><span class="k">10</span><h2>Padrão em reuniões</h2></div>
+        <p class="intro">Toda reunião, interna ou com cliente, segue um padrão visual e comportamental que transmite profissionalismo e presença.</p>
+        <h3>Visual obrigatório</h3>
+        <ul class="list">
+          <li>Camiseta preta em todas as reuniões.</li>
+          <li>Fundo falso padrão da Impulse.</li>
+          <li>Câmera sempre ligada, independente do tipo de reunião.</li>
+        </ul>
+        <h3>Postura</h3>
+        <ul class="list">
+          <li>Atenção total ao cliente enquanto ele fala. Escuta ativa: olhar, postura, presença.</li>
+          <li>Não responder mensagens nem outras demandas durante a reunião. Sem distrações (celular, abas paralelas).</li>
+          <li>Boa iluminação no rosto, câmera estável e bem enquadrada, ambiente silencioso. Verificar áudio e vídeo antes de entrar.</li>
+        </ul>
+        <div class="golden reveal"><div class="golden-in"><p class="tag">Regra de ouro</p><p class="q">Na reunião, o cliente é a prioridade absoluta.</p><p class="s">Presença, atenção e clareza são indispensáveis.</p></div></div>
+      </section>
+
+      <section class="ch reveal" id="sigilo">
+        <div class="ch-head"><span class="k">11</span><h2>Sigilo e limites</h2></div>
+        <p class="intro">A parte inegociável. Na dúvida, pare e pergunte.</p>
+        <div class="never">
+          <h3>Nunca</h3>
+          <ul class="list">
+            <li>Compartilhar informações internas, valores ou dados de terceiros com quem não é da operação.</li>
+            <li>Guardar senhas ou dados bancários neste manual ou em qualquer lugar aberto. Use o cofre combinado.</li>
+            <li>Mover dinheiro, fechar contrato ou enviar algo externo sem aprovação explícita.</li>
+            <li>Prometer prazo sem confirmar com quem executa.</li>
+            <li>Assumir informação ou compromisso em nome de outra pessoa sem confirmar.</li>
+            <li>Deixar cliente sem resposta por mais de 10 a 15 minutos.</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="ch reveal" id="primeiros">
+        <div class="ch-head"><span class="k">12</span><h2>Primeiros dias</h2></div>
+        <p class="intro">Se você acabou de chegar, este é o seu caminho. Feito na ordem, tira você do zero com segurança.</p>
+        <ol class="steps">
+          <li><b>Leia este manual inteiro.</b> Sem pressa. Anote toda dúvida, elas viram melhorias.</li>
+          <li><b>Garanta seus acessos.</b> Confirme que entra em cada ferramenta pelo cofre de senhas.</li>
+          <li><b>Acompanhe um dia completo.</b> Observe o ciclo inteiro antes de assumir sozinha.</li>
+          <li><b>Assuma aos poucos.</b> Comece pela rotina (faixa verde) e vá subindo conforme a confiança cresce.</li>
+          <li><b>Domine o sistema.</b> A meta é ter o status de todos os clientes na ponta da língua e dar um relatório diário completo da operação.</li>
+          <li><b>Traga suas primeiras melhorias.</b> Olhar novo enxerga o que a rotina já não vê. Isso é valioso.</li>
+        </ol>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="foot">
+    <span>Manual da Assistente · Impulse One · documento vivo</span>
+    <span>Nunca identifica pessoas. Descreve a função.</span>
+  </footer>
+
+</div></div>
+
+<script>
+  document.documentElement.classList.add('js');
+  (function(){
+    // reveal on scroll
+    var rev = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+    if('IntersectionObserver' in window){
+      var io = new IntersectionObserver(function(entries){
+        entries.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
+      }, {rootMargin:'0px 0px -8% 0px', threshold:.08});
+      rev.forEach(function(el){ io.observe(el); });
+    } else { rev.forEach(function(el){ el.classList.add('in'); }); }
+
+    // scrollspy + progress bar
+    var links = Array.prototype.slice.call(document.querySelectorAll('nav.toc a'));
+    var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+    var bar = document.getElementById('progress');
+    function onScroll(){
+      var pos = window.scrollY + 130, cur = secs[0];
+      for(var i=0;i<secs.length;i++){ if(secs[i] && secs[i].offsetTop <= pos) cur = secs[i]; }
+      links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href') === '#' + (cur && cur.id)); });
+      var h = document.documentElement.scrollHeight - window.innerHeight;
+      bar.style.width = (h>0 ? (window.scrollY/h*100) : 0) + '%';
+    }
+    window.addEventListener('scroll', onScroll, {passive:true});
+    window.addEventListener('resize', onScroll); onScroll();
+
+    // copy buttons
+    document.querySelectorAll('.copy').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var body = btn.parentElement.querySelector('.msg-body');
+        var txt = body ? body.innerText : '';
+        function ok(){ var t=btn.textContent; btn.textContent='Copiado ✓'; btn.classList.add('done'); setTimeout(function(){ btn.textContent=t; btn.classList.remove('done'); },1600); }
+        if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(function(){ fallback(txt); ok(); }); }
+        else { fallback(txt); ok(); }
+      });
+    });
+    function fallback(txt){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
+  })();
+</script>
+</body>
+</html>

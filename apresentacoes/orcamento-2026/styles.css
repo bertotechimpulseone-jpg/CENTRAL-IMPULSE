@@ -1,0 +1,237 @@
+@import "fonts.css";
+
+/* ============================================================
+   IMPULSE ONE — Orçamento 2026 · Design System "Equilíbrio"
+   Preto premium + acentos em gradiente neon (assinatura da marca)
+   ============================================================ */
+
+:root{
+  /* base */
+  --black:        #05050A;
+  --bg:           #07070D;
+  --bg-2:         #0B0B14;
+  --surface:      rgba(255,255,255,.035);
+  --surface-2:    rgba(255,255,255,.055);
+  --hair:         rgba(255,255,255,.10);
+  --hair-soft:    rgba(255,255,255,.06);
+
+  /* brand neon (derivado do logo: laranja → magenta → violeta → ciano) */
+  --orange:  #FF6A3D;
+  --magenta: #FF2E9A;
+  --violet:  #7C5CFF;
+  --cyan:    #2FE3E3;
+
+  --grad:        linear-gradient(100deg, var(--magenta) 0%, var(--violet) 52%, var(--cyan) 100%);
+  --grad-warm:   linear-gradient(120deg, var(--orange) 0%, var(--magenta) 45%, var(--violet) 78%, var(--cyan) 100%);
+  --grad-text:   linear-gradient(100deg, #FF54AE 0%, #9B7BFF 50%, #46ECEC 100%);
+
+  /* texto */
+  --ink:    #FFFFFF;
+  --ink-2:  #C9CBD8;
+  --ink-3:  #8C8FA3;
+  --ink-4:  #5C5F70;
+
+  /* tipografia */
+  --display: "Space Grotesk", system-ui, sans-serif;
+  --body:    "Inter", system-ui, sans-serif;
+  --mono:    "JetBrains Mono", ui-monospace, monospace;
+
+  --pad: 92px;            /* margem lateral padrão */
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+html,body{ background:#000; }
+
+@page{ size: 1440px 810px; margin:0; }
+
+.slide{
+  position:relative;
+  width:1440px; height:810px;
+  overflow:hidden;
+  background:
+    radial-gradient(120% 90% at 88% -10%, rgba(124,92,255,.16), transparent 55%),
+    radial-gradient(90% 80% at -8% 108%, rgba(255,46,154,.13), transparent 52%),
+    radial-gradient(70% 70% at 50% 120%, rgba(47,227,227,.07), transparent 60%),
+    linear-gradient(180deg, var(--bg) 0%, var(--black) 100%);
+  color:var(--ink);
+  font-family:var(--body);
+  -webkit-font-smoothing:antialiased;
+  page-break-after:always;
+  break-after:page;
+}
+.slide:last-child{ page-break-after:auto; break-after:auto; }
+
+/* malha técnica sutil (tech feel) */
+.slide::before{
+  content:""; position:absolute; inset:0;
+  background-image:
+    radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.4px);
+  background-size:34px 34px;
+  -webkit-mask-image: radial-gradient(115% 100% at 50% 40%, #000 30%, transparent 80%);
+          mask-image: radial-gradient(115% 100% at 50% 40%, #000 30%, transparent 80%);
+  opacity:.5; pointer-events:none;
+}
+
+/* ---- molduras "L" de canto (assinatura) ---- */
+.corner{ position:absolute; width:96px; height:96px; pointer-events:none; z-index:3;
+  border:2px solid transparent; border-radius:4px; }
+.corner::after{ content:""; position:absolute; inset:-2px; border-radius:6px; padding:2px;
+  background:var(--grad-warm);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude; }
+.corner.tl{ top:46px; left:46px; border-right:0; border-bottom:0; }
+.corner.tl::after{ -webkit-mask:none; mask:none;
+  background:none; border-top:2px solid; border-left:2px solid;
+  border-image:var(--grad-warm) 1; inset:0; padding:0; border-radius:0; }
+/* simpler reliable L-corners */
+.lc{ position:absolute; z-index:3; pointer-events:none; }
+.lc i{ position:absolute; background:var(--grad-warm); border-radius:2px; box-shadow:0 0 14px rgba(255,46,154,.35); }
+.lc .h{ height:2.5px; } .lc .v{ width:2.5px; }
+.lc.tl{ top:44px; left:44px; } .lc.tl .h{ width:70px; } .lc.tl .v{ height:70px; }
+.lc.br{ bottom:44px; right:44px; } .lc.br .h{ width:70px; right:0; bottom:0; } .lc.br .v{ height:70px; right:0; bottom:0; }
+.lc.tr{ top:44px; right:44px; } .lc.tr .h{ width:70px; right:0; } .lc.tr .v{ height:70px; right:0; }
+
+/* ---- logo lockup ---- */
+.brand{ position:absolute; top:48px; right:64px; z-index:5; display:flex; align-items:center; gap:0; }
+.brand img{ height:62px; display:block; filter:drop-shadow(0 4px 20px rgba(0,0,0,.5)); }
+
+/* ---- índice de slide ---- */
+.idx{ position:absolute; bottom:46px; left:var(--pad); z-index:5;
+  font-family:var(--mono); font-size:13px; letter-spacing:.18em; color:var(--ink-4); }
+.idx b{ color:var(--ink-2); font-weight:500; }
+
+/* ---- kicker mono ---- */
+.kicker{ font-family:var(--mono); font-size:15px; letter-spacing:.34em; text-transform:uppercase;
+  color:var(--cyan); display:inline-flex; align-items:center; gap:14px; }
+.kicker::before{ content:""; width:34px; height:1.5px; background:var(--grad); display:inline-block; }
+
+/* ---- títulos ---- */
+h1.title{ font-family:var(--display); font-weight:700; color:var(--ink);
+  font-size:104px; line-height:.96; letter-spacing:-.022em; }
+h2.title{ font-family:var(--display); font-weight:700; color:var(--ink);
+  font-size:72px; line-height:1.0; letter-spacing:-.02em; }
+.grad-ink{ background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.rule{ width:120px; height:3px; background:var(--grad); border-radius:3px; box-shadow:0 0 18px rgba(255,46,154,.4); }
+
+/* ---- cards de vidro (fundo sólido p/ fidelidade no PDF, blur é só reforço) ---- */
+.card{ position:relative; background:rgba(15,15,23,.62); border:1px solid var(--hair);
+  border-radius:20px; -webkit-backdrop-filter:blur(7px); backdrop-filter:blur(7px);
+  box-shadow:0 24px 60px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05); }
+.card::before{ content:""; position:absolute; left:24px; right:24px; top:0; height:1px;
+  background:linear-gradient(90deg,transparent, rgba(255,255,255,.35), transparent); opacity:.6; }
+
+/* ---- pílula VALOR ---- */
+.price{ display:inline-flex; align-items:baseline; gap:10px; padding:18px 34px;
+  border-radius:999px; background:var(--grad); color:#0a0512;
+  box-shadow:0 14px 40px rgba(255,46,154,.4), inset 0 1px 0 rgba(255,255,255,.4);
+  font-family:var(--display); font-weight:700; }
+.price .cur{ font-family:var(--mono); font-weight:700; font-size:20px; letter-spacing:.02em; transform:translateY(-2px); }
+.price .val{ font-size:46px; line-height:1; letter-spacing:-.02em; }
+.price-out{ display:inline-flex; align-items:baseline; gap:10px; padding:16px 32px; border-radius:999px;
+  border:1.5px solid transparent; background:
+    linear-gradient(var(--bg-2),var(--bg-2)) padding-box,
+    var(--grad) border-box;
+  font-family:var(--display); font-weight:700; color:#fff; }
+.price-out .cur{ font-family:var(--mono); font-size:18px; color:var(--cyan); }
+.price-out .val{ font-size:42px; letter-spacing:-.02em; }
+
+/* ---- listas com check ---- */
+.feat{ list-style:none; display:flex; flex-direction:column; gap:18px; }
+.feat li{ display:flex; align-items:flex-start; gap:16px; font-size:23px; color:var(--ink-2); line-height:1.25; }
+.feat li b{ color:#fff; font-weight:600; }
+.feat .chk{ flex:0 0 auto; width:28px; height:28px; margin-top:1px; }
+
+/* utilitários */
+.fill{ width:100%; height:100%; object-fit:cover; display:block; }
+.muted{ color:var(--ink-3); }
+.disc{ position:absolute; left:var(--pad); right:var(--pad); bottom:74px; z-index:4;
+  font-size:14px; color:var(--ink-4); line-height:1.5; text-align:center; }
+
+/* ============================================================
+   COMPONENTES DE LAYOUT (slides específicos)
+   ============================================================ */
+
+/* título padrão topo-esquerda */
+.head{ position:absolute; left:var(--pad); top:92px; z-index:4; max-width:1100px; }
+.head .kicker{ margin-bottom:18px; }
+.head h2.title{ margin-top:2px; }
+
+/* divisória de seção (preto dramático) */
+.divider{ display:flex; flex-direction:column; justify-content:center; padding-left:var(--pad); }
+.divider .seclabel{ font-family:var(--mono); font-size:17px; letter-spacing:.34em; color:var(--cyan); text-transform:uppercase; margin-bottom:22px; }
+.divider h1.big{ font-family:var(--display); font-weight:700; font-size:150px; line-height:.9; letter-spacing:-.03em; }
+.divider .num{ position:absolute; right:90px; top:50%; transform:translateY(-50%); font-family:var(--display);
+  font-weight:700; font-size:420px; line-height:1; color:transparent; -webkit-text-stroke:1.5px rgba(255,255,255,.05); z-index:0; }
+
+/* template de precificação: nome à esq, card à dir */
+.pricing{ position:absolute; inset:0; display:grid; grid-template-columns:1fr 1fr; align-items:center; padding:64px var(--pad) 96px; gap:60px; }
+.pname{ font-family:var(--display); font-weight:700; font-size:90px; line-height:.92; letter-spacing:-.03em; }
+.social{ display:flex; gap:18px; align-items:center; margin-top:26px; }
+.social .ic{ width:58px; height:58px; }
+.social .plus{ font-family:var(--display); font-weight:500; font-size:36px; color:var(--ink-3); }
+
+/* tabela de preços (tráfego) */
+.ptable{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:8px; }
+.ptable .col{ padding:24px 20px; text-align:center; }
+.ptable .col .lbl{ font-family:var(--mono); font-size:12px; letter-spacing:.14em; color:var(--ink-3); text-transform:uppercase; min-height:30px; }
+.ptable .col .pv{ font-family:var(--display); font-weight:700; font-size:34px; margin-top:12px; }
+.ptable .col.hl{ background:var(--grad); color:#0a0512; border:none; }
+.ptable .col.hl .lbl{ color:#3a0a22; } .ptable .col.hl .pv{ color:#0a0512; }
+
+/* objetivos / colunas com ícone */
+.cols3{ position:absolute; left:var(--pad); right:var(--pad); top:330px; display:grid; grid-template-columns:repeat(3,1fr); gap:40px; }
+.objcol .oic{ width:62px; height:62px; margin-bottom:24px; }
+.objcol h3{ font-family:var(--display); font-weight:700; font-size:34px; letter-spacing:-.01em; margin-bottom:14px; }
+.objcol p{ color:var(--ink-3); font-size:19px; line-height:1.5; }
+
+/* método grid */
+.method{ position:absolute; left:var(--pad); right:var(--pad); top:228px; bottom:96px;
+  display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:1fr; gap:18px; }
+.step{ padding:22px 24px; }
+.step .badge{ font-family:var(--display); font-weight:700; font-size:20px; width:46px; height:46px; border-radius:12px;
+  display:flex; align-items:center; justify-content:center; color:#0a0512; background:var(--grad); margin-bottom:14px; }
+.step h4{ font-family:var(--display); font-weight:700; font-size:22px; letter-spacing:.01em; margin-bottom:8px; }
+.step p{ color:var(--ink-3); font-size:14.5px; line-height:1.4; }
+.step .q{ margin-top:12px; color:var(--cyan); font-family:var(--mono); font-size:12px; line-height:1.4; }
+
+/* quotes */
+.quotes{ position:absolute; left:var(--pad); right:var(--pad); top:300px; display:grid; grid-template-columns:1fr 1fr; gap:22px; }
+.quote{ padding:34px 38px; display:flex; gap:20px; align-items:flex-start; }
+.quote .mk{ font-family:var(--display); font-weight:700; font-size:64px; line-height:.7;
+  background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.quote p{ font-size:21px; line-height:1.35; color:var(--ink-2); padding-top:8px; }
+
+/* equipe */
+.team{ position:absolute; left:var(--pad); right:var(--pad); top:240px; display:grid; grid-template-columns:repeat(4,1fr); gap:30px; }
+.member .ph{ position:relative; width:100%; aspect-ratio:1/1.12; border-radius:18px; overflow:hidden;
+  border:2px solid transparent;
+  background:linear-gradient(#0c0c15,#0c0c15) padding-box, var(--grad) border-box;
+  box-shadow:0 18px 40px rgba(0,0,0,.5); }
+.member .ph img{ width:100%; height:100%; object-fit:cover; object-position:top center; border-radius:16px; }
+.member .nm{ font-family:var(--display); font-weight:700; font-size:25px; margin-top:20px; }
+.member .ro{ font-family:var(--mono); font-size:12.5px; letter-spacing:.1em; color:var(--cyan); text-transform:uppercase; margin-top:6px; }
+.member .bio{ color:var(--ink-3); font-size:15px; line-height:1.45; margin-top:12px; }
+
+/* dois blocos texto+imagem */
+.split{ position:absolute; inset:0; display:grid; grid-template-columns:1fr 1fr; }
+.split .txt{ padding:96px var(--pad); display:flex; flex-direction:column; justify-content:center; }
+.split .img{ position:relative; overflow:hidden; }
+.split .img img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
+.split .img::before{ content:""; position:absolute; inset:0; z-index:2;
+  background:linear-gradient(90deg, var(--black) 0%, transparent 22%); }
+
+/* lista de serviços (preços avulsos) */
+.svc{ position:absolute; left:var(--pad); right:var(--pad); top:300px; }
+.svc .row{ display:grid; grid-template-columns:1fr auto; align-items:center; gap:20px;
+  padding:19px 8px; border-bottom:1px solid var(--hair-soft); }
+.svc .row .nm{ font-size:21px; color:var(--ink-2); } .svc .row .nm b{ color:#fff; font-weight:600; }
+.svc .row .pv{ font-family:var(--display); font-weight:700; font-size:28px;
+  background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+/* listas incluso / não incluso */
+.incl{ display:flex; flex-direction:column; gap:11px; }
+.incl li{ display:flex; gap:12px; align-items:flex-start; font-size:17px; color:var(--ink-2); line-height:1.35; list-style:none; }
+.incl .d{ flex:0 0 auto; width:8px; height:8px; border-radius:50%; margin-top:8px; background:var(--grad); }
+.incl.no .d{ background:var(--ink-4); }
+.incl.no li{ color:var(--ink-3); }

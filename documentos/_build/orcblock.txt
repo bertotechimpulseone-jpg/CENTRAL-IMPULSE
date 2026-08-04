@@ -1,0 +1,71 @@
+function _orcNomeCliente(b){
+  if(b && b.client_data && b.client_data.nome) return b.client_data.nome;
+  if(b && b.conditions && /CLIENTE:/i.test(b.conditions)) return b.conditions.split('|')[0].replace(/CLIENTE:/i,'').trim();
+  return '';
+}
+function _orcNorm(s){ return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+function _orcMatchNome(nome, cli){
+  const n = _orcNorm(nome); const alvo = _orcNorm(cli.name);
+  if(!n || !alvo) return false;
+  return n === alvo || n.includes(alvo) || alvo.includes(n);
+}
+function _orcEhDoCliente(b, cli){
+  if(cli._dbId && b.client_id && b.client_id === cli._dbId) return true;
+  return _orcMatchNome(_orcNomeCliente(b), cli);
+}
+function _leadEhDoCliente(l, cli){
+  if(cli._dbId && l.client_id && l.client_id === cli._dbId) return true;
+  return _orcMatchNome(l.name, cli);
+}
+const _STAGE_LABEL_CLI = {lead:'Lead', contato:'Contato inicial', diagnostico:'Diagnóstico', proposta:'Proposta enviada', fechamento:'Em fechamento', fechado:'Fechado'};
+function _orcClienteLeads(cli){
+  return (typeof _leadsCache!=='undefined' && Array.isArray(_leadsCache) ? _leadsCache : []).filter(l => _leadEhDoCliente(l, cli));
+}
+function _orcClienteHTML(budgets, leads, cli){
+  const fmt = (d)=>{ try { return new Date(d).toLocaleDateString('pt-BR'); } catch(e){ return ''; } };
+  const leadCards = (leads||[]).map(l=>{
+    const v = parseFloat(l.value)||0;
+    const st = _STAGE_LABEL_CLI[l.stage]||l.stage||'Lead';
+    return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border-left:3px solid var(--accent)">
+      <div style="min-width:0"><div style="font-weight:600;font-size:13.5px">${escapeHtml(l.name||'Negociação')}</div>
+      <div class="text-xs text-3">Pipeline · ${escapeHtml(st)}${l.created_at?' · '+fmt(l.created_at):''}</div></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><strong style="font-size:14px">R$ ${v.toLocaleString('pt-BR')}</strong>
+      <button class="btn btn-sm" onclick="closeModal();goTo('comercial');setTimeout(()=>{try{abrirLeadDetalhe('${l.id}')}catch(e){}},120)">Abrir</button></div>
+    </div>`;
+  }).join('');
+  const orcCards = (budgets||[]).map(b=>{
+    const total = parseFloat(b.total)||0; const st = b.status || 'enviado';
+    return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="min-width:0"><div style="font-weight:600;font-size:13.5px">${escapeHtml(b.numero||'Orçamento')}</div>
+      <div class="text-xs text-3">${fmt(b.created_at)} · ${(b.services||[]).length} item(ns) · ${escapeHtml(st)}</div></div>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><strong style="font-size:14px">R$ ${total.toLocaleString('pt-BR')}</strong>
+      <button class="btn btn-sm" onclick="closeModal();comTab='orcamento';goTo('comercial');carregarOrcSalvo('${b.id}')">Abrir</button></div>
+    </div>`;
+  }).join('');
+  if(!(leads||[]).length && !(budgets||[]).length){
+    return `<div class="empty-state"><div class="ico">📄</div><div class="ttl">Nada ainda</div><div class="desc">Os orçamentos e negociações de ${escapeHtml(cli.name)} aparecem aqui.</div></div>`;
+  }
+  let html = '';
+  if((leads||[]).length) html += `<div class="info-label" style="margin:2px 0 8px">💼 Pipeline comercial (${leads.length})</div>` + leadCards;
+  if((budgets||[]).length) html += `<div class="info-label" style="margin:14px 0 8px">📄 Orçamentos salvos (${budgets.length})</div>` + orcCards;
+  return html;
+}
+function paneOrcamentos(cli){
+  const cacheB = (typeof orcamentosSalvos!=='undefined' ? orcamentosSalvos : []).filter(b => _orcEhDoCliente(b, cli));
+  const leads = _orcClienteLeads(cli);
+  return `<div class="modal-pane" data-pane="orcamentos">
+    <div class="card-header" style="margin-bottom:12px"><div class="card-title">📄 Orçamentos & pipeline</div><span class="badge b-default" id="orcClienteCount">${cacheB.length+leads.length}</span></div>
+    <div id="orcClienteLista">${_orcClienteHTML(cacheB, leads, cli)}</div>
+  </div>`;
+}
+async function carregarOrcamentosCliente(cli){
+  const box = document.getElementById('orcClienteLista');
+  if(!box || !_supa) return;
+  try {
+    const { data, error } = await _supa.from('budgets').select('*').order('created_at',{ascending:false}).limit(400);
+    const budgets = error ? [] : (data||[]).filter(b => _orcEhDoCliente(b, cli));
+    const leads = _orcClienteLeads(cli);
+    box.innerHTML = _orcClienteHTML(budgets, leads, cli);
+    const cnt = document.getElementById('orcClienteCount'); if(cnt) cnt.textContent = budgets.length + leads.length;
+  } catch(e){ console.warn('[orcCliente]', e); }
+}

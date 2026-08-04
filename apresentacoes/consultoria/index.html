@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05050A">
+<title>Consultoria de Marketing · Impulse One</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+  :root{
+    --black:#05050A; --bg:#07070D; --bg-2:#0B0B14;
+    --surface:rgba(255,255,255,.04); --surface-2:rgba(255,255,255,.06);
+    --hair:rgba(255,255,255,.10); --hair-soft:rgba(255,255,255,.06);
+    --magenta:#FF2E9A; --violet:#7C5CFF; --cyan:#2FE3E3; --orange:#FF6A3D;
+    --grad:linear-gradient(100deg,var(--magenta) 0%,var(--violet) 52%,var(--cyan) 100%);
+    --grad-warm:linear-gradient(120deg,var(--orange) 0%,var(--magenta) 45%,var(--violet) 78%,var(--cyan) 100%);
+    --grad-text:linear-gradient(100deg,#FF54AE 0%,#9B7BFF 50%,#46ECEC 100%);
+    --ink:#fff; --ink-2:#C9CBD8; --ink-3:#8C8FA3; --ink-4:#5C5F70;
+    --display:"Space Grotesk",system-ui,sans-serif;
+    --body:"Inter",system-ui,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; -webkit-text-size-adjust:100%; }
+  body{
+    font-family:var(--body); color:var(--ink); background:var(--black);
+    -webkit-font-smoothing:antialiased; line-height:1.5; overflow-x:hidden;
+    background-image:
+      radial-gradient(80% 50% at 85% -5%, rgba(124,92,255,.18), transparent 60%),
+      radial-gradient(70% 45% at -10% 12%, rgba(255,46,154,.14), transparent 55%),
+      radial-gradient(90% 60% at 50% 108%, rgba(47,227,227,.08), transparent 60%);
+    background-attachment:fixed; background-repeat:no-repeat;
+  }
+  .wrap{ width:100%; max-width:1180px; margin:0 auto; padding:0 clamp(20px,5vw,64px); }
+  .grad{ background:var(--grad-text); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .kicker{ font-family:var(--mono); font-size:clamp(11px,2.4vw,14px); letter-spacing:.28em; text-transform:uppercase;
+    color:var(--cyan); display:inline-flex; align-items:center; gap:12px; }
+  .kicker::before{ content:""; width:28px; height:1.5px; background:var(--grad); display:inline-block; flex:0 0 auto; }
+  h1,h2,h3{ font-family:var(--display); font-weight:700; letter-spacing:-.02em; line-height:1.03; }
+
+  /* topbar fixo */
+  .top{ position:fixed; inset:0 0 auto 0; z-index:50; display:flex; align-items:center; justify-content:space-between;
+    padding:14px clamp(18px,5vw,40px); background:linear-gradient(180deg,rgba(5,5,10,.82),transparent); pointer-events:none; }
+  .top img{ height:30px; display:block; }
+  .top .tag{ font-family:var(--mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-3); }
+  @media (max-width:640px){ .top .tag{ display:none; } }
+
+  /* hero */
+  .hero{ min-height:100svh; display:flex; flex-direction:column; justify-content:center;
+    padding:120px 0 80px; }
+  .hero h1{ font-size:clamp(2.6rem,9vw,6rem); margin:22px 0 0; }
+  .hero p{ color:var(--ink-2); font-size:clamp(1.05rem,3.4vw,1.5rem); margin-top:26px; max-width:660px; }
+  .cta{ display:inline-flex; align-items:center; gap:10px; margin-top:40px; padding:16px 30px; border-radius:999px;
+    background:var(--grad); color:#0a0512; font-family:var(--display); font-weight:700; font-size:clamp(1rem,2.6vw,1.15rem);
+    text-decoration:none; box-shadow:0 14px 40px rgba(255,46,154,.35); align-self:flex-start; transition:transform .18s, box-shadow .18s; }
+  .cta:hover{ transform:translateY(-2px); box-shadow:0 20px 52px rgba(255,46,154,.5); }
+
+  /* seções */
+  section{ padding:clamp(56px,9vw,110px) 0; }
+  .sec-head{ max-width:820px; }
+  .sec-head h2{ font-size:clamp(1.9rem,6vw,3.3rem); margin:16px 0 0; }
+  .sec-head p{ color:var(--ink-3); font-size:clamp(1rem,3vw,1.2rem); margin-top:16px; }
+
+  /* roadmap */
+  .roadmap{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:clamp(30px,5vw,52px); }
+  @media (max-width:900px){ .roadmap{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:520px){ .roadmap{ grid-template-columns:1fr; } }
+  .card{ background:rgba(15,15,23,.6); border:1px solid var(--hair); border-radius:20px;
+    box-shadow:0 20px 50px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.05); }
+  .rc{ padding:clamp(22px,3vw,30px); }
+  .rc .rn{ font-family:var(--display); font-weight:700; font-size:clamp(2rem,5vw,2.9rem); line-height:1; display:block; margin-bottom:12px; }
+  .rc h3{ font-size:clamp(1.1rem,3vw,1.35rem); margin-bottom:8px; }
+  .rc p{ color:var(--ink-3); font-size:clamp(.9rem,2.6vw,1rem); }
+
+  /* encontros */
+  .enc{ display:grid; grid-template-columns:.8fr 1.2fr; gap:clamp(24px,4vw,56px); align-items:center; }
+  .enc + .enc{ margin-top:clamp(30px,5vw,56px); padding-top:clamp(30px,5vw,56px); border-top:1px solid var(--hair-soft); }
+  @media (max-width:820px){ .enc{ grid-template-columns:1fr; gap:20px; } }
+  .enc .bignum{ font-family:var(--display); font-weight:700; font-size:clamp(3.4rem,14vw,8rem); line-height:.82; letter-spacing:-.04em; display:block; margin:6px 0; }
+  .enc .etitle{ font-size:clamp(1.6rem,5.5vw,2.9rem); }
+  .enc .theme{ color:var(--ink-2); font-size:clamp(1rem,3vw,1.2rem); margin-top:16px; max-width:440px; }
+  .learn{ padding:clamp(26px,3.5vw,44px); }
+  .cap{ font-family:var(--mono); font-size:clamp(11px,2.4vw,13px); letter-spacing:.22em; text-transform:uppercase; color:var(--cyan);
+    display:flex; align-items:center; gap:10px; margin-bottom:22px; }
+  .cap::before{ content:""; width:16px; height:1.5px; background:var(--grad); }
+  ul.feat{ list-style:none; display:flex; flex-direction:column; gap:clamp(14px,2.2vw,20px); }
+  ul.feat li{ display:flex; gap:14px; align-items:flex-start; font-size:clamp(1rem,3vw,1.28rem); color:var(--ink-2); line-height:1.32; }
+  ul.feat li b{ color:#fff; font-weight:600; }
+  .chk{ flex:0 0 auto; width:clamp(24px,5vw,28px); height:clamp(24px,5vw,28px); margin-top:1px; }
+
+  /* resultado */
+  .result h2{ font-size:clamp(2rem,6.5vw,3.6rem); max-width:900px; }
+  .rgrid{ display:grid; grid-template-columns:1fr 1fr; gap:16px 48px; margin-top:clamp(30px,4vw,44px); max-width:960px; }
+  @media (max-width:680px){ .rgrid{ grid-template-columns:1fr; } }
+  .rgrid .it{ display:flex; gap:14px; align-items:flex-start; }
+  .rgrid .it span{ font-size:clamp(1rem,3vw,1.28rem); color:var(--ink-2); line-height:1.3; }
+  .rgrid .it b{ color:#fff; font-weight:600; }
+  .cta-line{ font-family:var(--display); font-weight:700; font-size:clamp(1.5rem,5vw,2.4rem); margin-top:clamp(34px,5vw,52px); }
+
+  /* iceberg */
+  .ice-grid{ display:grid; grid-template-columns:.92fr 1.08fr; gap:clamp(28px,5vw,64px); align-items:center; margin-top:clamp(28px,4vw,48px); }
+  @media (max-width:820px){ .ice-grid{ grid-template-columns:1fr; gap:8px; } }
+  .berg-wrap{ position:relative; width:100%; max-width:440px; margin:0 auto; }
+  .berg{ width:100%; height:auto; display:block; filter:drop-shadow(0 30px 60px rgba(47,227,227,.14)); }
+  .ice-lbl{ position:absolute; font-family:var(--mono); letter-spacing:.02em; font-size:clamp(10px,2.3vw,12.5px);
+    padding:6px 12px; border-radius:999px; white-space:nowrap; border:1px solid var(--hair); background:rgba(8,8,14,.72); backdrop-filter:blur(4px); }
+  .ice-lbl.tip{ top:2%; left:50%; transform:translateX(-50%); color:#fff; border-color:rgba(47,227,227,.5); }
+  .ice-lbl.base{ bottom:12%; left:50%; transform:translateX(-50%); color:var(--cyan); }
+  .ice-list .cap{ margin-bottom:clamp(16px,2.5vw,22px); }
+  .ice-list ul.feat li{ font-size:clamp(1rem,2.9vw,1.22rem); }
+
+  /* bônus ebook */
+  .bonus{ display:flex; gap:clamp(16px,3vw,26px); align-items:center; margin-top:clamp(30px,4vw,46px);
+    padding:clamp(22px,3.2vw,32px); border-radius:22px; border:1.5px solid transparent;
+    background:linear-gradient(var(--bg-2),var(--bg-2)) padding-box, var(--grad) border-box;
+    box-shadow:0 24px 70px rgba(124,92,255,.2); }
+  .bonus .bicon{ font-size:clamp(2.2rem,8vw,3.4rem); flex:0 0 auto; line-height:1;
+    filter:drop-shadow(0 8px 20px rgba(255,46,154,.4)); }
+  .bonus .btag{ font-family:var(--mono); font-size:clamp(10px,2.3vw,12px); letter-spacing:.18em; text-transform:uppercase; color:var(--cyan); margin-bottom:7px; }
+  .bonus .btitle{ font-family:var(--display); font-weight:700; font-size:clamp(1.3rem,4.4vw,1.9rem); letter-spacing:-.01em; margin-bottom:8px; }
+  .bonus p{ color:var(--ink-2); font-size:clamp(.98rem,2.8vw,1.16rem); margin:0; max-width:620px; }
+  @media (max-width:560px){ .bonus{ flex-direction:column; align-items:flex-start; } }
+
+  /* footer */
+  footer{ border-top:1px solid var(--hair-soft); padding:36px 0; }
+  footer .wrap{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  footer img{ height:30px; }
+  footer span{ color:var(--ink-4); font-family:var(--mono); font-size:12px; letter-spacing:.1em; }
+  @media (prefers-reduced-motion:reduce){ html{ scroll-behavior:auto; } .cta{ transition:none; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#FF2E9A"/><stop offset=".55" stop-color="#7C5CFF"/><stop offset="1" stop-color="#2FE3E3"/>
+  </linearGradient>
+  <symbol id="chk" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="none" stroke="url(#g)" stroke-width="2.2"/><path d="M9 14.5l3.2 3.2L19.5 10" fill="none" stroke="url(#g)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</defs></svg>
+
+<div class="top">
+  <img src="assets/logo.png" alt="Impulse One">
+  <span class="tag">Consultoria de Marketing</span>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="kicker">Consultoria de Marketing</div>
+    <h1>A base <span class="grad">estratégica</span><br>da sua marca.</h1>
+    <p>Um mergulho completo no seu negócio em <b style="color:#fff">4 encontros</b> — diagnóstico, estratégia, conteúdo e presença digital.</p>
+    <a class="cta" href="#encontros">Ver os 4 encontros ↓</a>
+  </div>
+</header>
+
+<section class="iceberg-sec">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">A ponta do iceberg</div>
+      <h2>Todo post é só <span class="grad">a ponta.</span></h2>
+      <p>O que o cliente vê é o primeiro post. O que sustenta ele — e faz vender — é tudo o que a gente constrói <b style="color:#fff">antes</b>, nos 4 encontros.</p>
+    </div>
+    <div class="ice-grid">
+      <div class="berg-wrap">
+        <span class="ice-lbl tip">👁 o que você vê</span>
+        <span class="ice-lbl base">a base que sustenta</span>
+        <svg class="berg" viewBox="0 0 460 540" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Iceberg: o post é a ponta visível; a estratégia é a base submersa.">
+          <defs>
+            <linearGradient id="iceTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F2FAFF"/><stop offset="1" stop-color="#9FE0EC"/></linearGradient>
+            <linearGradient id="iceBot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#39A9C9" stop-opacity=".6"/><stop offset="1" stop-color="#5B49C9" stop-opacity=".25"/></linearGradient>
+            <linearGradient id="water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2FE3E3" stop-opacity=".16"/><stop offset="1" stop-color="#7C5CFF" stop-opacity=".02"/></linearGradient>
+          </defs>
+          <rect x="0" y="196" width="460" height="344" fill="url(#water)"/>
+          <line x1="0" y1="196" x2="460" y2="196" stroke="#2FE3E3" stroke-opacity=".6" stroke-width="1.5" stroke-dasharray="8 8"/>
+          <path d="M150 196 L322 196 L358 268 L346 346 L304 420 L252 474 L210 456 L156 398 L124 314 L120 246 Z" fill="url(#iceBot)" stroke="url(#g)" stroke-opacity=".5" stroke-width="2"/>
+          <path d="M232 268 L300 300 M180 300 L250 340 M270 400 L322 300" stroke="#2FE3E3" stroke-opacity=".18" stroke-width="1.5"/>
+          <path d="M202 196 L245 74 L271 136 L300 196 Z" fill="url(#iceTop)" stroke="url(#g)" stroke-width="2.5" stroke-linejoin="round"/>
+          <path d="M245 74 L258 196 M271 136 L262 196" stroke="#5B8FB0" stroke-opacity=".35" stroke-width="1.3"/>
+        </svg>
+      </div>
+      <div class="ice-list">
+        <div class="cap">Sob a superfície · a base estratégica</div>
+        <ul class="feat">
+          <li><svg class="chk"><use href="#chk"/></svg><span>Diagnóstico &amp; <b>imersão no negócio</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Persona, <b>posicionamento</b> e tom de voz</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Planejamento estratégico: <b>funil e metas</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Linha editorial &amp; <b>calendário de conteúdo</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span><b>Identidade visual</b>, perfis e Ficha do Google</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="kicker">Como funciona</div>
+      <h2>4 encontros, <span class="grad">um plano completo.</span></h2>
+      <p>Construímos juntos a fundação da sua presença digital — tudo o que vem antes do primeiro post. Cada encontro entrega uma etapa da estratégia, do diagnóstico à marca pronta para ser vista.</p>
+    </div>
+    <div class="roadmap">
+      <div class="card rc"><span class="rn grad">01</span><h3>Diagnóstico &amp; Imersão</h3><p>Onde sua marca está e para quem ela fala.</p></div>
+      <div class="card rc"><span class="rn grad">02</span><h3>Estratégia &amp; Posicionamento</h3><p>Como se posicionar e para onde crescer.</p></div>
+      <div class="card rc"><span class="rn grad">03</span><h3>Conteúdo &amp; Linha Editorial</h3><p>O que e quando comunicar.</p></div>
+      <div class="card rc"><span class="rn grad">04</span><h3>Marca &amp; Presença Digital</h3><p>Sua marca pronta para ser vista.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="encontros" class="encontros">
+  <div class="wrap">
+
+    <div class="enc">
+      <div>
+        <div class="kicker">Encontro 01</div>
+        <span class="bignum grad">01</span>
+        <h2 class="etitle">Diagnóstico <span class="grad">&amp; Imersão</span></h2>
+        <p class="theme">Entendemos a fundo o seu negócio e o cenário — o ponto de partida de tudo.</p>
+      </div>
+      <div class="card learn">
+        <div class="cap">O que você vai trabalhar</div>
+        <ul class="feat">
+          <li><svg class="chk"><use href="#chk"/></svg><span>Imersão no negócio: <b>mercado, produto e objetivos</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Análise de <b>concorrência e benchmarking</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Definição de <b>persona e público-alvo</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Diagnóstico do <b>cenário atual</b> da marca</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="enc">
+      <div>
+        <div class="kicker">Encontro 02</div>
+        <span class="bignum grad">02</span>
+        <h2 class="etitle">Estratégia &amp; <span class="grad">Posicionamento</span></h2>
+        <p class="theme">Definimos como sua marca se posiciona no mercado e para onde ela vai crescer.</p>
+      </div>
+      <div class="card learn">
+        <div class="cap">O que você vai trabalhar</div>
+        <ul class="feat">
+          <li><svg class="chk"><use href="#chk"/></svg><span><b>Posicionamento</b> de marca e <b>tom de voz</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Proposta de valor e <b>diferenciais</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Planejamento estratégico: <b>funil, metas e KPIs</b></span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Definição de objetivos e <b>caminho de crescimento</b></span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="enc">
+      <div>
+        <div class="kicker">Encontro 03</div>
+        <span class="bignum grad">03</span>
+        <h2 class="etitle">Conteúdo &amp; <span class="grad">Linha Editorial</span></h2>
+        <p class="theme">Estruturamos o que e quando comunicar para conectar com o público certo.</p>
+      </div>
+      <div class="card learn">
+        <div class="cap">O que você vai trabalhar</div>
+        <ul class="feat">
+          <li><svg class="chk"><use href="#chk"/></svg><span><b>Linha editorial</b> e pilares de conteúdo</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Curadoria de <b>temas que conectam</b> com o público</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span><b>Calendário editorial</b> do 1º mês</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Ideias de <b>pauta e formatos</b> que convertem</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="enc">
+      <div>
+        <div class="kicker">Encontro 04</div>
+        <span class="bignum grad">04</span>
+        <h2 class="etitle">Marca &amp; <span class="grad">Presença Digital</span></h2>
+        <p class="theme">Deixamos sua marca pronta para ser vista — identidade e perfis no ponto.</p>
+      </div>
+      <div class="card learn">
+        <div class="cap">O que você vai trabalhar</div>
+        <ul class="feat">
+          <li><svg class="chk"><use href="#chk"/></svg><span><b>Identidade visual</b> e templates de feed</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Setup e <b>otimização dos perfis</b> (bio, destaques, conversão)</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span><b>Ficha do Google</b>: ser encontrado e confiável</span></li>
+          <li><svg class="chk"><use href="#chk"/></svg><span>Sua marca <b>pronta para publicar</b></span></li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="result">
+  <div class="wrap">
+    <div class="kicker">Ao final da consultoria</div>
+    <h2>Você sai com uma marca <span class="grad">estruturada e pronta para crescer.</span></h2>
+    <div class="rgrid">
+      <div class="it"><svg class="chk"><use href="#chk"/></svg><span>Diagnóstico completo do seu <b>negócio</b></span></div>
+      <div class="it"><svg class="chk"><use href="#chk"/></svg><span><b>Persona</b> e <b>posicionamento</b> definidos</span></div>
+      <div class="it"><svg class="chk"><use href="#chk"/></svg><span>Planejamento estratégico com <b>metas e funil</b></span></div>
+      <div class="it"><svg class="chk"><use href="#chk"/></svg><span><b>Linha editorial</b> e calendário do 1º mês</span></div>
+      <div class="it"><svg class="chk"><use href="#chk"/></svg><span><b>Identidade visual</b> e perfis otimizados</span></div>
+      <div class="it"><svg class="chk"><use href="#chk"/></svg><span>Presença no <b>Google</b> configurada</span></div>
+    </div>
+    <div class="bonus">
+      <div class="bicon">📘</div>
+      <div>
+        <div class="btag">Bônus incluso</div>
+        <div class="btitle">E ainda leva um <span class="grad">ebook completo.</span></div>
+        <p>Ao final dos 4 encontros, você recebe um <b style="color:#fff">ebook exclusivo</b> com tudo o que foi trabalhado — toda a estratégia organizada num material só seu, pra consultar e aplicar sempre que precisar.</p>
+      </div>
+    </div>
+    <p class="cta-line">Bora <span class="grad">estruturar</span> sua marca?</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <img src="assets/logo.png" alt="Impulse One">
+    <span>Impulse One · Consultoria de Marketing</span>
+  </div>
+</footer>
+
+</body>
+</html>
