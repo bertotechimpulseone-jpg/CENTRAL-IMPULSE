@@ -1883,8 +1883,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 <body>
 <div class="login-bg" id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">i1</div>
-    <div class="login-title">IMPULSE ONE</div>
+    <img src="/logo.png" alt="Impulse One" style="height:60px;width:auto;max-width:82%;object-fit:contain;display:block;margin:2px auto 12px" />
     <div class="login-sub">Acesso restrito · entre com email e senha</div>
     <div class="login-form" id="loginForm" autocomplete="off">
       <!-- Honeypot — alguns gerenciadores de senha caem aqui e ignoram os reais -->
@@ -26574,73 +26573,120 @@ async function carregarCalendariosCliente(cli){
   }
 }
 
-// ============ Controle de Calendários (só Vinícius) ============
+// ============ Controle de Calendários (só Vinícius) — com filtro de mês ============
 async function renderControleCalendarios(c){
   if(!(typeof isVini==='function' && isVini())){
     c.innerHTML = '<div class="empty-state" style="padding:50px"><div class="ico">🔒</div><div class="ttl">Acesso restrito</div><div class="desc">Essa área é só do Vinícius.</div></div>';
     return;
   }
+  if(!window._ctrlCalMes){ const h = new Date(); window._ctrlCalMes = { ano:h.getFullYear(), mes:h.getMonth()+1 }; }   // mes 1-12
   c.innerHTML = `<div style="max-width:1000px;margin:0 auto">
-    <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:4px 0 18px">
+    <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:4px 0 16px">
       <div style="flex:1;min-width:220px">
         <h1 style="font-family:'Sora',sans-serif;font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.03em;margin:0 0 5px;line-height:1.05">Controle de Calendários</h1>
-        <div class="text-3" style="font-size:14px;line-height:1.5">Quais clientes ainda estão <b>sem calendário pronto</b> — os que você precisa montar. Feito manual ou automático, aparece aqui.</div>
+        <div class="text-3" style="font-size:14px;line-height:1.5">Quem ainda está <b>sem calendário</b> no mês — os que você precisa montar. Use as setas pra passar os meses.</div>
       </div>
       <button class="btn" type="button" onclick="renderControleCalendarios(document.getElementById('content'))">🔄 Atualizar</button>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 18px">
+      <button class="btn" type="button" onclick="_ctrlCalMesNav(-1)" title="Mês anterior" style="padding:9px 15px;font-size:18px;line-height:1">‹</button>
+      <div id="ctrlCalMesLabel" style="font-family:'Sora',sans-serif;font-weight:800;font-size:18px;min-width:190px;text-align:center;letter-spacing:-.02em"></div>
+      <button class="btn" type="button" onclick="_ctrlCalMesNav(1)" title="Próximo mês" style="padding:9px 15px;font-size:18px;line-height:1">›</button>
     </div>
     <div id="ctrlCalBox"><div class="text-xs text-3" style="padding:40px;text-align:center">⏳ Carregando…</div></div>
   </div>`;
   let cals = [];
   try { const { data } = await _supa.from('calendarios').select('id,cliente_id,titulo,posts,status,token,created_at,updated_at').order('created_at',{ascending:true}); cals = data||[]; }
   catch(e){ console.error('[controlecal]', e); }
+  window._ctrlCalCache = cals;
   _calendarios = cals;   // permite abrirCalendarioDoCliente filtrar por cliente sem recarregar
+  // marcações manuais (pronto/dispensado por cliente+mês) — guardadas em app_settings (sincroniza entre PCs)
+  try { const { data:mk } = await _supa.from('app_settings').select('value').eq('key','controlecal_status').maybeSingle(); window._ctrlCalMarcas = (mk && mk.value) ? JSON.parse(mk.value) : {}; }
+  catch(e){ window._ctrlCalMarcas = window._ctrlCalMarcas || {}; }
+  _ctrlCalPintar();
+}
+// Marca um cliente como pronto/dispensado (ou limpa) NO MÊS selecionado; salva e sincroniza.
+async function _ctrlCalMarcar(cliId, estado){
+  const s = window._ctrlCalMes; if(!s) return;
+  const cl = clients.find(x=>x.id===cliId); if(!cl || !cl._dbId) return;
+  const k = cl._dbId + '|' + s.ano + '-' + s.mes;
+  window._ctrlCalMarcas = window._ctrlCalMarcas || {};
+  if(estado) window._ctrlCalMarcas[k] = estado; else delete window._ctrlCalMarcas[k];
+  _ctrlCalPintar();
+  try { await _supa.from('app_settings').upsert({ key:'controlecal_status', value: JSON.stringify(window._ctrlCalMarcas), updated_at:new Date().toISOString() }, { onConflict:'key' }); }
+  catch(e){ console.error('[ctrlcal marca]', e); try{ toast('Salvei aqui, sincronizo já já.','info'); }catch(_e){} }
+}
+function _ctrlCalMesNav(delta){
+  const s = window._ctrlCalMes; if(!s) return;
+  s.mes += delta;
+  if(s.mes < 1){ s.mes = 12; s.ano--; }
+  if(s.mes > 12){ s.mes = 1; s.ano++; }
+  _ctrlCalPintar();
+}
+function _ctrlCalPintar(){
+  const s = window._ctrlCalMes || {}; const cals = window._ctrlCalCache || [];
+  const lbl = document.getElementById('ctrlCalMesLabel'); if(lbl) lbl.textContent = (_CAL_MESES[s.mes-1]||'') + ' ' + s.ano;
+  const marcas = window._ctrlCalMarcas || {};
   const porCli = {}; cals.forEach(cal=>{ (porCli[cal.cliente_id]=porCli[cal.cliente_id]||[]).push(cal); });
   const ativos = clients.filter(cl=> cl._dbId && !cl.oculto);
-  const pend = [], prontos = [];
+  const pend = [], prontos = [], disp = [];
   ativos.forEach(cl=>{
     const list = porCli[cl._dbId] || [];
-    const totalPosts = list.reduce((s,x)=> s + ((x.posts||[]).length), 0);
-    (totalPosts===0 ? pend : prontos).push({ cl, base:list[0]||null, list, totalPosts });
+    // posts DESTE mês/ano (em qualquer calendário do cliente)
+    const postsMes = [];
+    list.forEach(cal=> (cal.posts||[]).forEach(p=>{ const d = _calMesDia(p.data); if(d && d.mes===s.mes && d.ano===s.ano) postsMes.push(p); }));
+    const marca = marcas[cl._dbId + '|' + s.ano + '-' + s.mes];
+    const info = { cl, base:list[0]||null, temQualquer:list.length>0, n:postsMes.length, ok:postsMes.filter(p=>p.status==='aprovado').length, marca };
+    if(postsMes.length>0 || marca==='pronto') prontos.push(info);
+    else if(marca==='dispensado') disp.push(info);
+    else pend.push(info);
   });
   const byName = (a,b)=> _nomeCli(a.cl).localeCompare(_nomeCli(b.cl),'pt-BR',{sensitivity:'base'});
-  pend.sort(byName); prontos.sort(byName);
+  pend.sort(byName); prontos.sort(byName); disp.sort(byName);
   const box = document.getElementById('ctrlCalBox'); if(!box) return;
-  const cardPend = pend.map(o=>{
-    const semCal = !o.base;
-    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:13px 15px;margin-bottom:8px">
-      <div style="width:9px;height:9px;border-radius:50%;background:${semCal?'#f43f5e':'#fbbf24'};box-shadow:0 0 10px ${semCal?'#f43f5e':'#fbbf24'};flex-shrink:0"></div>
-      <div style="flex:1;min-width:0">
+  const mesNome = _CAL_MESES[s.mes-1] || 'mês';
+  const cardPend = pend.map(o=>`<div class="card" style="display:flex;align-items:center;gap:10px;padding:13px 15px;margin-bottom:8px;flex-wrap:wrap">
+      <div style="width:9px;height:9px;border-radius:50%;background:#f43f5e;box-shadow:0 0 10px #f43f5e;flex-shrink:0"></div>
+      <div style="flex:1;min-width:130px">
         <div style="font-weight:700;font-size:14.5px">${escapeHtml(_nomeCli(o.cl))}</div>
-        <div class="text-xs text-3" style="margin-top:2px">${semCal?'Sem calendário — precisa montar':'Rascunho, ainda sem conteúdo'}</div>
+        <div class="text-xs text-3" style="margin-top:2px">Sem conteúdo em ${mesNome}${o.temQualquer?' — tem calendário, mas nada neste mês':''}</div>
       </div>
-      <button class="btn btn-primary" type="button" onclick="abrirCalendarioDoCliente(${o.cl.id})">🗓 Montar calendário</button>
-    </div>`;
-  }).join('') || `<div class="empty-state" style="padding:26px"><div class="ico">🎉</div><div class="ttl">Todos os clientes com calendário!</div><div class="desc">Nada pendente por aqui.</div></div>`;
+      <button class="btn btn-primary" type="button" onclick="abrirCalendarioDoCliente(${o.cl.id})">🗓 Montar</button>
+      <button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'pronto')" title="Marcar como pronto manualmente">✓ Pronto</button>
+      <button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'dispensado')" title="Tirar da lista deste mês (em espera)" style="color:var(--text-3)">🚫 Dispensar</button>
+    </div>`).join('') || `<div class="empty-state" style="padding:26px"><div class="ico">🎉</div><div class="ttl">Todo mundo com calendário em ${mesNome}!</div><div class="desc">Nada pendente neste mês.</div></div>`;
   const cardPront = prontos.map(o=>{
-    const cont = o.base ? _calContagem(o.base) : { ok:0, total:o.totalPosts };
-    const tit = (o.base && o.base.titulo) ? o.base.titulo : 'Calendário';
-    return `<div class="card" style="display:flex;align-items:center;gap:12px;padding:12px 15px;margin-bottom:7px">
+    const manual = (o.n===0 && o.marca==='pronto');
+    return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 15px;margin-bottom:7px;flex-wrap:wrap">
       <div style="width:9px;height:9px;border-radius:50%;background:#34d399;box-shadow:0 0 10px #34d399;flex-shrink:0"></div>
-      <div style="flex:1;min-width:0">
+      <div style="flex:1;min-width:130px">
         <div style="font-weight:700;font-size:14px">${escapeHtml(_nomeCli(o.cl))}</div>
-        <div class="text-xs text-3" style="margin-top:2px">${escapeHtml(tit)} · ${o.totalPosts} conteúdos · ${cont.ok}/${cont.total} aprovados</div>
+        <div class="text-xs text-3" style="margin-top:2px">${manual?'✓ Marcado como pronto (manual)':`${o.n} ${o.n===1?'conteúdo':'conteúdos'} em ${mesNome} · ${o.ok}/${o.n} aprovados`}</div>
       </div>
+      ${manual?`<button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'')" title="Desfazer">↺ Desfazer</button>`:''}
       <button class="btn" type="button" onclick="abrirCalendarioDoCliente(${o.cl.id})">✏️ Abrir</button>
       ${o.base?`<button class="btn" type="button" onclick="abrirCalendarioVisual('${o.base.token}')">📅 Ver</button>`:''}
     </div>`;
   }).join('');
+  const cardDisp = disp.map(o=>`<div class="card" style="display:flex;align-items:center;gap:10px;padding:11px 15px;margin-bottom:6px;opacity:.72;flex-wrap:wrap">
+      <div style="width:9px;height:9px;border-radius:50%;background:var(--text-3);flex-shrink:0"></div>
+      <div style="flex:1;min-width:130px"><div style="font-weight:700;font-size:13.5px">${escapeHtml(_nomeCli(o.cl))}</div><div class="text-xs text-3" style="margin-top:2px">Dispensado neste mês (em espera)</div></div>
+      <button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'')" title="Voltar pra lista">↺ Voltar</button>
+    </div>`).join('');
   box.innerHTML = `
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
       <span class="badge b-danger">🗓 ${pend.length} pra montar</span>
       <span class="badge b-success">✓ ${prontos.length} prontos</span>
+      ${disp.length?`<span class="badge b-default">🚫 ${disp.length} dispensados</span>`:''}
       <span class="badge b-default">${ativos.length} clientes ativos</span>
     </div>
-    <div class="card-title" style="font-size:14px;margin:6px 0 9px">📌 Faltando montar (${pend.length})</div>
+    <div class="card-title" style="font-size:14px;margin:6px 0 9px">📌 Faltando montar em ${mesNome} (${pend.length})</div>
     ${cardPend}
-    ${prontos.length?`<div class="card-title" style="font-size:14px;margin:22px 0 9px">✓ Já prontos (${prontos.length})</div>${cardPront}`:''}
+    ${prontos.length?`<div class="card-title" style="font-size:14px;margin:22px 0 9px">✓ Prontos em ${mesNome} (${prontos.length})</div>${cardPront}`:''}
+    ${disp.length?`<div class="card-title" style="font-size:14px;margin:22px 0 9px;color:var(--text-3)">🚫 Dispensados em ${mesNome} (${disp.length})</div>${cardDisp}`:''}
   `;
 }
-if(typeof window!=='undefined'){ window.renderControleCalendarios = renderControleCalendarios; }
+if(typeof window!=='undefined'){ window.renderControleCalendarios = renderControleCalendarios; window._ctrlCalMesNav = _ctrlCalMesNav; window._ctrlCalPintar = _ctrlCalPintar; window._ctrlCalMarcar = _ctrlCalMarcar; }
 
 function _calListaHTML(cals, cli){
   if(!cals.length){
@@ -27290,12 +27336,12 @@ async function renderPublicAprovarCalendario(token){
       .cal-grid .cal-chip{cursor:grab}
       .cal-grid .cal-chip:active{cursor:grabbing}
       .cal-cell.calover{background:var(--accent-soft)!important;box-shadow:inset 0 0 0 2px var(--accent);border-radius:6px}
-      /* Conteúdo APROVADO pelo cliente = verde neon com brilho */
-      .cal-chip.cal-aprov{border-left-color:#00e676;box-shadow:0 0 0 1px rgba(0,230,118,.55),0 0 15px rgba(0,230,118,.55);animation:calAprovGlow 1.8s ease-in-out infinite alternate}
+      /* Conteúdo APROVADO pelo cliente = verde neon com brilho (estático, leve no celular) */
+      .cal-chip.cal-aprov{border-left-color:#00e676;box-shadow:0 0 0 1px rgba(0,230,118,.6),0 0 16px rgba(0,230,118,.5)}
       .cal-chip.cal-aprov .cal-tit{color:#eafff4}
       .cal-row.cal-aprov{border-color:#00e676!important;box-shadow:0 0 0 1px rgba(0,230,118,.4),0 0 16px rgba(0,230,118,.4)}
-      @keyframes calAprovGlow{from{box-shadow:0 0 0 1px rgba(0,230,118,.5),0 0 9px rgba(0,230,118,.4)}to{box-shadow:0 0 0 1px rgba(0,230,118,.7),0 0 20px rgba(0,230,118,.7)}}
-      @media(prefers-reduced-motion:reduce){.cal-chip.cal-aprov{animation:none}}
+      /* Depois da 1ª entrada, desliga as animações de entrada — repinturas viram instantâneas (fluidez no celular) */
+      #aprovarCalPage.no-anim .cal-cell,#aprovarCalPage.no-anim .cal-row,#aprovarCalPage.no-anim .cal-mes-tit{animation:none!important}
       .cal-fmt{display:inline-flex;align-items:center;gap:4px;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--fmt)}
       .cal-fmt::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--fmt)}
       .cal-chip .cal-tit{display:block;font-size:10.5px;font-weight:600;color:var(--text);line-height:1.3;margin-top:2px;max-height:40px;overflow:hidden}
@@ -27375,9 +27421,8 @@ async function renderPublicAprovarCalendario(token){
     wrap.innerHTML = `
       <div style="position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);padding:13px 16px">
         <div style="max-width:860px;margin:0 auto;display:flex;align-items:center;gap:14px">
-          <div style="display:flex;align-items:center;gap:9px">
-            <div style="width:26px;height:26px;border-radius:8px;background:var(--grad);box-shadow:0 3px 12px rgba(236,30,121,.4)"></div>
-            <span style="font-family:'Sora',sans-serif;font-weight:800;font-size:14px;letter-spacing:-.01em">Impulse One</span>
+          <div style="display:flex;align-items:center;background:#0f0f18;border-radius:11px;padding:7px 13px;box-shadow:0 3px 12px rgba(0,0,0,.2)">
+            <img src="/logo.png" alt="Impulse One" style="height:24px;width:auto;display:block" />
           </div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:11px">
             <div style="width:clamp(70px,22vw,120px);height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--grad);border-radius:99px;transition:width .5s cubic-bezier(.2,.7,.2,1)"></div></div>
@@ -27419,10 +27464,23 @@ async function renderPublicAprovarCalendario(token){
     }
   }
 
-  let tSalvar = null;
+  let tSalvar = null, _pendSalvar = null;
   function salvarDepois(i, tipo, detalhe){
+    _pendSalvar = { i, tipo, detalhe };
     clearTimeout(tSalvar);
-    tSalvar = setTimeout(()=>salvar(i, tipo, detalhe), 700);   // não perde: salva pouco depois de parar de digitar
+    tSalvar = setTimeout(()=>{ _pendSalvar = null; salvar(i, tipo, detalhe); }, 500);   // salva pouco depois de parar de digitar
+  }
+  function flushSalvar(){   // grava JÁ o que está pendente — nada digitado se perde, mesmo sem o cliente "salvar"
+    if(tSalvar){ clearTimeout(tSalvar); tSalvar = null; }
+    if(_pendSalvar){ const p = _pendSalvar; _pendSalvar = null; salvar(p.i, p.tipo, p.detalhe); }
+  }
+  window._calFlushSalvar = flushSalvar;
+  // Se o cliente fecha a aba, troca de app ou minimiza sem salvar, grava o pendente na hora.
+  if(!window._calFlushLigado){
+    window._calFlushLigado = true;
+    const _fl = ()=>{ try{ (window._calFlushSalvar||function(){})(); }catch(e){} };
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') _fl(); });
+    window.addEventListener('pagehide', _fl);
   }
 
   function atualizarTopo(){
@@ -27438,7 +27496,7 @@ async function renderPublicAprovarCalendario(token){
     let ov=document.getElementById('calDetalhe'); if(ov) ov.remove();
     ov=document.createElement('div'); ov.id='calDetalhe';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:9500;display:flex;align-items:flex-end;justify-content:center';
-    ov.onclick=(e)=>{ if(e.target===ov){ ov.remove(); pintar(); } };
+    ov.onclick=(e)=>{ if(e.target===ov){ try{flushSalvar();}catch(_e){} ov.remove(); pintar(); } };
     ov.innerHTML = `
       <div class="cal-sheet" style="background:var(--surface);width:100%;max-width:660px;max-height:92dvh;border-radius:24px 24px 0 0;display:flex;flex-direction:column;box-shadow:0 -16px 50px rgba(0,0,0,.5);border:1px solid var(--border);border-bottom:none">
         <div style="width:40px;height:4px;border-radius:99px;background:var(--border-strong);margin:10px auto 0"></div>
@@ -27446,7 +27504,7 @@ async function renderPublicAprovarCalendario(token){
           <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#fff;background:${cor};padding:5px 11px;border-radius:99px;box-shadow:0 3px 10px ${cor}66">${esc(p.formato||'Post')}</span>
           <b style="font-size:14px;font-family:'Sora',sans-serif">${esc(p.data||'')}</b>
           <span id="calDetSt" style="margin-left:auto;font-size:12.5px;font-weight:700;color:${_statCor(p.status)}">${_statTxt(p.status)}</span>
-          <button type="button" onclick="const o=document.getElementById('calDetalhe');o&&o.remove();window._calRepintar&&window._calRepintar()" style="border:none;background:var(--surface-2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px">✕</button>
+          <button type="button" onclick="window._calFlushSalvar&&window._calFlushSalvar();const o=document.getElementById('calDetalhe');o&&o.remove();window._calRepintar&&window._calRepintar()" style="border:none;background:var(--surface-2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px">✕</button>
         </div>
         <div style="padding:18px;overflow:auto;flex:1">
           <label class="cal-lab">Chamada <span class="cal-edit-hint">✏️ pode editar</span></label>
@@ -27475,6 +27533,7 @@ async function renderPublicAprovarCalendario(token){
     const chEl=document.getElementById('calDetCh'); chEl.oninput=()=>{ p.chamada=chEl.value; marcar(); const h=document.getElementById('calDetHistCh'); if(h) h.style.display=(p.chamada!==p.chamada_orig)?'block':'none'; salvarDepois(i,'editou_chamada',chEl.value); };
     const lgEl=document.getElementById('calDetLg'); lgEl.oninput=()=>{ p.legenda=lgEl.value; marcar(); const h=document.getElementById('calDetHistLg'); if(h) h.style.display=(p.legenda!==p.legenda_orig)?'block':'none'; salvarDepois(i,'editou_legenda',lgEl.value); };
     const cmEl=document.getElementById('calDetCm'); if(cmEl) cmEl.oninput=()=>{ p.comentario=cmEl.value; p.decidido_em=new Date().toISOString(); salvarDepois(i,'comentario',cmEl.value); };
+    chEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; lgEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; if(cmEl) cmEl.onblur=()=>{ try{flushSalvar();}catch(e){} };
     const stEl=document.getElementById('calDetSt');
     document.getElementById('calDetOk').onclick=async ()=>{ p.status=(p.status==='aprovado')?'pendente':'aprovado'; p.decidido_em=new Date().toISOString(); await salvar(i,p.status==='aprovado'?'aprovado':null,''); ov.remove(); pintar(); };
     document.getElementById('calDetAdj').onclick=async ()=>{ p.status=(p.status==='ajustar')?'pendente':'ajustar'; p.decidido_em=new Date().toISOString(); const w=document.getElementById('calDetCmWrap'); if(w) w.style.display=p.status==='ajustar'?'block':'none'; if(stEl){stEl.textContent=_statTxt(p.status);stEl.style.color=_statCor(p.status);} await salvar(i,p.status==='ajustar'?'ajuste':null,p.comentario||''); if(p.status!=='ajustar'){ ov.remove(); pintar(); } };
@@ -27558,6 +27617,7 @@ async function renderPublicAprovarCalendario(token){
     ligarDrag();
     const fim = document.getElementById('calFim');
     if(fim) fim.onclick = async ()=>{
+      try{ flushSalvar(); }catch(e){}
       const c = _calContagem(window._calPublico);
       try {
         await _supa.from('calendarios').update({ status:'concluido', posts: window._calPublico.posts, updated_at:new Date().toISOString() }).eq('token', token);
@@ -27567,12 +27627,25 @@ async function renderPublicAprovarCalendario(token){
           detalhe: `${c.ok} aprovados, ${c.ajuste} com ajuste, ${c.pend} pendentes`, lido:false
         });
       } catch(e){}
-      wrap.scrollTo({top:0,behavior:'smooth'});
-      alert('Revisão enviada. A Impulse One já recebeu tudo. Obrigado!');
+      let ov=document.getElementById('calConcluido'); if(ov) ov.remove();
+      ov=document.createElement('div'); ov.id='calConcluido';
+      ov.style.cssText='position:fixed;inset:0;z-index:9800;background:rgba(6,6,12,.74);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px';
+      ov.innerHTML = `
+        <div style="background:#0f0f18;color:#fff;width:100%;max-width:440px;border-radius:24px;padding:30px 26px 24px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.08)">
+          <img src="/logo.png" alt="Impulse One" style="height:32px;margin:0 auto 20px;display:block"/>
+          <div style="width:64px;height:64px;border-radius:50%;margin:0 auto 15px;display:grid;place-items:center;background:radial-gradient(circle at 50% 40%,rgba(0,230,118,.25),transparent 70%);border:2px solid #00e676;box-shadow:0 0 24px rgba(0,230,118,.5)"><span style="font-size:33px;color:#00e676;line-height:1">✓</span></div>
+          <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:23px;letter-spacing:-.02em;margin-bottom:9px">Revisão concluída!</div>
+          <div style="font-size:14px;color:#c9c6d6;line-height:1.5"><b style="color:#00e676">${c.ok}</b> aprovados · <b style="color:#fbbf24">${c.ajuste}</b> com ajuste · <b>${c.pend}</b> pendentes</div>
+          <div style="background:rgba(236,30,121,.12);border:1px solid rgba(236,30,121,.35);border-radius:15px;padding:16px;margin:18px 0 4px;font-size:14.5px;line-height:1.55">📸 <b>Tire um print desta tela</b> e mande no <b>nosso grupo do WhatsApp</b> pra darmos sequência na criação. 🚀</div>
+          <button type="button" onclick="document.getElementById('calConcluido').remove()" style="width:100%;margin-top:16px;border:none;background:linear-gradient(115deg,#F7941E,#EC1E79 42%,#A23BD6 72%,#29ABE2);color:#fff;border-radius:13px;padding:14px;font-size:15px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">Ok, entendi</button>
+        </div>`;
+      document.body.appendChild(ov);
     };
   }
 
   pintar();
+  // Deixa a animação de entrada tocar 1x; depois desliga tudo → repinturas ficam instantâneas (fluidez no celular).
+  setTimeout(()=>{ try{ wrap.classList.add('no-anim'); }catch(e){} }, 650);
 }
 
 </script>
