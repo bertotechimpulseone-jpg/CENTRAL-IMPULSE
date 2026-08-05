@@ -27396,6 +27396,16 @@ async function renderPublicAprovarCalendario(token){
     document.head.appendChild(st);
   }
 
+  // Meses navegáveis = os que já têm conteúdo + os 12 meses a partir do atual (sempre disponíveis).
+  // Assim o cliente sempre enxerga o ano inteiro à frente, mesmo antes de a gente montar.
+  function _calChavesMeses(){
+    const st = new Set();
+    ((window._calPublico && window._calPublico.posts) || []).forEach(p=>{ const d=_pData(p.data); if(d) st.add(d.ano*100 + d.mes); });
+    const h = new Date();
+    for(let n=0; n<12; n++){ const d = new Date(h.getFullYear(), h.getMonth()+n, 1); st.add(d.getFullYear()*100 + (d.getMonth()+1)); }
+    return [...st].filter(Boolean).sort((a,b)=>a-b);
+  }
+
   function pintar(){
     const c = _calContagem(window._calPublico);
     const pct = c.total ? Math.round(c.ok/c.total*100) : 0;
@@ -27404,18 +27414,17 @@ async function renderPublicAprovarCalendario(token){
       const mobile = window.innerWidth < 620;
       const grupos = {};
       posts.forEach((p,i)=>{ const d=_pData(p.data); const k=d?(d.ano*100+d.mes):0; (grupos[k]=grupos[k]||{d,items:[]}).items.push({p,i,d}); });
-      let chaves = Object.keys(grupos).map(Number).sort((a,b)=>a-b);
-      if(!chaves.length) return '<div style="text-align:center;color:var(--text-3);padding:60px 20px">Nenhum conteúdo neste calendário ainda.</div>';
-      // ===== UM MÊS POR VEZ (navegação por setas) =====
-      // Na 1ª abertura escolhe o mês atual (ou o próximo com conteúdo) — o link é o MESMO todo mês.
+      // ===== UM MÊS POR VEZ (navegação por setas), com 12 MESES SEMPRE DISPONÍVEIS =====
+      let chaves = _calChavesMeses();
+      // Na 1ª abertura cai no mês atual — o link é o MESMO todo mês, só o conteúdo vai virando.
       if(window._calMesAtivo == null || chaves.indexOf(window._calMesAtivo) === -1){
         const h = new Date(), kHoje = h.getFullYear()*100 + (h.getMonth()+1);
-        window._calMesAtivo = chaves.find(k=>k>=kHoje) != null ? chaves.find(k=>k>=kHoje) : chaves[chaves.length-1];
+        window._calMesAtivo = chaves.indexOf(kHoje) !== -1 ? kHoje : chaves[0];
       }
       const kAtivo = window._calMesAtivo;
       const pos = chaves.indexOf(kAtivo);
       const temAnt = pos > 0, temProx = pos < chaves.length-1;
-      const _lbl = (k)=>{ const g=grupos[k]; return g && g.d ? (_mesN[g.d.mes-1]+' '+g.d.ano) : 'Conteúdos'; };
+      const _lbl = (k)=> k ? (_mesN[(k%100)-1]+' '+Math.floor(k/100)) : 'Conteúdos';
       const navHTML = '<div class="cal-nav">'
         + '<button type="button" class="cal-seta" id="calMesAnt" '+(temAnt?'':'disabled')+' title="'+(temAnt?_lbl(chaves[pos-1]):'Não há mês anterior')+'">‹</button>'
         + '<div class="cal-nav-lbl">'+_lbl(kAtivo)+'<small>'+(pos+1)+' de '+chaves.length+'</small></div>'
@@ -27424,8 +27433,11 @@ async function renderPublicAprovarCalendario(token){
       chaves = [kAtivo];   // renderiza SÓ o mês ativo
       let out = navHTML;
       chaves.forEach(k=>{
-        const info=grupos[k], d0=info.d;
-        const tituloHTML = '';   // o nome do mês já está na navegação
+        const info = grupos[k] || { items:[] };                          // mês ainda sem conteúdo
+        const d0 = k ? { ano: Math.floor(k/100), mes: k%100 } : null;    // sempre monta o mês, mesmo vazio
+        const tituloHTML = !info.items.length
+          ? '<div style="text-align:center;color:var(--text-3);font-size:13.5px;background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:12px;padding:13px;margin-bottom:14px">✨ O conteúdo de <b>'+_lbl(k)+'</b> ainda está sendo preparado. Assim que estiver pronto aparece aqui, neste mesmo link.</div>'
+          : '';
         const _badge = (st)=> st==='aprovado'?'<span class="cal-ok">✓</span>': st==='ajustar'?'<span class="cal-badge" style="color:#fbbf24">✎</span>':'';
         const _emoji = (st)=> st==='aprovado'?'<span class="cal-ok">✓</span>': st==='ajustar'?'<span style="color:#fbbf24">✎</span>':'<span style="color:var(--text-3);font-size:9px">●</span>';
         if(mobile || !d0){
@@ -27473,7 +27485,7 @@ async function renderPublicAprovarCalendario(token){
       </div>
       <div style="max-width:860px;margin:0 auto;padding:34px 16px 0;color:var(--text)">
         <div style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--accent-2,#F25FA8);background:var(--accent-soft);padding:6px 13px;border-radius:99px;border:1px solid var(--accent-border)">📅 Calendário editorial · ${esc(cal.cliente_nome||'')}</div>
-        <h1 style="font-family:'Sora',sans-serif;font-size:clamp(30px,7.5vw,50px);font-weight:800;line-height:1.02;letter-spacing:-.038em;margin:16px 0 12px;text-wrap:balance">${esc(cal.titulo||'Conteúdos')}<span style="color:var(--text-3);font-weight:600"> · pra você aprovar</span></h1>
+        <h1 style="font-family:'Sora',sans-serif;font-size:clamp(30px,7.5vw,50px);font-weight:800;line-height:1.02;letter-spacing:-.038em;margin:16px 0 12px;text-wrap:balance">${esc((cal.titulo||'').length > 26 ? 'Seu calendário' : (cal.titulo||'Seu calendário'))}<span style="color:var(--text-3);font-weight:600"> · pra você aprovar</span></h1>
         <p style="color:var(--text-2);font-size:15px;margin:0 0 24px;line-height:1.6;max-width:58ch">Toque em cada post pra ver a arte e o texto. Você pode <b style="color:var(--text)">aprovar</b>, <b style="color:var(--text)">pedir alteração</b> ou <b style="color:var(--text)">editar</b> direto — cada mudança fica registrada com data e hora.</p>
         ${_calBuildCorpo(window._calPublico)}
         <div style="text-align:center;color:var(--text-3);font-size:12.5px;padding:28px 0 14px">Suas respostas salvam sozinhas. Pode fechar e voltar depois. 💾</div>
@@ -27657,9 +27669,8 @@ async function renderPublicAprovarCalendario(token){
     wrap.querySelectorAll('.cal-clic').forEach(b=>{ b.onclick=()=>{ if(_pubDragJust){ _pubDragJust=false; return; } abrirDetalhe(+b.dataset.i); }; });
     ligarDrag();
     // Setas ‹ › : troca o mês exibido (um calendário por página; o link é sempre o mesmo)
-    const _meses = ()=>{ const st=new Set(); (window._calPublico.posts||[]).forEach(p=>{ const d=_pData(p.data); if(d) st.add(d.ano*100+d.mes); }); return [...st].sort((a,b)=>a-b); };
     const _irMes = (delta)=>{
-      const ks=_meses(), i=ks.indexOf(window._calMesAtivo);
+      const ks=_calChavesMeses(), i=ks.indexOf(window._calMesAtivo);
       const alvo = ks[i+delta];
       if(alvo==null) return;
       window._calMesAtivo = alvo;
