@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Latão — O Sistema do Evento</title>
+<style>
+  :root{
+    --nubank:#820ad1;
+    --purple-bright:#a64dff;
+    --purple-glow:#b968ff;
+    --bg:#14071f;
+    --bg-2:#1c0c2b;
+    --card:#241134;
+    --card-2:#2b1640;
+    --line:#3d2258;
+    --line-soft:#33194a;
+    --text:#f2ecfa;
+    --text-dim:#c3b0d8;
+    --text-mute:#9179a8;
+    --ok:#2fd48b;
+    --warn:#ffb547;
+  }
+  html{scroll-behavior:smooth}
+  body{
+    background:
+      radial-gradient(900px 500px at 80% -8%, rgba(130,10,209,.45), transparent 60%),
+      radial-gradient(700px 400px at -10% 12%, rgba(166,77,255,.18), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+    line-height:1.6;
+    margin:0;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:0 24px 100px}
+  .display{
+    font-weight:800;
+    letter-spacing:-.02em;
+    line-height:1.02;
+    text-wrap:balance;
+  }
+  .eyebrow{
+    font-size:12px;text-transform:uppercase;letter-spacing:.2em;
+    color:var(--purple-glow);font-weight:700;
+  }
+  h2.display{font-size:clamp(26px,4vw,38px);margin:0 0 8px}
+  section{margin-top:80px}
+  p{max-width:64ch}
+  .lead{font-size:17px;color:var(--text-dim)}
+  strong{color:var(--text);font-weight:600}
+
+  /* hero */
+  .hero{padding:80px 0 52px;position:relative}
+  .hero .kicker{
+    display:inline-block;font-size:12px;text-transform:uppercase;letter-spacing:.22em;
+    color:var(--purple-glow);font-weight:700;
+    border:1px solid var(--line);border-radius:100px;padding:6px 16px;margin-bottom:22px;
+    background:rgba(130,10,209,.12);
+  }
+  .hero h1{
+    font-family:Impact,"Arial Black",sans-serif;font-weight:400;
+    text-transform:uppercase;letter-spacing:.01em;line-height:.9;
+    font-size:clamp(58px,13vw,132px);margin:0 0 18px;
+    background:linear-gradient(180deg,#fff 0%,#d9b6ff 60%,#a64dff 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero .sub{font-size:clamp(17px,2.6vw,22px);color:var(--text-dim);max-width:58ch}
+  .hero .sub b{color:#fff}
+  .hero-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+  .chip{
+    border:1px solid var(--line);background:rgba(43,22,64,.6);
+    border-radius:100px;padding:8px 16px;font-size:13px;color:var(--text-dim);
+  }
+  .chip b{color:var(--purple-glow);font-weight:700}
+
+  /* system spotlight */
+  .spotlight{
+    background:linear-gradient(160deg, rgba(130,10,209,.28), rgba(43,22,64,.35));
+    border:1px solid var(--line);border-radius:20px;
+    padding:40px 34px;margin-top:14px;
+  }
+  .pillars{
+    display:grid;grid-template-columns:repeat(2,1fr);
+    gap:16px;margin-top:28px;
+  }
+  @media (max-width:560px){.pillars{grid-template-columns:1fr}}
+  .pillar{
+    background:rgba(20,7,31,.5);border:1px solid var(--line-soft);
+    border-radius:14px;padding:22px;position:relative;
+  }
+  .pnum{
+    position:absolute;top:16px;right:18px;
+    font-family:Impact,"Arial Black",sans-serif;font-size:26px;line-height:1;
+    color:rgba(166,77,255,.38);font-variant-numeric:tabular-nums;letter-spacing:.02em;
+  }
+  .pillar.wide .pnum{color:var(--purple-glow);opacity:.9}
+  .pillar .ico{
+    width:42px;height:42px;border-radius:11px;display:flex;align-items:center;
+    justify-content:center;font-size:21px;margin-bottom:14px;
+    background:linear-gradient(145deg,var(--nubank),var(--purple-bright));
+    box-shadow:0 6px 20px rgba(130,10,209,.4);
+  }
+  .pillar h4{margin:0 0 6px;font-size:16.5px;font-weight:700}
+  .pillar p{margin:0;font-size:14px;color:var(--text-dim)}
+  .pillar.wide{grid-column:1/-1;border-color:var(--purple-bright);
+    background:linear-gradient(150deg,rgba(130,10,209,.24),rgba(20,7,31,.5));
+    display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:start}
+  .pillar.wide .tag{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.14em;
+    color:var(--purple-glow);font-weight:700;margin-bottom:6px}
+  .pillar.wide .ico{margin-bottom:0}
+  @media (max-width:520px){.pillar.wide{grid-template-columns:1fr}}
+
+  /* mockup */
+  .mock{
+    margin-top:34px;border-radius:16px;overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 40px 90px -30px rgba(130,10,209,.55), 0 0 0 1px rgba(166,77,255,.12);
+    background:var(--bg-2);
+  }
+  .mock-bar{
+    display:flex;align-items:center;gap:8px;padding:11px 16px;
+    background:#180a24;border-bottom:1px solid var(--line);
+  }
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#ff5f57}.dot.y{background:#febc2e}.dot.g{background:#28c840}
+  .mock-url{
+    margin-left:12px;font-size:12px;color:var(--text-mute);
+    background:#0f0618;border:1px solid var(--line-soft);border-radius:7px;
+    padding:4px 12px;flex:1;max-width:340px;
+  }
+  .mock-body{display:grid;grid-template-columns:180px 1fr;min-height:340px}
+  .mock-side{
+    background:#180a24;border-right:1px solid var(--line);padding:18px 14px;
+  }
+  .mock-logo{
+    font-family:Impact,"Arial Black",sans-serif;text-transform:uppercase;
+    font-size:20px;letter-spacing:.02em;color:var(--purple-glow);margin-bottom:22px;padding-left:6px;
+  }
+  .nav-item{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;
+    font-size:13.5px;color:var(--text-mute);margin-bottom:3px;
+  }
+  .nav-item.on{background:linear-gradient(145deg,var(--nubank),var(--purple-bright));color:#fff;font-weight:600}
+  .nav-item span{font-size:15px}
+  .mock-main{padding:22px;display:flex;flex-direction:column;gap:16px}
+  .mock-h{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+  .mock-h h5{margin:0;font-size:17px;font-weight:700}
+  .mock-h .live{font-size:11px;color:var(--ok);text-transform:uppercase;letter-spacing:.1em;font-weight:700;display:flex;align-items:center;gap:6px}
+  .mock-h .live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .stat{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:14px}
+  .stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-mute)}
+  .stat .v{font-size:24px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+  .stat .v.p{color:var(--purple-glow)}
+  .stat .v.ok{color:var(--ok)}
+  .checkin{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:16px}
+  .checkin .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  .checkin .cap{font-size:13px;color:var(--text-dim)}
+  .checkin .cap b{color:#fff;font-size:15px}
+  .bar-track{height:9px;border-radius:6px;background:#0f0618;overflow:hidden}
+  .bar-fill{height:100%;width:78%;border-radius:6px;background:linear-gradient(90deg,var(--nubank),var(--purple-glow))}
+  .leads{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;overflow:hidden}
+  .leads .lh{display:grid;grid-template-columns:1.4fr 1fr auto;padding:10px 14px;font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.1em;color:var(--text-mute);border-bottom:1px solid var(--line-soft)}
+  .leads .lr{display:grid;grid-template-columns:1.4fr 1fr auto;padding:10px 14px;font-size:13px;border-bottom:1px solid var(--line-soft)}
+  .leads .lr:last-child{border-bottom:none}
+  .leads .lr .nm{color:var(--text)}
+  .leads .lr .sp{color:var(--text-dim)}
+  .pill{font-size:11px;padding:3px 10px;border-radius:100px;background:rgba(47,212,139,.14);color:var(--ok);font-weight:600;justify-self:end}
+  .mock-cap{font-size:12.5px;color:var(--text-mute);text-align:center;margin-top:14px;font-style:italic}
+
+  .price-tag{
+    margin-top:30px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;
+    background:rgba(20,7,31,.6);border:1px solid var(--purple-bright);border-radius:14px;padding:22px 26px;
+  }
+  .price-tag .d{font-size:14.5px;color:var(--text-dim);max-width:44ch}
+  .price-tag .d b{color:#fff}
+  .price-tag .n{font-family:Impact,"Arial Black",sans-serif;font-size:40px;color:var(--purple-glow);white-space:nowrap;line-height:1}
+  .price-tag .n small{display:block;font-family:"Segoe UI",sans-serif;font-size:12px;color:var(--text-mute);letter-spacing:.06em;margin-top:4px}
+
+  /* tables */
+  .tbl-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:14.5px;min-width:480px}
+  th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:var(--text-mute);
+    font-weight:700;padding:13px 18px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  td{padding:12px 18px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .grp td{background:rgba(130,10,209,.1);font-size:11px;text-transform:uppercase;letter-spacing:.12em;
+    color:var(--purple-glow);font-weight:700;padding:9px 18px}
+  tr.total td{background:var(--bg-2);font-weight:800;color:var(--purple-glow);border-top:2px solid var(--purple-bright)}
+  tr.hl td{background:rgba(130,10,209,.16)}
+  tr.hl td:first-child{font-weight:600}
+  .note{font-size:13px;color:var(--text-mute);margin-top:12px;max-width:72ch}
+
+  /* strategy compact */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-top:24px}
+  .step{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:20px}
+  .step .m{font-size:12px;text-transform:uppercase;letter-spacing:.14em;color:var(--purple-glow);font-weight:700}
+  .step h4{margin:6px 0 8px;font-size:16px;font-weight:700}
+  .step p{margin:0;font-size:13.5px;color:var(--text-dim)}
+
+  /* approval */
+  .aprov{margin-top:80px;background:linear-gradient(160deg,rgba(130,10,209,.2),rgba(20,7,31,.6));
+    border:1px solid var(--purple-bright);border-radius:18px;padding:38px 34px}
+  .aprov h2{margin-top:0}
+  .aprov ol{color:var(--text-dim);padding-left:20px;max-width:64ch}
+  .aprov li{margin-bottom:9px}
+  .aprov li b{color:#fff}
+  footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);font-size:13px;
+    color:var(--text-mute);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+
+  /* budget status */
+  .budget{margin-top:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+  .budget .b{background:var(--card);border:1px solid var(--line-soft);border-radius:14px;padding:20px 22px}
+  .budget .b .l{font-size:11px;text-transform:uppercase;letter-spacing:.11em;color:var(--text-mute)}
+  .budget .b .v{font-family:Impact,"Arial Black",sans-serif;font-size:30px;margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  .budget .b.alert{border-color:var(--warn);background:rgba(255,181,71,.09)}
+  .budget .b.alert .v{color:var(--warn)}
+  .budget .b.good{border-color:var(--ok);background:rgba(47,212,139,.08)}
+  .budget .b.good .v{color:var(--ok)}
+  .budget .b .s{font-size:12px;color:var(--text-mute);margin-top:6px}
+  @media (max-width:620px){
+    .mock-body{grid-template-columns:1fr}
+    .mock-side{display:none}
+    .stat-row{grid-template-columns:1fr}
+  }
+  @media print{
+    @page{size:A4;margin:0}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    html{background:var(--bg) !important}
+    body{background:
+      radial-gradient(900px 500px at 80% -8%, rgba(130,10,209,.45), transparent 60%),
+      radial-gradient(700px 400px at -10% 12%, rgba(166,77,255,.18), transparent 55%),
+      var(--bg) !important}
+    .wrap{max-width:100%;padding:16mm 13mm}
+    section{margin-top:30px}
+    .hero{padding:4px 0 26px}
+    .mock,.budget,.aprov,.pillar,.tbl-scroll,.price-tag,.stat,tr{break-inside:avoid}
+    h2.display,.eyebrow{break-after:avoid}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .hero h1{animation:rise .55s ease-out both}
+    .mock{animation:rise .7s .1s ease-out both}
+    .bar-fill{animation:fill 1.1s .3s ease-out both}
+    @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+    @keyframes fill{from{width:0}to{width:78%}}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="kicker">Proposta · Impulse One × Latão</span>
+    <h1>LATÃO</h1>
+    <p class="sub">O evento referência do setor condominial merece rodar sobre um <b>sistema próprio</b> — que lê os números, controla a porta e entrega leads e relatórios prontos pros patrocinadores. Esta proposta mostra esse sistema.</p>
+    <div class="hero-meta">
+      <span class="chip">🎯 Meta: <b>400 pessoas</b> do setor condominial</span>
+      <span class="chip">📅 <b>26 de outubro de 2026</b></span>
+      <span class="chip">📍 Galpão · setor condominial</span>
+    </div>
+  </header>
+
+  <!-- ============ SYSTEM = HERO ============ -->
+  <section>
+    <div class="eyebrow">O coração da operação</div>
+    <h2 class="display">Um evento de 400 pessoas não se controla no caderno</h2>
+    <p class="lead">Comida e bebida liberadas, dezenas de patrocinadores, fila na entrada e dinheiro entrando de várias cotas. Sem um sistema, isso vira improviso — e improviso perde dinheiro e perde lead. Por isso o Latão vai rodar sobre uma plataforma feita sob medida, com cinco módulos que sustentam o evento inteiro.</p>
+
+    <div class="spotlight">
+      <div class="eyebrow">O que o sistema faz</div>
+      <h2 class="display" style="font-size:clamp(22px,3.2vw,28px)">Cinco módulos, uma plataforma</h2>
+      <div class="pillars">
+        <div class="pillar">
+          <span class="pnum">01</span>
+          <div class="ico">🧠</div>
+          <h4>Inteligência</h4>
+          <p>O painel lê tudo — cotas vendidas, presença e leads — e transforma em decisão em tempo real. Você sabe a qualquer momento como o evento está, sem cruzar planilha.</p>
+        </div>
+        <div class="pillar">
+          <span class="pnum">02</span>
+          <div class="ico">🎫</div>
+          <h4>Controle de acessos</h4>
+          <p>Check-in por QR code na porta. Nada de lista impressa: você vê em tempo real quantos entraram, quem confirmou e a lotação real do galpão.</p>
+        </div>
+        <div class="pillar">
+          <span class="pnum">03</span>
+          <div class="ico">📇</div>
+          <h4>Leads</h4>
+          <p>Cada credenciado vira um lead qualificado, organizado por patrocinador — a base rastreada que justifica cada cota de patrocínio.</p>
+        </div>
+        <div class="pillar">
+          <span class="pnum">04</span>
+          <div class="ico">📊</div>
+          <h4>Relatório</h4>
+          <p>No fim do evento, um relatório automático por patrocinador e pra organização: presença, alcance e leads entregues — pronto pra fechar a próxima edição.</p>
+        </div>
+        <div class="pillar wide">
+          <span class="pnum">05</span>
+          <div class="ico">🔐</div>
+          <div>
+            <span class="tag">Segurança &amp; auditoria</span>
+            <h4>Aprovação financeira</h4>
+            <p>Cada orçamento fica registrado no sistema e é aprovado pelo próprio cliente através de um link com <strong>senha única</strong>. Fica gravado quem aprovou, qual valor e quando — a prova de que aquele orçamento foi autorizado. Segurança para os dois lados, sem depender de print de conversa.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- PRE-DESIGN / MOCKUP -->
+      <div class="mock">
+        <div class="mock-bar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="mock-url">sistema.latao.com.br/painel</span>
+        </div>
+        <div class="mock-body">
+          <aside class="mock-side">
+            <div class="mock-logo">LATÃO</div>
+            <div class="nav-item on"><span>🧠</span> Inteligência</div>
+            <div class="nav-item"><span>🎫</span> Acessos</div>
+            <div class="nav-item"><span>📇</span> Leads</div>
+            <div class="nav-item"><span>📊</span> Relatório</div>
+            <div class="nav-item"><span>🔐</span> Aprovações</div>
+          </aside>
+          <main class="mock-main">
+            <div class="mock-h">
+              <h5>Inteligência do evento</h5>
+              <span class="live">ao vivo</span>
+            </div>
+            <div class="stat-row">
+              <div class="stat"><div class="l">Patrocínios</div><div class="v ok">R$ 86.500</div></div>
+              <div class="stat"><div class="l">Leads captados</div><div class="v">248</div></div>
+              <div class="stat"><div class="l">Cotas fechadas</div><div class="v p">9</div></div>
+            </div>
+            <div class="checkin">
+              <div class="top">
+                <span class="cap"><b>312</b> / 400 credenciados presentes</span>
+                <span class="cap" style="color:var(--purple-glow);font-weight:700">78%</span>
+              </div>
+              <div class="bar-track"><div class="bar-fill"></div></div>
+            </div>
+            <div class="leads">
+              <div class="lh"><span>Lead</span><span>Patrocinador</span><span>Status</span></div>
+              <div class="lr"><span class="nm">Síndico · Ed. Aurora</span><span class="sp">Tinta Forte</span><span class="pill">check-in</span></div>
+              <div class="lr"><span class="nm">Adm. Bourbon</span><span class="sp">Elevadores RS</span><span class="pill">check-in</span></div>
+              <div class="lr"><span class="nm">Conselho · Villa Bela</span><span class="sp">Seguros União</span><span class="pill">check-in</span></div>
+            </div>
+          </main>
+        </div>
+      </div>
+      <p class="mock-cap">Pré-design do painel — a versão final segue a identidade roxa do Latão.</p>
+
+      <div class="price-tag">
+        <div class="d">Desenvolvimento da plataforma completa — <b>inteligência + controle de acessos + leads + relatório + aprovação financeira</b>, ativa de agosto ao dia do evento.</div>
+        <div class="n">Incluso<small>SISTEMA SOB MEDIDA</small></div>
+      </div>
+    </div>
+
+    <p class="note">Além de organizar a operação, o sistema é argumento de venda de patrocínio: dá pra provar presença real e entregar leads rastreados. É o que separa o Latão de um churrasco grande — e o que faz o patrocinador voltar no ano seguinte.</p>
+  </section>
+
+  <!-- ============ INVESTMENT ============ -->
+  <section>
+    <div class="eyebrow">O pacote</div>
+    <h2 class="display">O que está incluso</h2>
+    <p class="lead">Tecnologia, operação e marketing da Impulse já entram inclusos no pacote. A experiência no galpão — comida, bebida, som, luz, palco, transporte e estrutura — é orçada à parte, conforme os fornecedores.</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <tr><th>Item</th><th class="num"></th></tr>
+
+        <tr class="grp"><td colspan="2">Experiência no galpão · a orçar</td></tr>
+        <tr><td>Comida e bebida</td><td class="num" style="color:var(--text-mute)">a definir</td></tr>
+        <tr><td>Sonorização do salão + iluminação ambiente e cênica</td><td class="num" style="color:var(--text-mute)">a definir</td></tr>
+        <tr><td>Palco, praticáveis e estrutura</td><td class="num" style="color:var(--text-mute)">a definir</td></tr>
+        <tr><td>Transporte e carregadores</td><td class="num" style="color:var(--text-mute)">a definir</td></tr>
+        <tr><td>Telão (mídia dos patrocinadores)</td><td class="num" style="color:var(--text-mute)">a definir</td></tr>
+        <tr><td>Ambientação — mesas e sofás</td><td class="num" style="color:var(--text-mute)">a definir</td></tr>
+
+        <tr class="grp"><td colspan="2">Atrações</td></tr>
+        <tr><td>DJ</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+        <tr><td>Banda Ostentação</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+
+        <tr class="grp"><td colspan="2">Tecnologia</td></tr>
+        <tr class="hl"><td>Sistema — inteligência + acessos + leads + relatório + aprovação financeira</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+
+        <tr class="grp"><td colspan="2">Operação</td></tr>
+        <tr><td>Assessoria (ago – nov)</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+
+        <tr class="grp"><td colspan="2">Marketing</td></tr>
+        <tr><td>Gestão de redes (ago – nov)</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+        <tr><td>Captação de conteúdo (ago / set / out)</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+        <tr><td>Cobertura dia D — 5 videomakers + 1 fotógrafo</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+        <tr><td>Serviço Impulse One</td><td class="num" style="color:var(--purple-glow);font-weight:600">incluso</td></tr>
+
+        <tr class="total"><td>Custo final</td><td class="num">R$ 17.600</td></tr>
+      </table>
+    </div>
+    <p class="note">Todos os itens de atrações, tecnologia, operação e marketing estão inclusos no valor. A experiência no galpão (comida, bebida, som, luz, palco, transporte e ambientação) é orçada à parte.</p>
+  </section>
+
+  <!-- ============ APPROVAL ============ -->
+  <div class="aprov">
+    <div class="eyebrow">Próximo passo</div>
+    <h2 class="display">Para fechar o mapa, confirmar o local</h2>
+    <p style="color:var(--text-dim);max-width:60ch">O mapa de investimento depende de uma única confirmação: <b>o local do evento</b>. Com o galpão definido, fechamos os custos e começamos a operação — a partir do desenvolvimento do sistema.</p>
+  </div>
+
+  <footer>
+    <span>Impulse One · Operação de marketing e sistema</span>
+    <span>Latão · Edição 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>
