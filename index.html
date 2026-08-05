@@ -27320,7 +27320,7 @@ async function renderPublicAprovarCalendario(token){
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   // ===== helpers da grade (visão ampla) =====
-  const _corFmt = (f)=>{ const s=(f||'').toString().toLowerCase(); if(s.includes('carros'))return '#7C5CFF'; if(s.includes('reel')||s.includes('vídeo')||s.includes('video')||s.includes('motion'))return '#EC1E79'; if(s.includes('story'))return '#f59e0b'; if(s.includes('foto'))return '#22c55e'; if(s.includes('está')||s.includes('esta')||s.includes('post'))return '#0ea5e9'; return '#8a8497'; };
+  const _corFmt = (f)=>{ const s=(f||'').toString().toLowerCase(); if(s.includes('carros'))return '#7C5CFF'; if(s.includes('reel')||s.includes('vídeo')||s.includes('video')||s.includes('motion'))return '#EC1E79'; if(s.includes('story'))return '#f59e0b'; if(s.includes('foto'))return '#14b8a6'; if(s.includes('está')||s.includes('esta')||s.includes('post'))return '#0ea5e9'; return '#8a8497'; };
   const _mesN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const _statCor = (st)=> st==='aprovado'?'#22c55e': st==='ajustar'?'#f59e0b':'#c9c6d6';
   const _statTxt = (st)=> st==='aprovado'?'✓ Aprovado': st==='ajustar'?'✎ Ajuste pedido':'• Pendente';
@@ -27346,10 +27346,26 @@ async function renderPublicAprovarCalendario(token){
       .cal-grid .cal-chip{cursor:grab}
       .cal-grid .cal-chip:active{cursor:grabbing}
       .cal-cell.calover{background:var(--accent-soft)!important;box-shadow:inset 0 0 0 2px var(--accent);border-radius:6px}
-      /* Conteúdo APROVADO pelo cliente = verde neon com brilho (estático, leve no celular) */
-      .cal-chip.cal-aprov{border-left-color:#00e676;box-shadow:0 0 0 1px rgba(0,230,118,.6),0 0 16px rgba(0,230,118,.5)}
-      .cal-chip.cal-aprov .cal-tit{color:#eafff4}
-      .cal-row.cal-aprov{border-color:#00e676!important;box-shadow:0 0 0 1px rgba(0,230,118,.4),0 0 16px rgba(0,230,118,.4)}
+      /* Conteúdo APROVADO pelo cliente = VERDE FORTE + check bem visível (bate o olho e reconhece) */
+      .cal-chip.cal-aprov{border-left:4px solid #00e676;background:rgba(0,230,118,.42)!important;box-shadow:0 0 0 2px #00e676,0 0 20px rgba(0,230,118,.65)}
+      .cal-chip.cal-aprov .cal-tit{color:#0a2e1a;font-weight:700}
+      .cal-chip.cal-aprov .cal-fmt{color:#0a6b34!important}
+      .cal-chip.cal-aprov .cal-fmt::before{background:#00c853!important}
+      .cal-row.cal-aprov{border-color:#00c853!important;background:rgba(0,200,83,.14);box-shadow:0 0 0 1.5px #00c853,0 0 18px rgba(0,230,118,.4)}
+      /* Selo de aprovado: check branco em círculo verde */
+      .cal-ok{position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;background:#00c853;color:#fff;font-size:12px;font-weight:900;line-height:19px;text-align:center;box-shadow:0 2px 8px rgba(0,200,83,.65);z-index:2}
+      .cal-row .cal-ok,.cal-st2 .cal-ok{position:static;display:inline-grid;place-items:center;width:24px;height:24px;font-size:14px;line-height:1}
+      @media(prefers-color-scheme:dark){
+        .cal-chip.cal-aprov .cal-tit{color:#eafff4}
+        .cal-chip.cal-aprov .cal-fmt{color:#5cffa6!important}
+      }
+      /* Navegação de mês (um calendário por página) */
+      .cal-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin:26px 0 16px}
+      .cal-seta{width:44px;height:44px;border-radius:14px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:24px;line-height:1;cursor:pointer;transition:.15s;display:grid;place-items:center;font-family:'Sora',sans-serif}
+      .cal-seta:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff;transform:scale(1.06)}
+      .cal-seta:disabled{opacity:.28;cursor:default}
+      .cal-nav-lbl{font-family:'Sora',sans-serif;font-weight:800;font-size:clamp(20px,4.4vw,28px);letter-spacing:-.03em;text-align:center;min-width:min(210px,52vw);color:var(--text)}
+      .cal-nav-lbl small{display:block;font-size:11.5px;font-weight:600;color:var(--text-3);letter-spacing:.04em;margin-top:2px}
       /* Depois da 1ª entrada, desliga as animações de entrada — repinturas viram instantâneas (fluidez no celular) */
       #aprovarCalPage.no-anim .cal-cell,#aprovarCalPage.no-anim .cal-row,#aprovarCalPage.no-anim .cal-mes-tit{animation:none!important}
       .cal-fmt{display:inline-flex;align-items:center;gap:4px;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--fmt)}
@@ -27388,15 +27404,30 @@ async function renderPublicAprovarCalendario(token){
       const mobile = window.innerWidth < 620;
       const grupos = {};
       posts.forEach((p,i)=>{ const d=_pData(p.data); const k=d?(d.ano*100+d.mes):0; (grupos[k]=grupos[k]||{d,items:[]}).items.push({p,i,d}); });
-      const chaves = Object.keys(grupos).map(Number).sort((a,b)=>a-b);
-      let out='';
+      let chaves = Object.keys(grupos).map(Number).sort((a,b)=>a-b);
+      if(!chaves.length) return '<div style="text-align:center;color:var(--text-3);padding:60px 20px">Nenhum conteúdo neste calendário ainda.</div>';
+      // ===== UM MÊS POR VEZ (navegação por setas) =====
+      // Na 1ª abertura escolhe o mês atual (ou o próximo com conteúdo) — o link é o MESMO todo mês.
+      if(window._calMesAtivo == null || chaves.indexOf(window._calMesAtivo) === -1){
+        const h = new Date(), kHoje = h.getFullYear()*100 + (h.getMonth()+1);
+        window._calMesAtivo = chaves.find(k=>k>=kHoje) != null ? chaves.find(k=>k>=kHoje) : chaves[chaves.length-1];
+      }
+      const kAtivo = window._calMesAtivo;
+      const pos = chaves.indexOf(kAtivo);
+      const temAnt = pos > 0, temProx = pos < chaves.length-1;
+      const _lbl = (k)=>{ const g=grupos[k]; return g && g.d ? (_mesN[g.d.mes-1]+' '+g.d.ano) : 'Conteúdos'; };
+      const navHTML = '<div class="cal-nav">'
+        + '<button type="button" class="cal-seta" id="calMesAnt" '+(temAnt?'':'disabled')+' title="'+(temAnt?_lbl(chaves[pos-1]):'Não há mês anterior')+'">‹</button>'
+        + '<div class="cal-nav-lbl">'+_lbl(kAtivo)+'<small>'+(pos+1)+' de '+chaves.length+'</small></div>'
+        + '<button type="button" class="cal-seta" id="calMesProx" '+(temProx?'':'disabled')+' title="'+(temProx?_lbl(chaves[pos+1]):'Não há próximo mês')+'">›</button>'
+        + '</div>';
+      chaves = [kAtivo];   // renderiza SÓ o mês ativo
+      let out = navHTML;
       chaves.forEach(k=>{
         const info=grupos[k], d0=info.d;
-        const titulo = d0 ? (_mesN[d0.mes-1]+' '+d0.ano) : 'Conteúdos';
-        const tMes = d0 ? _mesN[d0.mes-1] : 'Conteúdos', tAno = d0 ? d0.ano : '';
-        const tituloHTML = '<div class="cal-mes-tit">'+tMes+(tAno?' <small>'+tAno+'</small>':'')+'</div>';
-        const _badge = (st)=> st==='aprovado'?'<span class="cal-badge" style="color:#34d399">✓</span>': st==='ajustar'?'<span class="cal-badge" style="color:#fbbf24">✎</span>':'';
-        const _emoji = (st)=> st==='aprovado'?'<span style="color:#34d399">✓</span>': st==='ajustar'?'<span style="color:#fbbf24">✎</span>':'<span style="color:var(--text-3);font-size:9px">●</span>';
+        const tituloHTML = '';   // o nome do mês já está na navegação
+        const _badge = (st)=> st==='aprovado'?'<span class="cal-ok">✓</span>': st==='ajustar'?'<span class="cal-badge" style="color:#fbbf24">✎</span>':'';
+        const _emoji = (st)=> st==='aprovado'?'<span class="cal-ok">✓</span>': st==='ajustar'?'<span style="color:#fbbf24">✎</span>':'<span style="color:var(--text-3);font-size:9px">●</span>';
         if(mobile || !d0){
           const its=info.items.slice().sort((a,b)=>((a.d?a.d.dia:0)-(b.d?b.d.dia:0)));
           out += tituloHTML + its.map((x,idx)=>{
@@ -27625,6 +27656,19 @@ async function renderPublicAprovarCalendario(token){
   function ligar(){
     wrap.querySelectorAll('.cal-clic').forEach(b=>{ b.onclick=()=>{ if(_pubDragJust){ _pubDragJust=false; return; } abrirDetalhe(+b.dataset.i); }; });
     ligarDrag();
+    // Setas ‹ › : troca o mês exibido (um calendário por página; o link é sempre o mesmo)
+    const _meses = ()=>{ const st=new Set(); (window._calPublico.posts||[]).forEach(p=>{ const d=_pData(p.data); if(d) st.add(d.ano*100+d.mes); }); return [...st].sort((a,b)=>a-b); };
+    const _irMes = (delta)=>{
+      const ks=_meses(), i=ks.indexOf(window._calMesAtivo);
+      const alvo = ks[i+delta];
+      if(alvo==null) return;
+      window._calMesAtivo = alvo;
+      pintar();
+      wrap.scrollTo({top:0,behavior:'smooth'});
+    };
+    const bAnt=document.getElementById('calMesAnt'), bProx=document.getElementById('calMesProx');
+    if(bAnt) bAnt.onclick=()=>_irMes(-1);
+    if(bProx) bProx.onclick=()=>_irMes(1);
     const fim = document.getElementById('calFim');
     if(fim) fim.onclick = async ()=>{
       try{ flushSalvar(); }catch(e){}
