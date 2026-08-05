@@ -27630,6 +27630,15 @@ async function renderPublicAprovarCalendario(token){
       .cal-slide{display:flex;gap:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:11px 13px}
       .cal-slide-n{font-family:'Sora',sans-serif;font-size:10px;font-weight:800;color:#fff;background:var(--fmt,var(--accent));min-width:21px;height:21px;border-radius:6px;display:grid;place-items:center;flex-shrink:0}
       .cal-slide-t{font-size:13px;line-height:1.5;color:var(--text)}
+      .cal-slide{align-items:flex-start;transition:border-color .15s}
+      .cal-slide:focus-within{border-color:var(--accent-border)}
+      .cal-slide-in{flex:1;min-width:0;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:13px;line-height:1.5;resize:none;overflow:hidden;padding:1px 0;outline:none}
+      .cal-slide-x{flex-shrink:0;border:none;background:transparent;color:var(--text-3);cursor:pointer;font-size:13px;line-height:1;padding:2px 3px;border-radius:6px;opacity:0;transition:opacity .15s,color .15s}
+      .cal-slide:hover .cal-slide-x,.cal-slide:focus-within .cal-slide-x{opacity:1}
+      .cal-slide-x:hover{color:#f43f5e;background:rgba(244,63,94,.12)}
+      .cal-add-slide{margin-top:9px;width:100%;border:1px dashed var(--border-strong);background:transparent;color:var(--text-2);border-radius:12px;padding:11px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
+      .cal-add-slide:hover{border-color:var(--accent);color:var(--accent-2,#F25FA8);background:var(--accent-soft)}
+      @media(hover:none){.cal-slide-x{opacity:.6}}
       .cal-row{display:flex;align-items:center;gap:14px;padding:15px 16px;margin-bottom:11px;background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;text-align:left;cursor:pointer;transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s;animation:calIn .5s cubic-bezier(.2,.7,.2,1) both}
       .cal-row:hover,.cal-row:active{transform:translateY(-1px);box-shadow:0 12px 28px rgba(0,0,0,.38)}
       .cal-row-dia{font-family:'Sora',sans-serif;font-size:23px;font-weight:800;color:var(--fmt);min-width:36px;text-align:center;line-height:.95}
@@ -27801,7 +27810,9 @@ async function renderPublicAprovarCalendario(token){
   function abrirDetalhe(i){
     const cal2=window._calPublico, p=cal2.posts[i]; if(!p) return;
     const cor=_corFmt(p.formato);
-    const edCh=(p.chamada||'')!==(p.chamada_orig||''), edLg=(p.legenda||'')!==(p.legenda_orig||'');
+    // só mostra "Original" quando existe um original guardado E ele é diferente do atual
+    const _temHist=(atual, orig)=> !!(orig && String(orig).trim() && String(atual||'') !== String(orig));
+    const edCh=_temHist(p.chamada, p.chamada_orig), edLg=_temHist(p.legenda, p.legenda_orig);
     let ov=document.getElementById('calDetalhe'); if(ov) ov.remove();
     ov=document.createElement('div'); ov.id='calDetalhe';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);z-index:9500;display:flex;align-items:flex-end;justify-content:center';
@@ -27819,10 +27830,12 @@ async function renderPublicAprovarCalendario(token){
           <label class="cal-lab">Chamada <span class="cal-edit-hint">✏️ pode editar</span></label>
           <textarea id="calDetCh" rows="2" class="cal-in" style="font-weight:600;font-size:15px">${esc(p.chamada||'')}</textarea>
           <div id="calDetHistCh" class="cal-hist" style="display:${edCh?'block':'none'}">📝 Original: <span>${esc(p.chamada_orig||'')}</span></div>
-          ${(p.slides&&p.slides.length)?`<div style="margin-top:16px">
-            <label class="cal-lab">Conteúdo completo · ${p.slides.length} ${p.slides.length===1?'slide':'slides'}</label>
-            <div class="cal-slides" style="--fmt:${cor}">${p.slides.map((s,n)=>`<div class="cal-slide"><span class="cal-slide-n">${n+1}</span><span class="cal-slide-t">${esc(s)}</span></div>`).join('')}</div>
-          </div>`:''}
+          <div style="margin-top:16px">
+            <label class="cal-lab">Conteúdo completo <span class="cal-edit-hint">✏️ pode editar</span></label>
+            <div class="cal-slides" id="calDetSlides" style="--fmt:${cor}"></div>
+            <button type="button" id="calAddSlide" class="cal-add-slide">+ Adicionar slide</button>
+            <div id="calDetHistSl" class="cal-hist" style="display:none"></div>
+          </div>
           <label class="cal-lab" style="margin-top:14px">Legenda <span class="cal-edit-hint">✏️ pode editar</span></label>
           <textarea id="calDetLg" rows="6" class="cal-in" style="font-size:13.5px">${esc(p.legenda||'')}</textarea>
           <div id="calDetHistLg" class="cal-hist" style="display:${edLg?'block':'none'}">📝 Original: <span>${esc(p.legenda_orig||'')}</span></div>
@@ -27838,11 +27851,51 @@ async function renderPublicAprovarCalendario(token){
         </div>
       </div>`;
     document.body.appendChild(ov);
-    const marcar=()=>{ p.decidido_em=new Date().toISOString(); p.editado=(p.chamada!==p.chamada_orig)||(p.legenda!==p.legenda_orig); const q=document.getElementById('calDetQuando'); if(q) q.textContent='Última alteração: '+_calDataHora(p.decidido_em); };
-    const chEl=document.getElementById('calDetCh'); chEl.oninput=()=>{ p.chamada=chEl.value; marcar(); const h=document.getElementById('calDetHistCh'); if(h) h.style.display=(p.chamada!==p.chamada_orig)?'block':'none'; salvarDepois(i,'editou_chamada',chEl.value); };
-    const lgEl=document.getElementById('calDetLg'); lgEl.oninput=()=>{ p.legenda=lgEl.value; marcar(); const h=document.getElementById('calDetHistLg'); if(h) h.style.display=(p.legenda!==p.legenda_orig)?'block':'none'; salvarDepois(i,'editou_legenda',lgEl.value); };
+    const _slMudou=()=>{ const o=p.slides_orig||[], a=p.slides||[]; return o.length!==a.length || o.some((s,n)=>s!==a[n]); };
+    const marcar=()=>{ p.decidido_em=new Date().toISOString(); p.editado=_temHist(p.chamada,p.chamada_orig)||_temHist(p.legenda,p.legenda_orig)||_slMudou(); const q=document.getElementById('calDetQuando'); if(q) q.textContent='Última alteração: '+_calDataHora(p.decidido_em); };
+    const chEl=document.getElementById('calDetCh'); chEl.oninput=()=>{ p.chamada=chEl.value; marcar(); const h=document.getElementById('calDetHistCh'); if(h) h.style.display=_temHist(p.chamada,p.chamada_orig)?'block':'none'; salvarDepois(i,'editou_chamada',chEl.value); };
+    const lgEl=document.getElementById('calDetLg'); lgEl.oninput=()=>{ p.legenda=lgEl.value; marcar(); const h=document.getElementById('calDetHistLg'); if(h) h.style.display=_temHist(p.legenda,p.legenda_orig)?'block':'none'; salvarDepois(i,'editou_legenda',lgEl.value); };
     const cmEl=document.getElementById('calDetCm'); if(cmEl) cmEl.oninput=()=>{ p.comentario=cmEl.value; p.decidido_em=new Date().toISOString(); salvarDepois(i,'comentario',cmEl.value); };
     chEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; lgEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; if(cmEl) cmEl.onblur=()=>{ try{flushSalvar();}catch(e){} };
+
+    // ---- Slides 100% editáveis: escrever, adicionar e remover (com histórico do original) ----
+    if(!Array.isArray(p.slides)) p.slides = [];
+    if(p.slides_orig === undefined) p.slides_orig = p.slides.slice();   // guarda como veio da agência
+    const slBox = document.getElementById('calDetSlides'), slHist = document.getElementById('calDetHistSl');
+    const _slAlt = (t)=>{ t.style.height='auto'; t.style.height = t.scrollHeight+'px'; };
+    const _slHistPintar = ()=>{
+      if(!slHist) return;
+      const mudou = _slMudou();
+      slHist.style.display = mudou ? 'block' : 'none';
+      if(mudou){
+        const o = p.slides_orig||[];
+        slHist.innerHTML = '📝 Original: ' + (o.length ? o.map(s=>'<span>'+esc(s)+'</span>').join(' · ') : '<span>sem slides</span>');
+      }
+    };
+    const _slPintar = ()=>{
+      if(!slBox) return;
+      slBox.innerHTML = p.slides.map((s,n)=>`<div class="cal-slide" data-n="${n}"><span class="cal-slide-n">${n+1}</span><textarea class="cal-slide-in" rows="1" placeholder="Escreva o slide ${n+1}…">${esc(s)}</textarea><button type="button" class="cal-slide-x" title="Remover este slide">✕</button></div>`).join('')
+        || '<div class="text-xs" style="color:var(--text-3);padding:4px 2px">Nenhum slide ainda — use o botão abaixo pra criar.</div>';
+      slBox.querySelectorAll('.cal-slide').forEach(row=>{
+        const n = +row.dataset.n, ta = row.querySelector('.cal-slide-in');
+        _slAlt(ta);
+        ta.oninput = ()=>{ p.slides[n] = ta.value; _slAlt(ta); marcar(); _slHistPintar(); salvarDepois(i,'editou_slide','Slide '+(n+1)+': '+ta.value); };
+        ta.onblur  = ()=>{ try{ flushSalvar(); }catch(e){} };
+        row.querySelector('.cal-slide-x').onclick = ()=>{
+          p.slides.splice(n,1); marcar(); _slPintar();
+          salvarDepois(i,'editou_slide','Removeu o slide '+(n+1));
+        };
+      });
+      _slHistPintar();
+    };
+    _slPintar();
+    const addSl = document.getElementById('calAddSlide');
+    if(addSl) addSl.onclick = ()=>{
+      p.slides.push(''); marcar(); _slPintar();
+      const tas = slBox.querySelectorAll('.cal-slide-in'); const ultimo = tas[tas.length-1];
+      if(ultimo) ultimo.focus();
+      salvarDepois(i,'editou_slide','Adicionou o slide '+p.slides.length);
+    };
     const stEl=document.getElementById('calDetSt');
     document.getElementById('calDetOk').onclick=async ()=>{ p.status=(p.status==='aprovado')?'pendente':'aprovado'; p.decidido_em=new Date().toISOString(); await salvar(i,p.status==='aprovado'?'aprovado':null,''); ov.remove(); pintar(); };
     document.getElementById('calDetAdj').onclick=async ()=>{ p.status=(p.status==='ajustar')?'pendente':'ajustar'; p.decidido_em=new Date().toISOString(); const w=document.getElementById('calDetCmWrap'); if(w) w.style.display=p.status==='ajustar'?'block':'none'; if(stEl){stEl.textContent=_statTxt(p.status);stEl.style.color=_statCor(p.status);} await salvar(i,p.status==='ajustar'?'ajuste':null,p.comentario||''); if(p.status!=='ajustar'){ ov.remove(); pintar(); } };
