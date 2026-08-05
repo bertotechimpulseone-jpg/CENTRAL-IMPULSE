@@ -1,2 +1,5 @@
 .vercel
 .env*
+
+# Backups locais — contem dados sensiveis (senhas de clientes, CPF, salarios). NUNCA subir: repo e publico.
+_BACKUP_*/

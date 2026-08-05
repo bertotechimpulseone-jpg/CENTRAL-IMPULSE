@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
 <title>IMPULSE ONE — Central da Agência</title>
+<link rel="icon" href="/logo.png" type="image/png">
+<link rel="apple-touch-icon" href="/logo.png">
+<meta name="theme-color" content="#08080C">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <!-- Aquece a conexão com o Supabase e o CDN antes das queries/lib (ganho grande no celular) -->
@@ -1756,6 +1759,162 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .login-error{color:var(--danger-text);font-size:12.5px;text-align:left;margin-top:6px;padding:9px 12px;background:var(--danger-soft);border-radius:7px;display:none}
 .login-error.show{display:block}
 .login-footer{margin-top:24px;font-size:11px;color:var(--text-3)}
+
+/* ============================================================
+   CAMADA DE ACABAMENTO (ago/2026)
+   Eleva legibilidade, estados e movimento SEM mexer em layout:
+   nada aqui altera tamanho, padding, margem ou posição.
+   ============================================================ */
+
+/* --- 1. Contraste: texto auxiliar passa a cumprir WCAG AA (era ~3:1) --- */
+:root[data-theme="dark"]{ --text-3:#8E8E9E; --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.18); }
+:root[data-theme="light"]{ --text-3:#6E717B; }
+
+/* --- 2. Curvas e camadas de elevação padronizadas --- */
+:root{
+  --ease:cubic-bezier(.22,.61,.36,1);        /* ease-out suave, sem bounce */
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --dur:.18s;
+  --ring:0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent-border);
+}
+
+/* --- 3. Foco visível em tudo que é operável (navegação por teclado) --- */
+:where(button,a,input,select,textarea,[tabindex],.nav-item,.filter-chip,.modal-tab,.icon-btn):focus-visible{
+  outline:none; box-shadow:var(--ring);   /* mantém o formato original do elemento */
+}
+
+/* --- 4. Botões: hover, pressionado, desabilitado e foco consistentes --- */
+.btn{transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .1s var(--ease),box-shadow var(--dur) var(--ease)}
+.btn:active{transform:translateY(.5px) scale(.985)}
+.btn:disabled,.btn[disabled]{opacity:.5;cursor:not-allowed;transform:none!important;box-shadow:none!important}
+/* o hover trocava o gradiente da marca por um rosa chapado — agora mantém a identidade */
+.btn-primary:hover{background:var(--grad);filter:brightness(1.08) saturate(1.05);box-shadow:0 8px 24px rgba(236,30,121,.34)}
+.btn-primary:active{filter:brightness(.98);box-shadow:0 4px 12px rgba(236,30,121,.3)}
+.icon-btn{transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform .1s var(--ease)}
+.icon-btn:active{transform:scale(.92)}
+.login-btn{transition:transform .12s var(--ease),box-shadow var(--dur) var(--ease),filter var(--dur) var(--ease)}
+.login-btn:active{transform:translateY(0) scale(.99)}
+
+/* --- 5. Cartões: profundidade em camadas e reação ao toque --- */
+.card{transition:box-shadow var(--dur) var(--ease),border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.card-hover{cursor:pointer}
+.card-hover:hover{transform:translateY(-2px)}
+.card-hover:active{transform:translateY(0)}
+.client-card{transition:box-shadow var(--dur) var(--ease),border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.client-card:hover{transform:translateY(-2px);border-color:var(--border-strong);box-shadow:var(--shadow)}
+
+/* --- 6. Menu: o item ativo fica inequívoco --- */
+.nav-item{transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.nav-item.active{box-shadow:inset 0 0 0 1px var(--accent-border)}
+.nav-item.active svg{color:var(--accent-2)}
+.nav-item:active{background:var(--surface-3)}
+
+/* --- 7. Tabelas: números alinhados e cabeçalho que acompanha a rolagem --- */
+.table{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"cv05" 1}
+.table th{position:sticky;top:0;z-index:1;background:var(--surface);backdrop-filter:saturate(180%) blur(6px)}
+.table tr{transition:background .12s var(--ease)}
+.table tbody tr:hover td{background:var(--surface-2)}
+.table td:has(+ td:last-child),.table td[style*="text-align:right"]{font-variant-numeric:tabular-nums}
+
+/* Valores e estatísticas com dígitos de largura fixa (não "dançam" ao atualizar) */
+.stat-value,.stat-card,.list-right strong,.badge{font-variant-numeric:tabular-nums}
+
+/* --- 8. Campos: foco claro e placeholder legível --- */
+input,select,textarea{transition:border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease),background var(--dur) var(--ease)}
+input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-color:var(--accent-border);box-shadow:var(--ring)}
+::placeholder{color:var(--text-3);opacity:1}
+
+/* --- 9. Chips e abas: estado selecionado com mais presença --- */
+.filter-chip{transition:background var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease),transform .1s var(--ease)}
+.filter-chip:active{transform:scale(.97)}
+.modal-tab{transition:color var(--dur) var(--ease),border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+
+/* --- 10. Etiquetas de status: leitura mais firme --- */
+.badge{letter-spacing:.01em;font-weight:650}
+
+/* --- 11. Estados vazios com presença (ensinam, não só informam) --- */
+.empty-state .ico{font-size:30px;opacity:.85;line-height:1;margin-bottom:10px;display:block}
+.empty-state .ttl{color:var(--text);font-weight:650;font-size:14.5px;font-family:'Sora',sans-serif;letter-spacing:-.015em}
+.empty-state .desc{color:var(--text-2);max-width:46ch;margin-left:auto;margin-right:auto;line-height:1.55}
+
+/* --- 12. Títulos: leitura mais firme no display --- */
+.page-title{letter-spacing:-.032em;text-wrap:balance}
+.card-title,.section-title{letter-spacing:-.015em}
+.page-subtitle{color:var(--text-2)}
+
+/* --- 13. Seleção e rolagem na cor da marca --- */
+::selection{background:var(--accent-soft);color:var(--text)}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;transition:background var(--dur)}
+::-webkit-scrollbar-thumb:hover{background:var(--accent-border)}
+
+/* --- 14. Listas: reação ao passar e ao tocar --- */
+.list-item{transition:background var(--dur) var(--ease)}
+.list-item:hover{background:var(--surface-2)}
+
+/* --- 15. Movimento honesto: entrada curta, e nada disso com movimento reduzido --- */
+.page{animation:fade .2s var(--ease-out)}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+  .card-hover:hover,.client-card:hover,.btn:active,.filter-chip:active{transform:none!important}
+}
+
+/* --- 16. PROFUNDIDADE: superfícies deixam de ser retângulos chapados --------
+   Luz vindo de cima + sombra em camadas. Só cor/sombra: geometria intacta. */
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .stat,
+:root[data-theme="dark"] .client-card,
+:root[data-theme="dark"] .quick{
+  background:linear-gradient(180deg,rgba(255,255,255,.040),rgba(255,255,255,.008) 42%,transparent 70%),var(--surface);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.4), 0 14px 30px -18px rgba(0,0,0,.9);
+}
+:root[data-theme="dark"] .card:hover,
+:root[data-theme="dark"] .stat:hover{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09), 0 2px 6px rgba(0,0,0,.45), 0 20px 42px -20px rgba(0,0,0,.95);
+  border-color:var(--border-strong);
+}
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .stat,
+:root[data-theme="light"] .client-card,
+:root[data-theme="light"] .quick{
+  background:linear-gradient(180deg,#fff,#FCFCFD),var(--surface);
+  box-shadow:0 1px 2px rgba(16,16,20,.05), 0 10px 24px -14px rgba(16,16,20,.18);
+}
+:root[data-theme="light"] .card:hover,
+:root[data-theme="light"] .stat:hover{
+  box-shadow:0 2px 6px rgba(16,16,20,.07), 0 18px 36px -18px rgba(16,16,20,.26);
+  border-color:var(--border-strong);
+}
+
+/* --- 17. O aplicativo passa a ter camadas: painel, barra e conteúdo --- */
+:root[data-theme="dark"] .sidebar{background:linear-gradient(180deg,#101017,#0C0C12);border-right-color:rgba(255,255,255,.07)}
+:root[data-theme="dark"] .topbar{background:rgba(16,16,23,.86);backdrop-filter:saturate(180%) blur(12px);border-bottom-color:rgba(255,255,255,.07)}
+:root[data-theme="light"] .sidebar{background:linear-gradient(180deg,#FBFBFC,#F6F6F8)}
+:root[data-theme="light"] .topbar{background:rgba(255,255,255,.86);backdrop-filter:saturate(180%) blur(12px)}
+
+/* --- 18. Números como protagonistas (fonte display + dígitos alinhados) --- */
+.stat-value{font-family:'Sora','Inter',sans-serif;font-weight:800;letter-spacing:-.038em;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat-label{color:var(--text-2);font-weight:600;letter-spacing:-.005em}
+.stat-sub{color:var(--text-3)}
+.stat-icon{background:var(--accent-soft);color:var(--accent-2);box-shadow:inset 0 0 0 1px var(--accent-border)}
+
+/* --- 19. Etiquetas e chips em formato de pílula (mesma caixa, forma melhor) --- */
+.badge{border-radius:999px}
+.b-default{background:var(--surface-3);color:var(--text-2);box-shadow:inset 0 0 0 1px var(--border)}
+.b-success{box-shadow:inset 0 0 0 1px rgba(52,211,153,.30)}
+.b-warning{box-shadow:inset 0 0 0 1px rgba(251,191,36,.30)}
+.b-danger{box-shadow:inset 0 0 0 1px rgba(251,93,107,.30)}
+.b-info{box-shadow:inset 0 0 0 1px rgba(41,171,226,.30)}
+.filter-chip{border-radius:999px}
+
+/* --- 20. Rótulos de seção do menu: discretos, mas legíveis --- */
+.sidebar .nav > div:not(.nav-item){color:var(--text-3);font-weight:700}
+
+/* --- 21. Toque no celular: sem realce cinza do navegador e sem seleção acidental --- */
+@media (hover:none){
+  .card-hover:hover,.client-card:hover{transform:none;box-shadow:var(--shadow-sm)}
+  .btn,.nav-item,.filter-chip,.icon-btn,.list-item{-webkit-tap-highlight-color:transparent}
+  .btn:active,.filter-chip:active,.nav-item:active{opacity:.85}
+}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -9407,7 +9566,7 @@ function drawExpChart(){
   const txtCol=isDark?'#9595a0':'#6e6e73';
   new Chart(ctx,{type:'doughnut',
     data:{labels:['Equipe','Tráfego','Ferramentas','Impostos','Outras'],
-      datasets:[{data:[16200,4500,1860,5220,2000],backgroundColor:['#1d1d1f','#7c3aed','#0ea5e9','#f59e0b','#a1a1a6'],borderColor:isDark?'#141417':'#fff',borderWidth:3}]},
+      datasets:[{data:[16200,4500,1860,5220,2000],backgroundColor:['#EC1E79','#A23BD6','#29ABE2','#F7941E',isDark?'#4A4A57':'#B9B9C4'],borderColor:isDark?'#141417':'#fff',borderWidth:3}]},
     options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
       plugins:{legend:{position:'right',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:10}}}}
   });
@@ -12610,8 +12769,8 @@ if(typeof window!=='undefined'){
   window.excluirCartao=excluirCartao; window.excluirGastoCartao=excluirGastoCartao;
 }
 
-function drawCashChart(){const ctx=document.getElementById('cashChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';const gridCol=isDark?'#23232a':'#e8e8ed';new Chart(ctx,{type:'bar',data:{labels:['Jun','Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai'],datasets:[{label:'Entradas',data:[58,62,66,60,70,76,84,78,82,88,92,87],backgroundColor:isDark?'#f5f5f7':'#1d1d1f',borderRadius:4,barPercentage:.6},{label:'Saídas',data:[28,29,30,29,31,32,34,32,33,34,35,24.5],backgroundColor:isDark?'#3a3a44':'#d2d2d7',borderRadius:4,barPercentage:.6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:8}}},scales:{x:{grid:{display:false},ticks:{color:txtCol}},y:{grid:{color:gridCol},ticks:{color:txtCol,callback:v=>'R$ '+v+'k'}}}}});}
-function drawExpChart(){const ctx=document.getElementById('expChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';new Chart(ctx,{type:'doughnut',data:{labels:['Equipe','Tráfego','Ferramentas','Impostos','Outras'],datasets:[{data:[16200,4500,1860,5220,2000],backgroundColor:['#1d1d1f','#7c3aed','#0ea5e9','#f59e0b','#a1a1a6'],borderColor:isDark?'#141417':'#fff',borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'right',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:10}}}}});}
+function drawCashChart(){const ctx=document.getElementById('cashChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';const gridCol=isDark?'#23232a':'#e8e8ed';new Chart(ctx,{type:'bar',data:{labels:['Jun','Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai'],datasets:[{label:'Entradas',data:[58,62,66,60,70,76,84,78,82,88,92,87],backgroundColor:'#EC1E79',borderRadius:5,barPercentage:.6},{label:'Saídas',data:[28,29,30,29,31,32,34,32,33,34,35,24.5],backgroundColor:isDark?'#3E3E4C':'#D6D6DE',borderRadius:5,barPercentage:.6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:8}}},scales:{x:{grid:{display:false},ticks:{color:txtCol}},y:{grid:{color:gridCol},ticks:{color:txtCol,callback:v=>'R$ '+v+'k'}}}}});}
+function drawExpChart(){const ctx=document.getElementById('expChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';new Chart(ctx,{type:'doughnut',data:{labels:['Equipe','Tráfego','Ferramentas','Impostos','Outras'],datasets:[{data:[16200,4500,1860,5220,2000],backgroundColor:['#EC1E79','#A23BD6','#29ABE2','#F7941E',isDark?'#4A4A57':'#B9B9C4'],borderColor:isDark?'#141417':'#fff',borderWidth:3}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'right',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:10}}}}});}
 
 // ============ AUTOMAÇÃO ============
 function renderAutomacao(c){
