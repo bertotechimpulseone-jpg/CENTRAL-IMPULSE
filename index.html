@@ -4552,6 +4552,7 @@ async function loadCurrentProfile(){
 }
 
 function canAccess(pageId){
+  if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;   // dono: todas as abas, sem exceção
   // Desabafo (feedback anônimo), Dúvidas e Atalhos são universais: todos os autenticados acessam
   if(pageId === 'desabafo') return true;
   if(pageId === 'duvidas') return true;
@@ -4604,6 +4605,7 @@ window.ehEstagiario = ehEstagiario;
 
 function isAdmin(){
   if(!_currentUser) return false;
+  if(typeof isVini==='function' && isVini()) return true;   // dono: acesso total, sempre
   const email = (_currentUser.email||'').toLowerCase();
   // Lista hardcoded de admins (mesmo acesso que Vini/Ederson)
   const ADMIN_EMAILS = ['vini@impulseone.com.br','vinicius@impulseone.com.br','edersonoliveira.eder@gmail.com'];
@@ -4620,6 +4622,7 @@ function isAdmin(){
 // Whitelist HARDCODED para ver valores financeiros (planos, MRR, pagamentos)
 // Independente do role no banco - apenas emails listados podem ver
 function podeVerValores(){
+  if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;   // dono
   if(!_currentUser || !_currentUser.email) return false;
   const email = (_currentUser.email||'').toLowerCase().trim();
   const whitelist = [
@@ -4667,14 +4670,23 @@ if(typeof window!=='undefined'){ window.podeVerCredenciais = podeVerCredenciais;
 // Acesso exclusivo do Vinicius (aba Gerador de Conteudo)
 function isVini(){
   try {
-    const email = ((_currentUser && _currentUser.email) || '').toLowerCase();
+    const _sac = s => (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+    const email = _sac((_currentUser && _currentUser.email) || '');
     if(email.includes('vini')) return true;
-    const nome = (_currentProfile && _currentProfile.name ? _currentProfile.name : email.split('@')[0]).toLowerCase();
-    const primeiro = nome.split(/\s+/)[0];
-    return ['vini','vinicius','vinícius'].includes(primeiro);
+    // Olha TODOS os campos de nome que o perfil pode ter (a coluna do banco é full_name, não name)
+    const p = (typeof _currentProfile !== 'undefined' && _currentProfile) || {};
+    const cands = [p.full_name, p.name, p.nome, (typeof getMeuNome==='function' ? getMeuNome() : ''), email.split('@')[0]];
+    for(const c of cands){
+      const primeiro = _sac(c).split(/\s+/)[0];
+      if(['vini','vinicius'].includes(primeiro)) return true;   // sem acento: pega "Vinícius" também
+    }
+    return false;
   } catch(e){ return false; }
 }
 window.isVini = isVini;
+// Vinícius (dono) enxerga e faz TUDO — atalho usado por todas as travas de permissão.
+function temAcessoTotal(){ try { return isVini(); } catch(e){ return false; } }
+window.temAcessoTotal = temAcessoTotal;
 
 async function doLogin(e){
   if(e && e.preventDefault) e.preventDefault();
