@@ -12336,7 +12336,11 @@ function renderFinanceiro(c){
   }
   const totalMrr=clients.reduce((s,c)=>s+c.mrr,0);
   c.innerHTML=`<div class="page active"><div class="page-header"><div><div class="page-title">Financeiro</div><div class="page-subtitle">Visão consolidada · maio/2026</div></div><div class="page-actions">${searchBar('Buscar transação...','.card table')}<button class="btn" onclick="openNovaTransacaoModal('out')">💸 Nova despesa</button><button class="btn btn-primary" onclick="openNovaTransacaoModal('in')">+ Nova cobrança</button></div></div>
-  <div class="stat-grid">${statCard('Faturamento mês','R$ '+totalMrr.toLocaleString('pt-BR'),`${clients.length} clientes`,'M22 12h-4l-3 9L9 3l-3 9H2')}${statCard('Despesas mês','R$ 0','Cadastre despesas','M5 12h14')}${statCard('Lucro líquido','R$ '+totalMrr.toLocaleString('pt-BR'),'Sem despesas','M12 1v22')}${statCard('A receber','R$ 0','Sem cobranças','M12 8v4l3 3')}${statCard('Inadimplência','R$ 0','—','M12 9v4')}${statCard('MRR total','R$ '+totalMrr.toLocaleString('pt-BR'),`${clients.length} contratos`,'M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0')}</div>
+  <div class="filter-bar" style="margin-bottom:16px">
+    <span class="filter-chip ${(window._finAba||'geral')==='geral'?'active':''}" onclick="_finIrAba('geral')">📊 Visão geral</span>
+    <span class="filter-chip ${(window._finAba||'geral')==='cartoes'?'active':''}" onclick="_finIrAba('cartoes')">💳 Cartões de crédito</span>
+  </div>
+  <div id="finGeral"><div class="stat-grid">${statCard('Faturamento mês','R$ '+totalMrr.toLocaleString('pt-BR'),`${clients.length} clientes`,'M22 12h-4l-3 9L9 3l-3 9H2')}${statCard('Despesas mês','R$ 0','Cadastre despesas','M5 12h14')}${statCard('Lucro líquido','R$ '+totalMrr.toLocaleString('pt-BR'),'Sem despesas','M12 1v22')}${statCard('A receber','R$ 0','Sem cobranças','M12 8v4l3 3')}${statCard('Inadimplência','R$ 0','—','M12 9v4')}${statCard('MRR total','R$ '+totalMrr.toLocaleString('pt-BR'),`${clients.length} contratos`,'M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0')}</div>
   <div class="grid-2"><div class="card"><div class="card-header"><div class="card-title">Fluxo de caixa — 12 meses</div></div><div class="chart-box"><canvas id="cashChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Categorias de despesa</div></div><div class="chart-box"><canvas id="expChart"></canvas></div></div></div>
   <div class="grid-2"><div class="card"><div class="card-header"><div class="card-title">DRE simplificado</div></div><table class="table"><tbody>
     <tr><td>Receita bruta</td><td style="text-align:right"><strong>R$ ${totalMrr.toLocaleString('pt-BR')}</strong></td></tr>
@@ -12349,8 +12353,249 @@ function renderFinanceiro(c){
     <tr style="background:var(--surface-2)"><td><strong>Lucro líquido</strong></td><td style="text-align:right;color:var(--success-text)"><strong>R$ ${Math.round((totalMrr-24560)*0.85).toLocaleString('pt-BR')}</strong></td></tr>
   </tbody></table></div>
   <div class="card"><div class="card-header"><div class="card-title">Próximos vencimentos</div></div>${clients.slice(0,7).map(cli=>`<div class="list-item"><div class="list-icon" style="background:${cli.color}1a;color:${cli.color}">${cli.init}</div><div class="list-content"><div class="list-title">${cli.name}</div><div class="list-meta">Vence em ${20+Math.floor(Math.random()*10)} mai</div></div><div class="list-right"><strong>R$ ${cli.mrr.toLocaleString('pt-BR')}</strong><div>${cli.status==='late'?'<span class="badge b-danger">Atrasado</span>':'<span class="badge b-warning">Pendente</span>'}</div></div></div>`).join('')}</div></div>
+  </div>
   </div>`;
-  drawCashChart();drawExpChart();
+  if((window._finAba||'geral')==='cartoes') renderCartoesPane();
+  else { drawCashChart(); drawExpChart(); }
+}
+function _finIrAba(aba){ window._finAba = aba; renderFinanceiro(document.getElementById('content')); }
+if(typeof window!=='undefined') window._finIrAba = _finIrAba;
+
+/* ============ CARTÕES DE CRÉDITO (dentro do Financeiro) ============
+   cartoes       : apelido, final (4 dígitos), responsável, bandeira, vencimento
+   cartao_gastos : descrição, valor, data_gasto (quando foi gasto)
+                   + created_at/created_by_email = REGISTRO de quando foi lançado no sistema  */
+function _cartMoeda(v){ return 'R$ ' + Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function _cartDataBR(d){ if(!d) return '—'; const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d); }
+function _cartQuando(iso){
+  if(!iso) return '—';
+  const d = new Date(iso); if(isNaN(d)) return '—';
+  const p = n=>String(n).padStart(2,'0');
+  return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} às ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function _cartMesAtual(){ const h=new Date(); return h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0'); }
+
+async function renderCartoesPane(){
+  const box = document.getElementById('finGeral'); if(!box) return;
+  box.innerHTML = `<div class="text-xs text-3" style="padding:40px;text-align:center">⏳ Carregando cartões…</div>`;
+  if(!window._cartMes) window._cartMes = _cartMesAtual();
+  try {
+    const [rc, rg] = await Promise.all([
+      _supa.from('cartoes').select('*').order('created_at',{ascending:true}),
+      _supa.from('cartao_gastos').select('*').order('data_gasto',{ascending:false}).limit(500)
+    ]);
+    window._cartoes = rc.data || [];
+    window._cartGastos = rg.data || [];
+  } catch(e){
+    console.error('[cartoes]', e);
+    box.innerHTML = `<div class="empty-state" style="padding:40px"><div class="ico">🔧</div><div class="ttl">Sistema em manutenção</div><div class="desc">Não consegui carregar os cartões agora. Recarregue a página em instantes.</div></div>`;
+    return;
+  }
+  _cartoesPintar();
+}
+
+function _cartoesPintar(){
+  const box = document.getElementById('finGeral'); if(!box) return;
+  const cartoes = window._cartoes || [], gastos = window._cartGastos || [];
+  const mes = window._cartMes || _cartMesAtual();
+  const doMes = gastos.filter(g => String(g.data_gasto||'').slice(0,7) === mes);
+  const totalMes = doMes.reduce((s,g)=> s + Number(g.valor||0), 0);
+  const porCartao = {}; doMes.forEach(g=>{ porCartao[g.cartao_id] = (porCartao[g.cartao_id]||0) + Number(g.valor||0); });
+  const [ano, mm] = mes.split('-');
+  const nomeMes = (_CAL_MESES[Number(mm)-1] || '') + ' ' + ano;
+
+  const cardsHTML = cartoes.length ? cartoes.map(ct=>{
+    const tot = porCartao[ct.id] || 0;
+    return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;min-height:150px;background:linear-gradient(140deg,var(--surface-2),var(--surface));border:1px solid var(--border-strong)">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Sora',sans-serif;font-weight:700;font-size:15px;letter-spacing:-.01em">${escapeHtml(ct.apelido||'Cartão')}</div>
+          <div class="text-xs text-3" style="margin-top:3px">${ct.bandeira?escapeHtml(ct.bandeira)+' · ':''}${ct.dia_vencimento?('vence dia '+ct.dia_vencimento):'sem vencimento'}</div>
+        </div>
+        <button class="icon-btn" type="button" title="Excluir cartão" onclick="excluirCartao('${ct.id}')" style="color:var(--danger)">✕</button>
+      </div>
+      <div style="font-family:'Sora',sans-serif;font-size:19px;font-weight:700;letter-spacing:.06em">•••• ${escapeHtml(ct.final||'????')}</div>
+      <div style="display:flex;align-items:flex-end;gap:10px;margin-top:auto">
+        <div style="flex:1;min-width:0">
+          <div class="text-xs text-3">Responsável</div>
+          <div style="font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ct.responsavel?escapeHtml(ct.responsavel):'<span style="color:var(--text-3);font-weight:400">— não definido —</span>'}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="text-xs text-3">${escapeHtml(nomeMes)}</div>
+          <div style="font-family:'Sora',sans-serif;font-size:17px;font-weight:800;letter-spacing:-.02em">${_cartMoeda(tot)}</div>
+        </div>
+      </div>
+      <button class="btn btn-sm" type="button" onclick="novoGastoCartao('${ct.id}')">+ Lançar gasto</button>
+    </div>`;
+  }).join('') : `<div class="empty-state" style="padding:34px;grid-column:1/-1"><div class="ico">💳</div><div class="ttl">Nenhum cartão cadastrado</div><div class="desc">Cadastre o primeiro cartão pra começar a controlar os gastos.</div></div>`;
+
+  const linhas = doMes.length ? doMes.map(g=>{
+    const ct = cartoes.find(x=>x.id===g.cartao_id);
+    return `<tr>
+      <td style="white-space:nowrap"><b>${_cartDataBR(g.data_gasto)}</b></td>
+      <td>${escapeHtml(g.descricao||'')}${g.observacoes?`<div class="text-xs text-3" style="margin-top:2px">${escapeHtml(g.observacoes)}</div>`:''}</td>
+      <td style="white-space:nowrap">${ct?`•••• ${escapeHtml(ct.final||'????')}<div class="text-xs text-3">${escapeHtml(ct.responsavel||ct.apelido||'')}</div>`:'—'}</td>
+      <td style="text-align:right;white-space:nowrap"><b>${_cartMoeda(g.valor)}</b></td>
+      <td class="text-xs text-3" style="white-space:nowrap" title="Registro de quando este gasto foi lançado no sistema">${_cartQuando(g.created_at)}${g.created_by_email?`<div>${escapeHtml(String(g.created_by_email).split('@')[0])}</div>`:''}</td>
+      <td style="text-align:right"><button class="icon-btn" type="button" title="Excluir lançamento" onclick="excluirGastoCartao('${g.id}')" style="color:var(--danger)">✕</button></td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="6" style="text-align:center;color:var(--text-3);padding:26px">Nenhum gasto lançado em ${escapeHtml(nomeMes)}.</td></tr>`;
+
+  box.innerHTML = `
+    <div class="stat-grid">
+      ${statCard('Gasto em '+nomeMes, _cartMoeda(totalMes), doMes.length+' lançamento(s)','M22 12h-4l-3 9L9 3l-3 9H2')}
+      ${statCard('Cartões ativos', cartoes.length, 'cadastrados','M2 7h20M2 11h20')}
+      ${statCard('Maior gasto do mês', doMes.length?_cartMoeda(Math.max(...doMes.map(g=>Number(g.valor||0)))):'R$ 0,00','no período','M3 3v18h18')}
+    </div>
+    <div class="card-header" style="margin:6px 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="card-title" style="flex:1;min-width:140px">💳 Cartões</div>
+      <input type="month" value="${escapeHtml(mes)}" onchange="_cartTrocarMes(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:8px 11px;font-family:inherit;font-size:13px;color:var(--text)" title="Mês dos gastos" />
+      <button class="btn" type="button" onclick="novoGastoCartao('')">💸 Lançar gasto</button>
+      <button class="btn btn-primary" type="button" onclick="novoCartaoModal()">+ Novo cartão</button>
+    </div>
+    <div class="grid-3" style="margin-bottom:22px">${cardsHTML}</div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Gastos de ${escapeHtml(nomeMes)}</div></div>
+      <div style="overflow-x:auto">
+        <table class="table"><thead><tr>
+          <th>Data do gasto</th><th>Descrição</th><th>Cartão</th><th style="text-align:right">Valor</th><th>Lançado no sistema</th><th></th>
+        </tr></thead><tbody>${linhas}</tbody>
+        <tfoot><tr style="background:var(--surface-2)"><td colspan="3"><b>Total do mês</b></td><td style="text-align:right"><b>${_cartMoeda(totalMes)}</b></td><td colspan="2"></td></tr></tfoot>
+        </table>
+      </div>
+    </div>`;
+}
+function _cartTrocarMes(v){ if(v){ window._cartMes = v; _cartoesPintar(); } }
+
+function novoCartaoModal(){
+  const m = document.createElement('div'); m.id='novoCartaoModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:16px';
+  m.innerHTML = `<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
+    <div style="padding:17px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <div style="flex:1;font-size:16px;font-weight:700">Novo cartão de crédito</div>
+      <button class="modal-close" type="button" onclick="document.getElementById('novoCartaoModal').remove()">✕</button>
+    </div>
+    <div style="padding:18px 20px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:13px">
+      <div><label class="text-xs text-3">Apelido do cartão *</label>
+        <input id="ctApelido" class="login-input" placeholder="Ex.: Nubank empresa" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+      <div style="display:flex;gap:11px">
+        <div style="flex:0 0 132px"><label class="text-xs text-3">Final (4 dígitos) *</label>
+          <input id="ctFinal" class="login-input" maxlength="4" inputmode="numeric" placeholder="1234" style="background:var(--surface-2);width:100%;margin-top:5px;letter-spacing:.14em;font-weight:700" /></div>
+        <div style="flex:1"><label class="text-xs text-3">Bandeira</label>
+          <input id="ctBandeira" class="login-input" placeholder="Visa, Master…" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+      </div>
+      <div><label class="text-xs text-3">Responsável pelo cartão *</label>
+        <input id="ctResp" class="login-input" placeholder="Quem usa / responde por ele" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+      <div><label class="text-xs text-3">Dia do vencimento da fatura</label>
+        <input id="ctVenc" class="login-input" type="number" min="1" max="31" placeholder="Ex.: 10" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+    </div>
+    <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('novoCartaoModal').remove()">Cancelar</button>
+      <button class="btn btn-primary" type="button" onclick="salvarCartao()">Salvar cartão</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  setTimeout(()=>document.getElementById('ctApelido')?.focus(), 60);
+}
+
+async function salvarCartao(){
+  const apelido = (document.getElementById('ctApelido').value||'').trim();
+  const final = (document.getElementById('ctFinal').value||'').replace(/\D/g,'').slice(0,4);
+  const responsavel = (document.getElementById('ctResp').value||'').trim();
+  if(!apelido){ toast('Dê um apelido pro cartão.','info'); return; }
+  if(final.length !== 4){ toast('Informe os 4 últimos dígitos do cartão.','info'); return; }
+  if(!responsavel){ toast('Informe o responsável pelo cartão.','info'); return; }
+  const payload = {
+    apelido, final, responsavel,
+    bandeira: (document.getElementById('ctBandeira').value||'').trim() || null,
+    dia_vencimento: parseInt(document.getElementById('ctVenc').value) || null,
+    created_by_email: (_currentUser && _currentUser.email) || null
+  };
+  const r = await gravarSeguro({ tabela:'cartoes', tipo:'insert', payload, descricao:'novo cartão' });
+  if(!r.ok) return;
+  document.getElementById('novoCartaoModal')?.remove();
+  toast('✓ Cartão cadastrado','success');
+  renderCartoesPane();
+}
+
+function novoGastoCartao(cartaoId){
+  const cartoes = window._cartoes || [];
+  if(!cartoes.length){ toast('Cadastre um cartão primeiro.','info'); return; }
+  const hoje = new Date().toISOString().slice(0,10);
+  const m = document.createElement('div'); m.id='novoGastoModal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:16px';
+  m.innerHTML = `<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
+    <div style="padding:17px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
+      <div style="flex:1"><div style="font-size:16px;font-weight:700">Lançar gasto no cartão</div>
+      <div class="text-xs text-3" style="margin-top:2px">O sistema registra sozinho a data e hora deste lançamento.</div></div>
+      <button class="modal-close" type="button" onclick="document.getElementById('novoGastoModal').remove()">✕</button>
+    </div>
+    <div style="padding:18px 20px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:13px">
+      <div><label class="text-xs text-3">Cartão *</label>
+        <select id="cgCartao" style="width:100%;margin-top:5px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;color:var(--text);font-family:inherit">
+          ${cartoes.map(ct=>`<option value="${ct.id}" ${ct.id===cartaoId?'selected':''}>${escapeHtml(ct.apelido||'Cartão')} · •••• ${escapeHtml(ct.final||'????')}${ct.responsavel?' · '+escapeHtml(ct.responsavel):''}</option>`).join('')}
+        </select></div>
+      <div><label class="text-xs text-3">Descrição do gasto *</label>
+        <input id="cgDesc" class="login-input" placeholder="Ex.: Assinatura Canva Pro" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+      <div style="display:flex;gap:11px">
+        <div style="flex:1"><label class="text-xs text-3">Valor (R$) *</label>
+          <input id="cgValor" class="login-input" type="number" step="0.01" min="0" placeholder="0,00" style="background:var(--surface-2);width:100%;margin-top:5px;font-weight:700" /></div>
+        <div style="flex:1"><label class="text-xs text-3">Quando foi gasto *</label>
+          <input id="cgData" class="login-input" type="date" value="${hoje}" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+      </div>
+      <div><label class="text-xs text-3">Observação (opcional)</label>
+        <input id="cgObs" class="login-input" placeholder="Alguma anotação sobre este gasto" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+    </div>
+    <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('novoGastoModal').remove()">Cancelar</button>
+      <button class="btn btn-primary" type="button" onclick="salvarGastoCartao()">Lançar gasto</button>
+    </div>
+  </div>`;
+  document.body.appendChild(m);
+  setTimeout(()=>document.getElementById('cgDesc')?.focus(), 60);
+}
+
+async function salvarGastoCartao(){
+  const cartao_id = document.getElementById('cgCartao').value;
+  const descricao = (document.getElementById('cgDesc').value||'').trim();
+  const valor = parseFloat(document.getElementById('cgValor').value);
+  const data_gasto = document.getElementById('cgData').value || null;
+  if(!cartao_id){ toast('Selecione o cartão.','info'); return; }
+  if(!descricao){ toast('Escreva a descrição do gasto.','info'); return; }
+  if(!(valor > 0)){ toast('Informe um valor maior que zero.','info'); return; }
+  if(!data_gasto){ toast('Informe quando o gasto aconteceu.','info'); return; }
+  const payload = {
+    cartao_id, descricao, valor, data_gasto,
+    observacoes: (document.getElementById('cgObs').value||'').trim() || null,
+    created_by_email: (_currentUser && _currentUser.email) || null   // created_at = agora (registro do lançamento)
+  };
+  const r = await gravarSeguro({ tabela:'cartao_gastos', tipo:'insert', payload, descricao:'gasto no cartão' });
+  if(!r.ok) return;
+  document.getElementById('novoGastoModal')?.remove();
+  window._cartMes = String(data_gasto).slice(0,7);   // pula pro mês do gasto pra ele aparecer na hora
+  toast('✓ Gasto lançado','success');
+  renderCartoesPane();
+}
+
+async function excluirCartao(id){
+  const ct = (window._cartoes||[]).find(x=>x.id===id);
+  const n = (window._cartGastos||[]).filter(g=>g.cartao_id===id).length;
+  if(!confirm(`Excluir o cartão "${ct?ct.apelido:''}"?` + (n?`\n\nOs ${n} gasto(s) lançados nele também serão apagados.`:''))) return;
+  const r = await gravarSeguro({ tabela:'cartoes', tipo:'delete', id, descricao:'excluir cartão' });
+  if(r.ok){ toast('Cartão excluído.','success'); renderCartoesPane(); }
+}
+
+async function excluirGastoCartao(id){
+  if(!confirm('Excluir este lançamento?')) return;
+  const r = await gravarSeguro({ tabela:'cartao_gastos', tipo:'delete', id, descricao:'excluir gasto do cartão' });
+  if(r.ok){ toast('Lançamento excluído.','success'); renderCartoesPane(); }
+}
+
+if(typeof window!=='undefined'){
+  window.renderCartoesPane=renderCartoesPane; window._cartoesPintar=_cartoesPintar; window._cartTrocarMes=_cartTrocarMes;
+  window.novoCartaoModal=novoCartaoModal; window.salvarCartao=salvarCartao;
+  window.novoGastoCartao=novoGastoCartao; window.salvarGastoCartao=salvarGastoCartao;
+  window.excluirCartao=excluirCartao; window.excluirGastoCartao=excluirGastoCartao;
 }
 
 function drawCashChart(){const ctx=document.getElementById('cashChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';const gridCol=isDark?'#23232a':'#e8e8ed';new Chart(ctx,{type:'bar',data:{labels:['Jun','Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai'],datasets:[{label:'Entradas',data:[58,62,66,60,70,76,84,78,82,88,92,87],backgroundColor:isDark?'#f5f5f7':'#1d1d1f',borderRadius:4,barPercentage:.6},{label:'Saídas',data:[28,29,30,29,31,32,34,32,33,34,35,24.5],backgroundColor:isDark?'#3a3a44':'#d2d2d7',borderRadius:4,barPercentage:.6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:8}}},scales:{x:{grid:{display:false},ticks:{color:txtCol}},y:{grid:{color:gridCol},ticks:{color:txtCol,callback:v=>'R$ '+v+'k'}}}}});}
