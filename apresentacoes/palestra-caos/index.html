@@ -577,6 +577,50 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .igtxt em{font-style:normal; font-weight:700}
 .slide[data-tema] .igtxt b,.slide[data-tema] .igtxt small{color:var(--t-ink)}
 
+
+/* ── encerramento: escala pela ALTURA da tela (zoom 125% do Windows, projetor baixo) ──
+   Tudo em vh: pergunta, cartão, QRs e assinatura sempre cabem juntos. */
+.slide:has(.silencio){padding-top:1.6vh; padding-bottom:1.6vh}
+.silencio .q{font-size:clamp(1.45rem, 5.6vh, 4.4rem); line-height:1.07}
+.silencio .risco{margin-top:1.8vh}
+.silencio .depois{margin-top:2vh; font-size:clamp(.95rem, 2.2vh, 1.25rem)}
+.igcard{margin-bottom:1.4vh; padding:1vh 2vh 1vh 1vh; gap:1.6vh}
+.igfoto{width:clamp(50px, 8.5vh, 110px); height:clamp(50px, 8.5vh, 110px)}
+.igtxt b{font-size:clamp(.95rem, 2.4vh, 1.3rem)}
+.igtxt small{font-size:clamp(.8rem, 1.9vh, 1rem)}
+.contatos{margin-top:1.6vh; gap:clamp(14px, 3vw, 42px)}
+.ctt{gap:1vh}
+.ctt .cx{width:clamp(74px, 12.5vh, 132px); padding:.8vh; border-radius:12px}
+.ctt b{font-size:clamp(.8rem, 2vh, 1rem)}
+.ctt small{font-size:clamp(.7rem, 1.6vh, .82rem)}
+.silencio .byline{margin-top:1.8vh; font-size:clamp(.8rem, 1.9vh, 1rem)}
+
+
+/* telas bem baixas (zoom do Windows + barra do navegador): some a assinatura redundante */
+@media (max-height:780px){
+  .silencio .byline{display:none}
+  .silencio .q{font-size:clamp(1.35rem, 5vh, 3.4rem)}
+  .silencio .depois{margin-top:1.2vh}
+  .contatos{margin-top:1.2vh}
+  .igcard{margin-bottom:1vh}
+}
+
+
+@media (max-height:660px){
+  .silencio .q{font-size:clamp(1.2rem, 4.4vh, 2.6rem)}
+  .ctt .cx{width:clamp(64px, 10.5vh, 132px)}
+  .igfoto{width:clamp(42px, 7vh, 110px); height:clamp(42px, 7vh, 110px)}
+  .silencio .risco{display:none}
+}
+
+
+@media (max-height:790px){
+  .ledger .row{padding:1.1vh 0}
+  .ledger h3{font-size:clamp(1.05rem,2.4vh,1.5rem); margin-bottom:2px}
+  .ledger p{font-size:clamp(.85rem,1.9vh,1.05rem); line-height:1.45}
+  .ledger{margin-top:1.8vh}
+}
+
 /* — QR do WhatsApp — */
 .qrbox{display:flex; flex-direction:column; align-items:center; gap:14px}
 .qrframe{background:#fff; border-radius:26px; padding:clamp(14px,1.8vw,22px);
