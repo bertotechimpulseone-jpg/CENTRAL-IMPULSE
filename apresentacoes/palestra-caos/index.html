@@ -437,8 +437,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .slide[data-tema] .overflow span{background:var(--t-card); border-color:var(--t-line); color:var(--t-soft)}
 
 .slide[data-tema="laranja"]{--t-bg:#F7941E; --t-ink:#1B0D00; --t-soft:rgba(27,13,0,.72); --t-hi:#FFFFFF; --t-card:rgba(255,255,255,.20); --t-line:rgba(27,13,0,.16); --t-pill:rgba(255,255,255,.34)}
-.slide[data-tema="rosa"]{--t-bg:#EC1E79; --t-ink:#FFFFFF; --t-soft:rgba(255,255,255,.80); --t-hi:#FFE08A; --t-card:rgba(255,255,255,.14); --t-line:rgba(255,255,255,.24); --t-pill:rgba(255,255,255,.22)}
-.slide[data-tema="roxo"]{--t-bg:#7B2CBF; --t-ink:#FFFFFF; --t-soft:rgba(255,255,255,.78); --t-hi:#FFC4E6; --t-card:rgba(255,255,255,.12); --t-line:rgba(255,255,255,.22); --t-pill:rgba(255,255,255,.20)}
+.slide[data-tema="rosa"]{--t-bg:#BE1264; --t-ink:#FFFFFF; --t-soft:rgba(255,255,255,.92); --t-hi:#FFE8A8; --t-card:rgba(255,255,255,.14); --t-line:rgba(255,255,255,.24); --t-pill:rgba(255,255,255,.22)}
+.slide[data-tema="roxo"]{--t-bg:#5B1E92; --t-ink:#FFFFFF; --t-soft:rgba(255,255,255,.90); --t-hi:#FFC4E6; --t-card:rgba(255,255,255,.12); --t-line:rgba(255,255,255,.22); --t-pill:rgba(255,255,255,.20)}
 .slide[data-tema="ciano"]{--t-bg:#29ABE2; --t-ink:#03202C; --t-soft:rgba(3,32,44,.74); --t-hi:#FFFFFF; --t-card:rgba(255,255,255,.22); --t-line:rgba(3,32,44,.16); --t-pill:rgba(255,255,255,.36)}
 .slide[data-tema="claro"]{--t-bg:#EFE9FF; --t-ink:#14082B; --t-soft:rgba(20,8,43,.70); --t-hi:#EC1E79; --t-card:rgba(255,255,255,.78); --t-line:rgba(20,8,43,.12); --t-pill:rgba(236,30,121,.14)}
 .slide[data-tema="preto"]{--t-bg:#08080C; --t-ink:#FFFFFF; --t-soft:#A6A6B4; --t-hi:#F25FA8; --t-card:#121219; --t-line:rgba(255,255,255,.10); --t-pill:rgba(236,30,121,.16)}
@@ -481,6 +481,41 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .galo{position:absolute; right:-2vw; bottom:-6vh; width:clamp(300px,42vw,620px); height:auto;
   color:var(--t-hi,var(--accent)); opacity:.13; transform:rotate(-4deg)}
 @media(max-width:900px){.galo{width:70vw; opacity:.09; right:-12vw}}
+
+
+/* ── LEITURA: títulos maiores e tudo herdando a cor do bloco ── */
+.punch{font-size:clamp(2.4rem,6.2vw,5rem); line-height:1.03; letter-spacing:-.035em}
+@media (max-height:1200px){.punch{font-size:clamp(2.1rem,5vw,3.9rem)}}
+@media (max-height:780px){.punch{font-size:clamp(1.8rem,4.2vw,3rem)}}
+
+.ledger h3{font-size:clamp(1.3rem,2.6vw,1.95rem)}
+.ledger p{font-size:clamp(1rem,1.5vw,1.18rem); line-height:1.55}
+.ledger .tag{font-size:clamp(1.05rem,1.8vw,1.35rem)}
+.pt h4{font-size:clamp(1.1rem,1.7vw,1.28rem)}
+.pt p{font-size:clamp(.98rem,1.45vw,1.1rem)}
+.pillar h3{font-size:clamp(1.3rem,2vw,1.55rem)}
+.pillar p{font-size:clamp(.98rem,1.4vw,1.08rem)}
+
+/* dentro de um bloco de cor, nenhum componente pode ficar com cor de tema escuro */
+.slide[data-tema] .ledger .tag{color:var(--t-hi)}
+.slide[data-tema] .ledger h3,.slide[data-tema] .pt h4,.slide[data-tema] .pillar h3{color:var(--t-ink)}
+.slide[data-tema] .ledger p,.slide[data-tema] .pt p,.slide[data-tema] .pillar p{color:var(--t-soft)}
+.slide[data-tema] .ledger .row{border-color:var(--t-line)}
+.slide[data-tema] .pillar .n{color:var(--t-soft); opacity:.6}
+.slide[data-tema] .pt .ck{background:var(--t-card); border-color:var(--t-line)}
+.slide[data-tema] .pt .ck svg path{stroke:var(--t-hi)}
+.slide[data-tema] .cpill{background:var(--t-card); border-color:var(--t-line); color:var(--t-ink)}
+.slide[data-tema] .cpill i{background:var(--t-hi)}
+.slide[data-tema] .kicker::before{background:var(--t-hi)}
+
+/* nos blocos claros o acento branco não serve: usa o rosa da marca */
+.slide[data-tema="laranja"]{--t-hi:#4A1E00}
+.slide[data-tema="ciano"]{--t-hi:#062C3B}
+.slide[data-tema="laranja"] .ledger .tag,.slide[data-tema="ciano"] .ledger .tag{font-weight:800}
+/* mais contraste no texto de apoio dos blocos claros */
+.slide[data-tema="laranja"]{--t-soft:rgba(27,13,0,.82)}
+.slide[data-tema="ciano"]{--t-soft:rgba(3,32,44,.82)}
+.slide[data-tema="claro"]{--t-soft:rgba(20,8,43,.78)}
 
 /* — QR do WhatsApp — */
 .qrbox{display:flex; flex-direction:column; align-items:center; gap:14px}
