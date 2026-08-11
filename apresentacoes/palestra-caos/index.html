@@ -474,6 +474,13 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .slide[data-tema] .cta-links a.ghost{color:var(--t-ink); border-color:var(--t-line)}
 .slide[data-tema="rosa"] .risco,.slide[data-tema="laranja"] .risco{background:var(--t-ink)}
 
+
+/* galo: símbolo da publicidade, de fundo */
+.galo-wrap{position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0}
+.galo{position:absolute; right:-2vw; bottom:-6vh; width:clamp(300px,42vw,620px); height:auto;
+  color:var(--t-hi,var(--accent)); opacity:.13; transform:rotate(-4deg)}
+@media(max-width:900px){.galo{width:70vw; opacity:.09; right:-12vw}}
+
 /* — QR do WhatsApp — */
 .qrbox{display:flex; flex-direction:column; align-items:center; gap:14px}
 .qrframe{background:#fff; border-radius:26px; padding:clamp(14px,1.8vw,22px);
@@ -578,7 +585,18 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 3 · QUEM FALA -->
-<section class="slide" data-title="Quem fala">
+<section class="slide" data-tema="preto" data-title="Quem fala">
+  <div class="galo-wrap" aria-hidden="true"><svg class="galo" viewBox="0 0 360 360"><g fill="currentColor">
+<path d="M214 206 C 268 210 312 168 330 96 C 314 148 282 180 244 188 C 262 166 272 140 272 112 C 258 152 236 178 210 190 Z"/>
+<path d="M220 226 C 280 236 330 202 352 150 C 322 190 282 210 240 208 Z"/>
+<path d="M120 132 C 108 104, 124 74, 154 70 C 184 66, 202 88, 198 116 C 195 140, 180 154, 176 172 C 212 182, 238 214, 238 254 C 238 296, 206 322, 166 322 C 118 322, 86 292, 86 250 C 86 212, 104 184, 130 174 C 127 158, 123 144, 120 132 Z"/>
+<path d="M132 76 C 132 56, 146 50, 150 62 C 154 42, 170 40, 172 58 C 178 40, 194 44, 190 62 C 196 54, 204 60, 200 78 Z"/>
+<path d="M118 118 L 76 130 L 120 146 Z"/>
+<path d="M126 146 C 116 164, 122 182, 138 180 C 150 178, 152 162, 140 146 Z"/>
+<g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+<path d="M136 318 L 130 346"/><path d="M130 346 L 108 352"/><path d="M130 346 L 150 352"/>
+<path d="M192 318 L 200 346"/><path d="M200 346 L 178 352"/><path d="M200 346 L 220 352"/></g>
+</g></svg></div>
   <div class="wrap">
     <div class="kicker" data-rise="1">Prazer, Vinícius</div>
     <h2 class="punch" data-rise="2">Eu minto sobre produtos.<br><em>Profissionalmente.</em></h2>
@@ -586,6 +604,7 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
       <div class="row frag"><span class="tag">Origem</span><div><h3>Minha jornada começou na veterinária</h3><p>Fui treinado para cuidar de bichos. Descobri que meu talento era outro: convencer humanos.</p></div></div>
       <div class="row frag"><span class="tag">Virada</span><div><h3>Publicitário, com orgulho do crime</h3><p>Vender como verdade absoluta algo que ainda nem existe: o mercado chama isso de publicidade. Eu chamo de ofício.</p></div></div>
       <div class="row frag"><span class="tag">Hoje</span><div><h3>Pós-graduado em neuromarketing</h3><p>Agora eu minto com embasamento científico: sei qual botão o seu cérebro aperta antes de você achar que decidiu.</p></div></div>
+      <div class="row frag"><span class="tag">Agora</span><div><h3>Duas empresas ao mesmo tempo. E quero mais.</h3><p>Não dá pra tocar duas sem método. <strong>Organização não é frescura de quem gosta de planilha: é o que permite ter mais de uma.</strong></p></div></div>
     </div>
   </div>
 </section>
