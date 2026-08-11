@@ -139,7 +139,7 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .mock .mtxt{flex:1; font-size:.9rem; color:var(--ink)}
 .mock .mrow.done .mtxt{color:var(--dim); text-decoration:line-through}
 .mock .who{font:600 .68rem var(--sora); color:var(--soft); background:var(--bg2); border:1px solid var(--line); padding:4px 9px; border-radius:999px; white-space:nowrap}
-.mock .who.hot{color:#fff; border:0; background:var(--accent)}
+.mock .who.hot{color:#fff; border:0; background:#BE1264}
 
 .score{display:flex; align-items:center; gap:12px; padding:12px; border-radius:12px; background:var(--card2)}
 .score+.score{margin-top:8px}
@@ -517,6 +517,34 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .slide[data-tema="ciano"]{--t-soft:rgba(3,32,44,.82)}
 .slide[data-tema="claro"]{--t-soft:rgba(20,8,43,.78)}
 
+
+/* qualquer destaque dentro de um bloco de cor herda a tinta do bloco
+   (antes o negrito continuava branco e sumia nos fundos claros) */
+.slide[data-tema] strong,.slide[data-tema] b,.slide[data-tema] em,
+.slide[data-tema] .forte,.slide[data-tema] .mtxt,.slide[data-tema] .scene p strong,
+.slide[data-tema] .sub strong,.slide[data-tema] .diz strong{color:var(--t-ink)}
+.slide[data-tema] .punch em,.slide[data-tema] .q em,.slide[data-tema] .cover-title em{color:var(--t-hi)}
+
+
+/* ── legibilidade de textos pequenos (auditoria de contraste) ── */
+/* etiqueta técnica vira pílula invertida: contraste garantido em qualquer bloco */
+.slide[data-tema] .tag-tec{background:var(--t-ink); color:var(--t-bg); border:0}
+.slide[data-tema] .tag-tec::before{background:var(--t-bg)}
+.tag-tec{background:var(--ink,#fff); color:#08080C; border:0}
+.tag-tec::before{background:#08080C}
+/* horário das cenas e rótulos pequenos: peso e tinta cheia */
+.scene time{font-weight:800}
+.slide[data-tema] .scene time{color:var(--t-ink)}
+.slide[data-tema] .kicker{color:var(--t-ink); opacity:.85}
+/* itens do mockup e rótulos do DRE estavam apagados demais */
+.mock .who{color:var(--soft)}
+.mock .mrow.done .mtxt{color:var(--soft); opacity:.9}
+.dre .cell small{color:var(--soft)}
+.sys .mod span{color:var(--soft)}
+.slide[data-tema] .mock .who,.slide[data-tema] .dre .cell small,
+.slide[data-tema] .sys .mod span,.slide[data-tema] .mock .mrow.done .mtxt{color:var(--t-soft)}
+.slide[data-tema] .mock .foot{color:var(--t-soft)}
+
 /* — QR do WhatsApp — */
 .qrbox{display:flex; flex-direction:column; align-items:center; gap:14px}
 .qrframe{background:#fff; border-radius:26px; padding:clamp(14px,1.8vw,22px);
@@ -710,9 +738,9 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
     <h2 class="punch" data-rise="2" style="margin-top:14px">Não é preguiça.<br>É <em>laço aberto.</em></h2>
     <div class="duo">
       <div>
-        <p class="sub" data-rise="3" style="margin-top:0; font-size:clamp(1.05rem,1.9vw,1.4rem)">O cérebro <strong>não solta o que ficou pela metade.</strong></p>
-        <p class="sub frag" style="font-size:clamp(1.05rem,1.9vw,1.4rem)">Cada pendência sua continua ligada. Consumindo. O dia inteiro.</p>
-        <p class="sub frag" style="font-size:clamp(1.05rem,1.9vw,1.4rem)"><strong>Escrever fecha o laço.</strong></p>
+        <p class="sub" data-rise="3" style="margin-top:0; font-size:clamp(1.05rem,1.9vw,1.4rem)">Em 1927, a psicóloga <strong>Bluma Zeigarnik</strong> reparou numa coisa estranha: garçons lembravam de todos os pedidos em aberto, e esqueciam tudo no instante em que a conta era paga.</p>
+        <p class="sub frag" style="font-size:clamp(1.05rem,1.9vw,1.4rem)">O que ficou pela metade <strong>não é arquivado.</strong> Fica rodando na sua cabeça, cobrando energia, o dia inteiro.</p>
+        <p class="sub frag" style="font-size:clamp(1.05rem,1.9vw,1.4rem)"><strong>Escrever num lugar confiável fecha o laço.</strong> O cérebro só larga o que sabe que está guardado.</p>
       </div>
       <div class="loops" data-rise="4">
         <div class="head"><span>a sua<br>cabeça</span></div>
