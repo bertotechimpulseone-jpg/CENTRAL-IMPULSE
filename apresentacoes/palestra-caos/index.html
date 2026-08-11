@@ -401,6 +401,37 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .slide.active .tnode:nth-child(3){transition-delay:.24s}
 .slide.active .tnode:nth-child(4){transition-delay:.36s}
 
+/* — SLIDE DE IMPACTO: um número, uma frase, nada mais — */
+.mega{min-height:100%; display:flex; flex-direction:column; justify-content:center; align-items:flex-start}
+.mega .num{
+  font:800 clamp(5rem,20vw,17rem)/.82 var(--sora); letter-spacing:-.06em;
+  background:none; color:var(--ink); display:block;
+}
+.mega .num em{font-style:normal; color:var(--accent-text)}
+.mega .num small{display:inline-block; font-size:.18em; font-weight:700; letter-spacing:-.01em; color:var(--soft); vertical-align:super; margin-left:.06em}
+.mega .diz{font:600 clamp(1.15rem,2.6vw,2rem)/1.35 var(--sora); letter-spacing:-.025em; margin-top:clamp(16px,2.6vh,30px); max-width:22ch}
+.mega .fonte{margin-top:clamp(14px,2.2vh,24px); font-size:.78rem; color:var(--dim)}
+
+/* — QR do WhatsApp — */
+.qrbox{display:flex; flex-direction:column; align-items:center; gap:14px}
+.qrframe{background:#fff; border-radius:26px; padding:clamp(14px,1.8vw,22px);
+  box-shadow:0 30px 80px rgba(236,30,121,.28), 0 0 0 1px rgba(255,255,255,.14);
+  width:clamp(190px,22vw,290px); position:relative}
+.qrframe::after{content:""; position:absolute; inset:-9px; border-radius:34px;
+  background:var(--grad); z-index:-1; filter:blur(16px); opacity:.5}
+.qrframe svg{width:100%; height:auto; display:block; border-radius:6px}
+.qrcap{font:700 clamp(1rem,1.6vw,1.25rem) var(--sora); letter-spacing:-.01em; color:var(--ink)}
+
+/* — PERGUNTA QUE FICA: tela quieta, uma linha só — */
+.silencio{min-height:100%; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center}
+.silencio .q{
+  font:800 clamp(2rem,6.4vw,5.2rem)/1.08 var(--sora); letter-spacing:-.04em;
+  max-width:20ch; text-wrap:balance;
+}
+.silencio .q em{font-style:normal; color:var(--accent-text)}
+.silencio .depois{margin-top:clamp(24px,4vh,44px); color:var(--soft); font-size:clamp(1rem,1.7vw,1.25rem); max-width:40ch; line-height:1.6}
+.silencio .risco{width:64px; height:4px; border-radius:2px; background:var(--grad); margin:clamp(22px,3.4vh,38px) 0 0}
+
 /* — cenas reconhecíveis (gatilho de identificação) — */
 .scenes{margin-top:clamp(20px,3.2vh,32px); display:flex; flex-direction:column; gap:10px; max-width:62ch}
 .scene{display:flex; gap:14px; align-items:flex-start; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:15px 18px}
@@ -557,8 +588,9 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
     <h2 class="punch" data-rise="2" style="margin-top:14px">Não é preguiça.<br>É <em>laço aberto.</em></h2>
     <div class="duo">
       <div>
-        <p class="sub" data-rise="3" style="margin-top:0">Em 1927, a psicóloga <strong>Bluma Zeigarnik</strong> notou algo estranho: garçons lembravam com perfeição dos pedidos em aberto e esqueciam tudo assim que a conta era paga. O cérebro <strong>mantém ativo aquilo que não foi concluído</strong>.</p>
-        <p class="sub frag"><strong>Escrever num lugar confiável fecha o laço.</strong> Não porque a tarefa sumiu, mas porque o cérebro aceita soltar o que sabe que está guardado.</p>
+        <p class="sub" data-rise="3" style="margin-top:0; font-size:clamp(1.05rem,1.9vw,1.4rem)">O cérebro <strong>não solta o que ficou pela metade.</strong></p>
+        <p class="sub frag" style="font-size:clamp(1.05rem,1.9vw,1.4rem)">Cada pendência sua continua ligada. Consumindo. O dia inteiro.</p>
+        <p class="sub frag" style="font-size:clamp(1.05rem,1.9vw,1.4rem)"><strong>Escrever fecha o laço.</strong></p>
       </div>
       <div class="loops" data-rise="4">
         <div class="head"><span>a sua<br>cabeça</span></div>
@@ -578,7 +610,7 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
   <div class="wrap">
     <span class="tag-tec" data-rise="1">Carga mental</span>
     <h2 class="punch" data-rise="2" style="margin-top:14px">Sua cabeça segura <em>quatro</em>.<br>Sua empresa tem quarenta.</h2>
-    <p class="sub" data-rise="3" style="margin-top:14px">A memória de trabalho é o “agora” do cérebro, e ela é pequena: cerca de <strong>quatro blocos por vez</strong>. O que passa disso não é gerenciado. É empurrado.</p>
+    <p class="sub" data-rise="3" style="margin-top:14px">O que passa de quatro não é gerenciado. É <strong>empurrado.</strong></p>
     <div class="slots" data-rise="4">
       <div class="slot on">Cliente na linha</div>
       <div class="slot on">Fechar o mês</div>
@@ -591,10 +623,16 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
       <span>site fora do ar</span><span>nota fiscal</span><span>aniversário do cliente</span><span>troca do plano</span>
       <span>cobrança atrasada</span><span>reunião de segunda</span><span>meta do trimestre</span><span>backup</span>
     </div>
-    <div class="facts">
-      <div class="fact frag hud"><b>4<small>blocos</small></b><p>É o que a memória de trabalho segura por vez. O resto só existe se estiver escrito.</p><cite>Cowan, 2001 · Behavioral and Brain Sciences</cite></div>
-      <div class="fact frag hud"><b>40<small>%</small></b><p>Do tempo produtivo pode se perder trocando de tarefa. <strong>Você não perdeu o dia trabalhando: perdeu trocando de contexto.</strong></p><cite>American Psychological Association · multitarefa</cite></div>
-    </div>
+  </div>
+</section>
+
+<!-- 4E · IMPACTO: O PEDÁGIO -->
+<section class="slide" data-title="40%">
+  <div class="wrap mega">
+    <span class="num" data-rise="1"><em>40</em><small>%</small></span>
+    <p class="diz frag">do tempo produtivo pode ir embora só na troca de tarefa.</p>
+    <p class="diz frag" style="color:var(--soft); font-weight:500">Você não está cansada de trabalhar.<br><strong style="color:var(--ink)">Está cansada de recomeçar.</strong></p>
+    <p class="fonte frag">American Psychological Association · pesquisa sobre multitarefa</p>
   </div>
 </section>
 
@@ -611,7 +649,7 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
   <div class="wrap">
     <span class="tag-tec" data-rise="1">Neuroplasticidade</span>
     <h2 class="punch" data-rise="2" style="margin-top:18px">Seu cérebro <em>reescreve</em><br>o que você repete.</h2>
-    <p class="sub" data-rise="3">Em 1949, o neuropsicólogo <strong>Donald Hebb</strong> resumiu numa frase que virou lei: <strong>“neurônios que disparam juntos se conectam juntos”</strong>. Cada vez que você repete uma sequência, o caminho fica mais espesso, mais rápido, mais automático. É biologia, não força de vontade.</p>
+    <p class="sub" data-rise="3">“Neurônios que disparam juntos <strong>se conectam juntos.</strong>” O que você repete vira estrada. É biologia, não força de vontade.</p>
     <div class="neuro" data-rise="4">
       <svg viewBox="0 0 900 240" role="img" aria-label="Rede neural com um caminho principal se abrindo">
         <defs>
@@ -636,10 +674,16 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
       </svg>
       <figcaption>Repetiu, marcou. Marcou, virou caminho. Virou caminho, virou automático.</figcaption>
     </div>
-    <div class="facts">
-      <div class="fact frag hud"><b>66<small>dias</small></b><p>É a <strong>média</strong> para um comportamento virar automático — não os 21 dias que todo mundo repete. O intervalo real vai de 18 a 254 dias.</p><cite>Lally et al., 2010 · University College London</cite></div>
-      <div class="fact frag hud"><b>2<small>sistemas</small></b><p>Decidir gasta o córtex pré-frontal. Hábito roda nos gânglios da base, quase de graça. <strong>Rotina não te limita: devolve cabeça.</strong></p><cite>Neurociência do hábito</cite></div>
-    </div>
+  </div>
+</section>
+
+<!-- 5B2 · IMPACTO: 66 DIAS -->
+<section class="slide" data-title="66 dias">
+  <div class="wrap mega">
+    <span class="num" data-rise="1"><em>66</em></span>
+    <p class="diz frag">dias, em média, para um hábito virar automático.</p>
+    <p class="diz frag" style="color:var(--soft); font-weight:500">Não são 21. <strong style="color:var(--ink)">Esse número nunca existiu.</strong></p>
+    <p class="fonte frag">Lally et al., 2010 · University College London · o intervalo real vai de 18 a 254 dias</p>
   </div>
 </section>
 
@@ -895,18 +939,40 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
   </div>
 </section>
 
-<!-- 17 · FINAL -->
-<section class="slide" data-title="Final">
+<!-- 17 · OFERTA + QR -->
+<section class="slide" data-title="Manda um oi">
   <div class="wrap">
-    <div class="kicker" data-rise="1">De volta àquela pergunta</div>
-    <h2 class="punch" data-rise="2">Sua empresa fica de pé<br>30 dias sem você?</h2>
-    <p class="sub frag" style="font-size:clamp(1.1rem,2vw,1.5rem); max-width:46ch"><strong>Ainda não?</strong> Então comece hoje, por uma decisão: escolha um lugar só para a sua empresa morar. Controle não se deseja. Se constrói.</p>
-    <!-- EDITE: seus links reais (Instagram e WhatsApp) -->
-    <div class="cta-links" data-rise="3">
-      <a class="hot" href="https://wa.me/5551999999999" target="_blank" rel="noopener">Falar comigo no WhatsApp</a>
-      <a class="ghost" href="https://instagram.com/agenciaimpulse" target="_blank" rel="noopener">@agenciaimpulse</a>
+    <div class="duo" style="align-items:center">
+      <div>
+        <span class="tag-tec" data-rise="1">Primeiro mês por nossa conta</span>
+        <h2 class="punch" data-rise="2" style="margin-top:16px">Manda um <em>oi.</em></h2>
+        <p class="sub" data-rise="3">Aponta a câmera. Você cai direto no meu WhatsApp e <strong>ganha o primeiro mês do sistema de graça</strong> pra testar na sua empresa.</p>
+        <p class="sub frag" style="font-weight:600; color:var(--ink)">Sem contrato. Sem pegadinha. Só pra você sentir como é ter tudo num lugar só.</p>
+        <div class="cta-links" data-rise="4">
+          <a class="hot" href="https://wa.me/5551992718742?text=Oi%2C%20vim%20da%20palestra%20O%20Caos%20Cobra%20Caro" target="_blank" rel="noopener">Falar no WhatsApp</a>
+          <a class="ghost" href="https://instagram.com/agenciaimpulse" target="_blank" rel="noopener">@agenciaimpulse</a>
+        </div>
+      </div>
+      <div class="qrbox" data-rise="3">
+        <div class="qrframe">
+          <svg viewBox="0 0 37 37" shape-rendering="crispEdges" role="img" aria-label="QR code do WhatsApp da Impulse">
+            <path fill="#ffffff" d="M0 0h37v37H0z"/>
+            <path stroke="#000000" d="M0 0.5h7m2 0h4m1 0h1m2 0h2m1 0h3m1 0h1m2 0h2m1 0h7M0 1.5h1m5 0h1m5 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h4m3 0h1m5 0h1M0 2.5h1m1 0h3m1 0h1m1 0h6m3 0h2m1 0h1m1 0h1m4 0h1m2 0h1m1 0h3m1 0h1M0 3.5h1m1 0h3m1 0h1m1 0h2m3 0h1m1 0h1m2 0h1m2 0h1m1 0h1m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1M0 4.5h1m1 0h3m1 0h1m1 0h1m1 0h1m4 0h3m3 0h2m7 0h1m1 0h3m1 0h1M0 5.5h1m5 0h1m1 0h1m1 0h1m2 0h1m4 0h1m1 0h4m3 0h1m2 0h1m5 0h1M0 6.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M8 7.5h1m4 0h6m7 0h2M0 8.5h1m1 0h5m6 0h1m1 0h2m2 0h7m1 0h1m2 0h5M0 9.5h1m1 0h2m3 0h3m1 0h1m1 0h3m2 0h1m2 0h1m3 0h6m1 0h1m2 0h1M0 10.5h1m2 0h1m2 0h3m2 0h1m1 0h4m2 0h1m1 0h3m1 0h1m3 0h3m1 0h1m1 0h2M0 11.5h2m5 0h1m1 0h7m1 0h2m1 0h1m1 0h1m3 0h4m3 0h2m1 0h1M1 12.5h2m1 0h3m2 0h2m4 0h1m6 0h2m1 0h1m1 0h6m2 0h2M1 13.5h1m1 0h2m7 0h1m2 0h2m1 0h1m1 0h1m2 0h1m1 0h3m3 0h1m4 0h1M5 14.5h2m1 0h3m1 0h3m3 0h2m1 0h1m1 0h2m1 0h8M3 15.5h3m6 0h2m1 0h2m3 0h1m4 0h1m2 0h5m2 0h2M6 16.5h1m1 0h2m1 0h1m1 0h3m2 0h1m2 0h3m4 0h2m1 0h2m1 0h1m1 0h1M1 17.5h2m1 0h1m5 0h2m3 0h4m2 0h1m1 0h2m1 0h2m2 0h1m1 0h1m2 0h1M0 18.5h1m2 0h1m2 0h1m2 0h1m1 0h1m1 0h1m4 0h4m1 0h1m6 0h2m1 0h1m1 0h2M0 19.5h1m3 0h1m3 0h4m1 0h2m1 0h3m3 0h1m2 0h7m2 0h1m1 0h1M0 20.5h2m1 0h8m1 0h1m3 0h1m2 0h4m1 0h1m1 0h2m2 0h1m1 0h2M1 21.5h2m4 0h1m1 0h1m2 0h1m1 0h2m1 0h2m2 0h3m2 0h1m6 0h1m1 0h2M0 22.5h1m3 0h3m1 0h3m1 0h3m4 0h1m1 0h1m1 0h2m1 0h4m1 0h3M0 23.5h2m3 0h1m3 0h1m1 0h2m1 0h4m2 0h3m1 0h2m1 0h6m2 0h2M2 24.5h1m2 0h2m3 0h2m2 0h2m2 0h1m2 0h1m2 0h1m1 0h2m1 0h1m4 0h1m1 0h1M0 25.5h2m1 0h1m4 0h3m2 0h3m2 0h1m1 0h2m2 0h1m2 0h1m1 0h2m1 0h3M0 26.5h1m2 0h1m1 0h2m1 0h3m2 0h3m2 0h4m1 0h1m4 0h2m1 0h1m1 0h1m1 0h2M0 27.5h1m6 0h1m1 0h1m1 0h1m1 0h1m1 0h3m7 0h1m1 0h1m6 0h1M0 28.5h1m1 0h1m1 0h4m2 0h1m2 0h1m2 0h1m2 0h1m2 0h2m1 0h2m1 0h6m1 0h1M8 29.5h1m1 0h1m1 0h3m4 0h1m2 0h1m1 0h5m3 0h2m2 0h1M0 30.5h7m3 0h1m5 0h1m2 0h6m3 0h1m1 0h1m1 0h1m1 0h2M0 31.5h1m5 0h1m1 0h3m1 0h6m2 0h1m1 0h1m1 0h2m2 0h1m3 0h2m2 0h1M0 32.5h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h1m1 0h2m2 0h1m3 0h2m1 0h7m1 0h1M0 33.5h1m1 0h3m1 0h1m1 0h1m2 0h1m2 0h1m2 0h2m2 0h2m1 0h2m3 0h2m1 0h2m2 0h1M0 34.5h1m1 0h3m1 0h1m1 0h1m3 0h3m1 0h1m1 0h5m3 0h1m1 0h1m7 0h1M0 35.5h1m5 0h1m4 0h5m1 0h1m2 0h3m1 0h4m2 0h1m1 0h1m1 0h1m1 0h1M0 36.5h7m1 0h1m2 0h1m1 0h2m2 0h4m3 0h2m2 0h3m1 0h2m1 0h2"/>
+          </svg>
+        </div>
+        <p class="qrcap">51 99271-8742</p>
+      </div>
     </div>
-    <div class="byline" data-rise="4"><b>Obrigado.</b><span class="dot"></span><span>Vinícius Moraes · Impulse</span></div>
+  </div>
+</section>
+
+<!-- 18 · A PERGUNTA QUE FICA -->
+<section class="slide" data-title="A pergunta que fica">
+  <div class="wrap silencio">
+    <h2 class="q" data-rise="1">Se a sua empresa <em>funciona</em><br>só porque você não para,<br>o que exatamente <em>você construiu</em>?</h2>
+    <span class="risco frag"></span>
+    <p class="depois frag">Um negócio, ou um emprego que não te deixa pedir demissão?</p>
+    <div class="byline frag" style="justify-content:center"><b>Obrigado.</b><span class="dot"></span><span>Vinícius Moraes · Impulse</span></div>
   </div>
 </section>
 
