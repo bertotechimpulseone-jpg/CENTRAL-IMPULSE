@@ -1,20 +1,41 @@
 {
   "functions": {
-    "api/humanizar.js": { "maxDuration": 30 },
-    "api/gerar-conteudo.js": { "maxDuration": 60 },
-    "api/feedback.js": { "maxDuration": 30 }
+    "api/humanizar.js": {
+      "maxDuration": 30
+    },
+    "api/gerar-conteudo.js": {
+      "maxDuration": 60
+    },
+    "api/feedback.js": {
+      "maxDuration": 30
+    }
   },
   "headers": [
     {
       "source": "/",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     },
     {
       "source": "/index.html",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/apresentacoes/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     }
   ]
