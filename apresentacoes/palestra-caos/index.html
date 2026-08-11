@@ -412,6 +412,68 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 .mega .diz{font:600 clamp(1.15rem,2.6vw,2rem)/1.35 var(--sora); letter-spacing:-.025em; margin-top:clamp(16px,2.6vh,30px); max-width:22ch}
 .mega .fonte{margin-top:clamp(14px,2.2vh,24px); font-size:.78rem; color:var(--dim)}
 
+
+/* ═══════════════════════════════════════════════════
+   PERSONALIDADE · blocos de cor + palavra-fantasma
+   Cada slide vira um cartaz. Uma cor, uma ideia.
+   ═══════════════════════════════════════════════════ */
+.slide[data-tema]{background:var(--t-bg); color:var(--t-ink)}
+.slide[data-tema] .sub{color:var(--t-soft)}
+.slide[data-tema] .sub strong,
+.slide[data-tema] .punch,
+.slide[data-tema] h2,.slide[data-tema] h3,.slide[data-tema] h4{color:var(--t-ink)}
+.slide[data-tema] .punch em,.slide[data-tema] .q em{color:var(--t-hi)}
+.slide[data-tema] .kicker{color:var(--t-soft)}
+.slide[data-tema] .fonte,.slide[data-tema] .scene time{color:var(--t-hi)}
+.slide[data-tema] .card,.slide[data-tema] .fact,.slide[data-tema] .scene,
+.slide[data-tema] .tnode,.slide[data-tema] .slot,.slide[data-tema] .rewire figure,
+.slide[data-tema] .neuro{background:var(--t-card); border-color:var(--t-line)}
+.slide[data-tema] .fact::before{display:none}
+.slide[data-tema] .fact p,.slide[data-tema] .scene p,.slide[data-tema] .tnode small,
+.slide[data-tema] .rewire small,.slide[data-tema] .neuro figcaption{color:var(--t-soft)}
+.slide[data-tema] .fact cite{color:var(--t-soft); opacity:.75}
+.slide[data-tema] .tag-tec{color:var(--t-ink); background:var(--t-pill); border-color:transparent}
+.slide[data-tema] .tag-tec::before{background:var(--t-ink); box-shadow:none}
+.slide[data-tema] .overflow span{background:var(--t-card); border-color:var(--t-line); color:var(--t-soft)}
+
+.slide[data-tema="laranja"]{--t-bg:#F7941E; --t-ink:#1B0D00; --t-soft:rgba(27,13,0,.72); --t-hi:#FFFFFF; --t-card:rgba(255,255,255,.20); --t-line:rgba(27,13,0,.16); --t-pill:rgba(255,255,255,.34)}
+.slide[data-tema="rosa"]{--t-bg:#EC1E79; --t-ink:#FFFFFF; --t-soft:rgba(255,255,255,.80); --t-hi:#FFE08A; --t-card:rgba(255,255,255,.14); --t-line:rgba(255,255,255,.24); --t-pill:rgba(255,255,255,.22)}
+.slide[data-tema="roxo"]{--t-bg:#7B2CBF; --t-ink:#FFFFFF; --t-soft:rgba(255,255,255,.78); --t-hi:#FFC4E6; --t-card:rgba(255,255,255,.12); --t-line:rgba(255,255,255,.22); --t-pill:rgba(255,255,255,.20)}
+.slide[data-tema="ciano"]{--t-bg:#29ABE2; --t-ink:#03202C; --t-soft:rgba(3,32,44,.74); --t-hi:#FFFFFF; --t-card:rgba(255,255,255,.22); --t-line:rgba(3,32,44,.16); --t-pill:rgba(255,255,255,.36)}
+.slide[data-tema="claro"]{--t-bg:#EFE9FF; --t-ink:#14082B; --t-soft:rgba(20,8,43,.70); --t-hi:#EC1E79; --t-card:rgba(255,255,255,.78); --t-line:rgba(20,8,43,.12); --t-pill:rgba(236,30,121,.14)}
+.slide[data-tema="preto"]{--t-bg:#08080C; --t-ink:#FFFFFF; --t-soft:#A6A6B4; --t-hi:#F25FA8; --t-card:#121219; --t-line:rgba(255,255,255,.10); --t-pill:rgba(236,30,121,.16)}
+
+/* fundo vivo some nos slides de cor: o bloco é o protagonista */
+.slide[data-tema]:not([data-tema="preto"]).active ~ #glow{opacity:0}
+
+/* palavra gigante cortada na borda — a assinatura do deck */
+.fantasma-wrap{position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0}
+.fantasma{
+  position:absolute; z-index:0; pointer-events:none; user-select:none;
+  right:-3vw; bottom:-4.5vh; color:currentColor; opacity:.11;
+  font:800 clamp(7rem,23vw,21rem)/.76 var(--sora);
+  letter-spacing:-.065em; text-transform:uppercase; white-space:nowrap;
+}
+.fantasma.esq{left:-3vw; right:auto}
+.fantasma.topo{top:-5vh; bottom:auto}
+.slide .wrap{position:relative; z-index:1}
+@media(max-width:760px){.fantasma{opacity:.09; font-size:clamp(6rem,34vw,12rem)}}
+
+
+/* contraste dentro dos blocos de cor: nada apagado */
+.suave{color:var(--t-soft,var(--soft)); font-weight:500}
+.forte{color:var(--t-ink,var(--ink))}
+.slide[data-tema] .mega .num,.slide[data-tema] .mega .num em{color:var(--t-ink)}
+.slide[data-tema] .mega .num small{color:var(--t-hi)}
+.slide[data-tema] .mega .diz{color:var(--t-ink)}
+.slide[data-tema] .mega .fonte{color:var(--t-soft); opacity:.85}
+.slide[data-tema] .silencio .q{color:var(--t-ink)}
+.slide[data-tema] .silencio .depois{color:var(--t-soft)}
+.slide[data-tema] .byline{color:var(--t-soft)}
+.slide[data-tema] .byline b{color:var(--t-ink)}
+.slide[data-tema] .cta-links a.ghost{color:var(--t-ink); border-color:var(--t-line)}
+.slide[data-tema="rosa"] .risco,.slide[data-tema="laranja"] .risco{background:var(--t-ink)}
+
 /* — QR do WhatsApp — */
 .qrbox{display:flex; flex-direction:column; align-items:center; gap:14px}
 .qrframe{background:#fff; border-radius:26px; padding:clamp(14px,1.8vw,22px);
@@ -505,7 +567,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 2 · AQUECIMENTO INTERATIVO -->
-<section class="slide" data-title="Aquecimento">
+<section class="slide" data-tema="rosa" data-title="Aquecimento">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">MÃO</span></div>
   <div class="wrap">
     <div class="kicker" data-rise="1">Antes de começar</div>
     <h2 class="punch" data-rise="2">Levanta a mão<br>quem <em>ama</em> a<br>própria empresa.</h2>
@@ -545,7 +608,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 3 · A PERGUNTA -->
-<section class="slide" data-title="A pergunta">
+<section class="slide" data-tema="preto" data-title="A pergunta">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">30 DIAS</span></div>
   <div class="wrap">
     <div class="kicker" data-rise="1">Uma pergunta honesta</div>
     <h2 class="punch" data-rise="2">Se você sumisse por 30 dias,<br>sua empresa <em>ficaria de pé?</em></h2>
@@ -554,7 +618,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 4 · O CUSTO -->
-<section class="slide" data-title="O custo do caos">
+<section class="slide" data-tema="laranja" data-title="O custo do caos">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">CUSTO</span></div>
   <div class="wrap">
     <h2 class="punch" data-rise="1">Você não está cansada<br>de trabalhar.</h2>
     <p class="sub" data-rise="2"><strong>Está cansada de procurar.</strong> O combinado que ficou no áudio, o valor que ficou no caderno, o prazo que ficou na sua cabeça.</p>
@@ -567,7 +632,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 4B · CENAS (identificação) -->
-<section class="slide" data-title="Você reconhece isso">
+<section class="slide" data-tema="claro" data-title="Você reconhece isso">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">ROTINA</span></div>
   <div class="wrap">
     <span class="tag-tec" data-rise="1">Um dia qualquer</span>
     <h2 class="punch" data-rise="2" style="margin-top:14px">Se você reconhece três,<br>a gente <em>precisa conversar.</em></h2>
@@ -582,7 +648,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 4C · CIÊNCIA: LAÇO ABERTO -->
-<section class="slide" data-title="Ciência · Laço aberto">
+<section class="slide" data-tema="roxo" data-title="Ciência · Laço aberto">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">ABERTO</span></div>
   <div class="wrap">
     <span class="tag-tec" data-rise="1">O que a ciência diz</span>
     <h2 class="punch" data-rise="2" style="margin-top:14px">Não é preguiça.<br>É <em>laço aberto.</em></h2>
@@ -606,7 +673,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 4D · CIÊNCIA: MEMÓRIA DE TRABALHO -->
-<section class="slide" data-title="Ciência · Carga mental">
+<section class="slide" data-tema="preto" data-title="Ciência · Carga mental">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">CARGA</span></div>
   <div class="wrap">
     <span class="tag-tec" data-rise="1">Carga mental</span>
     <h2 class="punch" data-rise="2" style="margin-top:14px">Sua cabeça segura <em>quatro</em>.<br>Sua empresa tem quarenta.</h2>
@@ -627,17 +695,19 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 4E · IMPACTO: O PEDÁGIO -->
-<section class="slide" data-title="40%">
+<section class="slide" data-tema="rosa" data-title="40%">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">PEDÁGIO</span></div>
   <div class="wrap mega">
     <span class="num" data-rise="1"><em>40</em><small>%</small></span>
     <p class="diz frag">do tempo produtivo pode ir embora só na troca de tarefa.</p>
-    <p class="diz frag" style="color:var(--soft); font-weight:500">Você não está cansada de trabalhar.<br><strong style="color:var(--ink)">Está cansada de recomeçar.</strong></p>
+    <p class="diz frag suave">Você não está cansada de trabalhar.<br><strong class="forte">Está cansada de recomeçar.</strong></p>
     <p class="fonte frag">American Psychological Association · pesquisa sobre multitarefa</p>
   </div>
 </section>
 
 <!-- 5 · TESE -->
-<section class="slide" data-title="Tese">
+<section class="slide" data-tema="ciano" data-title="Tese">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">ORDEM</span></div>
   <div class="wrap">
     <h2 class="punch" data-rise="1">Organização não é<br>planilha bonita.</h2>
     <p class="sub" data-rise="2" style="font-size:clamp(1.15rem,2.2vw,1.6rem); max-width:44ch"><strong>É a sua empresa funcionando sem depender da sua memória.</strong> Planilha que ninguém abre é decoração.</p>
@@ -645,7 +715,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 5B · NEUROPLASTICIDADE -->
-<section class="slide" data-title="Ciência · Neuroplasticidade">
+<section class="slide" data-tema="preto" data-title="Ciência · Neuroplasticidade">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">CÉREBRO</span></div>
   <div class="wrap">
     <span class="tag-tec" data-rise="1">Neuroplasticidade</span>
     <h2 class="punch" data-rise="2" style="margin-top:18px">Seu cérebro <em>reescreve</em><br>o que você repete.</h2>
@@ -678,17 +749,19 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 5B2 · IMPACTO: 66 DIAS -->
-<section class="slide" data-title="66 dias">
+<section class="slide" data-tema="laranja" data-title="66 dias">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">HÁBITO</span></div>
   <div class="wrap mega">
     <span class="num" data-rise="1"><em>66</em></span>
     <p class="diz frag">dias, em média, para um hábito virar automático.</p>
-    <p class="diz frag" style="color:var(--soft); font-weight:500">Não são 21. <strong style="color:var(--ink)">Esse número nunca existiu.</strong></p>
+    <p class="diz frag suave">Não são 21. <strong class="forte">Esse número nunca existiu.</strong></p>
     <p class="fonte frag">Lally et al., 2010 · University College London · o intervalo real vai de 18 a 254 dias</p>
   </div>
 </section>
 
 <!-- 5C · IMPROVISO x ROTINA -->
-<section class="slide" data-title="Ciência · Improviso x rotina">
+<section class="slide" data-tema="claro" data-title="Ciência · Improviso x rotina">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">TRILHA</span></div>
   <div class="wrap">
     <span class="tag-tec" data-rise="1">O mesmo cérebro, dois caminhos</span>
     <h2 class="punch" data-rise="2" style="margin-top:14px">Processo não engessa.<br>Ele <em>libera.</em></h2>
@@ -725,7 +798,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 6 · OS 4 PILARES -->
-<section class="slide" data-title="Os 4 pilares">
+<section class="slide" data-tema="roxo" data-title="Os 4 pilares">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">MÉTODO</span></div>
   <div class="wrap">
     <div class="kicker" data-rise="1">O método</div>
     <h2 class="punch" data-rise="2">Como a Impulse<br>fica de pé.</h2>
@@ -784,7 +858,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 8B · PSICOLOGIA ORGANIZACIONAL -->
-<section class="slide" data-title="Ciência · Segurança psicológica">
+<section class="slide" data-tema="ciano" data-title="Ciência · Segurança psicológica">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">TIME</span></div>
   <div class="wrap">
     <span class="tag-tec" data-rise="1">Psicologia organizacional</span>
     <h2 class="punch" data-rise="2" style="margin-top:14px">O que separa time bom<br>de time <em>que entrega.</em></h2>
@@ -940,7 +1015,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 17 · OFERTA + QR -->
-<section class="slide" data-title="Manda um oi">
+<section class="slide" data-tema="preto" data-title="Manda um oi">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">OI</span></div>
   <div class="wrap">
     <div class="duo" style="align-items:center">
       <div>
@@ -967,7 +1043,8 @@ h1,h2{font-family:var(--sora); font-weight:800; letter-spacing:-.03em; text-wrap
 </section>
 
 <!-- 18 · A PERGUNTA QUE FICA -->
-<section class="slide" data-title="A pergunta que fica">
+<section class="slide" data-tema="rosa" data-title="A pergunta que fica">
+  <div class="fantasma-wrap" aria-hidden="true"><span class="fantasma" aria-hidden="true">?</span></div>
   <div class="wrap silencio">
     <h2 class="q" data-rise="1">Se a sua empresa <em>funciona</em><br>só porque você não para,<br>o que exatamente <em>você construiu</em>?</h2>
     <span class="risco frag"></span>
