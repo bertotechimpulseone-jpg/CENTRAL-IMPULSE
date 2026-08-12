@@ -22215,6 +22215,46 @@ function resumoAnualTrafego(camps){
   return ordem.map(a => Object.assign(anos[a], {cpaAno: anos[a].resAno > 0 ? anos[a].gastoAno/anos[a].resAno : 0}));
 }
 
+
+// Retrato da ÚLTIMA atualização semanal (a que o André lançou por último).
+// Mostra os valores ACUMULADOS exatamente como foram digitados — nunca soma semanas.
+function cardUltimaAtualizacaoTrafego(cliCamps){
+  if(!cliCamps || !cliCamps.length) return '';
+  const ultimaData = cliCamps.reduce((m,c)=> (c.data_ref||'')>m ? (c.data_ref||'') : m, '');
+  if(!ultimaData) return '';
+  const doDia = cliCamps.filter(c => (c.data_ref||'') === ultimaData);
+  const quando = _fmtTrafegoTs(_ultimaAtualizacaoTs(doDia));
+  const fmtR$ = v => 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const linhas = doDia.map(c => {
+    const g = parseFloat(c.gasto_total)||0, r = parseInt(c.resultado)||0;
+    const cpa = r>0 ? (g/r) : 0;
+    return '<tr>' +
+      '<td style="padding:8px;font-weight:600">' + escapeHtml(c.campanha_nome||'(sem nome)') + '</td>' +
+      '<td style="padding:8px">' + escapeHtml(c.plataforma||'—') + '</td>' +
+      '<td style="padding:8px;text-align:center"><span class="badge ' + ((c.status||'')==='Ativa'?'b-success':'b-default') + '">' + escapeHtml(c.status||'—') + '</span></td>' +
+      '<td style="padding:8px;text-align:right;font-weight:700">' + fmtR$(g) + '</td>' +
+      '<td style="padding:8px;text-align:right;font-weight:700">' + r + '</td>' +
+      '<td style="padding:8px;text-align:right">' + (cpa>0 ? fmtR$(cpa) : '—') + '</td>' +
+    '</tr>';
+  }).join('');
+  return '<div class="card" style="margin-bottom:14px;border:1px solid var(--accent-border);background:linear-gradient(135deg,var(--accent-soft),transparent 55%)">' +
+    '<div class="card-header" style="flex-wrap:wrap;gap:8px">' +
+      '<div class="card-title">📌 Última atualização do André — ' + fmtDataPt(ultimaData) + '</div>' +
+      (quando ? '<span class="text-xs text-3">lançada em ' + quando + '</span>' : '') +
+    '</div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;min-width:640px">' +
+      '<thead><tr style="border-bottom:2px solid var(--border)">' +
+        '<th style="text-align:left;padding:8px">Campanha</th>' +
+        '<th style="text-align:left;padding:8px">Plataforma</th>' +
+        '<th style="text-align:center;padding:8px">Status</th>' +
+        '<th style="text-align:right;padding:8px">Gasto acum.</th>' +
+        '<th style="text-align:right;padding:8px">Resultados</th>' +
+        '<th style="text-align:right;padding:8px">CPA</th>' +
+      '</tr></thead><tbody>' + linhas + '</tbody></table></div>' +
+    '<div class="text-xs text-3" style="padding:8px 8px 2px">É o retrato da semana como o André lançou (valores acumulados) — não é somatória.</div>' +
+  '</div>';
+}
+
 // Tabela HTML do relatório mensal + rodapé anual (usada no detalhe do cliente e na visão geral)
 function tabelaResumoTrafego(camps, titulo){
   const mensal = resumoMensalTrafego(camps);
@@ -22460,6 +22500,7 @@ function renderTrafegoPagoCli(cliId){
         }).join('');
       })() +
 
+      cardUltimaAtualizacaoTrafego(cliCamps) +
       tabelaResumoTrafego(cliCamps, 'Relatório mensal & anual — ' + cli.name) +
 
       '<div class="card"><div class="card-header"><div class="card-title">Histórico semanal (' + cliCamps.length + ' registro' + (cliCamps.length===1?'':'s') + ')</div>' +
