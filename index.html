@@ -22113,7 +22113,7 @@ async function loadCampanhas(){
 function ultimaPorCampanha(camps){
   const map = {};
   (camps||[]).forEach(c => {
-    const key = (c.campanha_nome||'') + '|' + (c.plataforma||'') + '|' + (c.objetivo||'');
+    const key = (c.campanha_nome||'') + '|' + (c.plataforma||'');   // sem objetivo: o André varia o objetivo entre semanas da MESMA campanha
     const ant = map[key];
     if(!ant || (c.data_ref||'') > (ant.data_ref||'')) map[key] = c;
   });
@@ -22177,7 +22177,7 @@ function resumoMensalTrafego(camps){
   (camps||[]).forEach(c => {
     const m = (c.data_ref||'').slice(0,7); // YYYY-MM
     if(!/^\d{4}-\d{2}$/.test(m)) return;
-    const key = (c.campanha_nome||'') + '|' + (c.plataforma||'') + '|' + (c.objetivo||'');
+    const key = (c.campanha_nome||'') + '|' + (c.plataforma||'');   // sem objetivo: o André varia o objetivo entre semanas da MESMA campanha
     if(!byMonth[m]) byMonth[m] = {};
     const ant = byMonth[m][key];
     if(!ant || (c.data_ref||'') > (ant.data_ref||'')) byMonth[m][key] = c;
@@ -22185,16 +22185,17 @@ function resumoMensalTrafego(camps){
   const meses = Object.keys(byMonth).sort();
   const lastAcc = {}; // campanha -> ultimo acumulado visto
   return meses.map(m => {
-    let gastoAcum = 0, resAcum = 0, gastoMes = 0, resMes = 0;
+    let gastoAcum = 0, resAcum = 0, gastoMes = 0, resMes = 0, ultimaData = '';
     Object.entries(byMonth[m]).forEach(([key, c]) => {
       const g = parseFloat(c.gasto_total)||0, r = parseInt(c.resultado)||0;
       gastoAcum += g; resAcum += r;
+      if((c.data_ref||'') > ultimaData) ultimaData = c.data_ref||'';
       const prev = lastAcc[key] || {g:0, r:0};
       gastoMes += Math.max(0, g - prev.g);
       resMes += Math.max(0, r - prev.r);
       lastAcc[key] = {g, r};
     });
-    return {mes: m, gastoAcum, resAcum, gastoMes, resMes,
+    return {mes: m, gastoAcum, resAcum, gastoMes, resMes, ultimaData,
       cpaMes: resMes > 0 ? gastoMes/resMes : 0,
       cpaAcum: resAcum > 0 ? gastoAcum/resAcum : 0};
   });
@@ -22259,45 +22260,44 @@ function cardUltimaAtualizacaoTrafego(cliCamps){
 function tabelaResumoTrafego(camps, titulo){
   const mensal = resumoMensalTrafego(camps);
   if(mensal.length === 0) return '';
-  const anual = resumoAnualTrafego(camps);
   const nomesMes = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const fmtMes = m => nomesMes[parseInt(m.slice(5,7))] + ' ' + m.slice(0,4);
   const fmtR$ = v => 'R$ ' + (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  const linhas = mensal.slice().reverse().map((r, i) => {
-    const prox = mensal.slice().reverse()[i+1]; // mes anterior (lista invertida)
-    const deltaG = prox ? r.gastoMes - prox.gastoMes : null;
-    const deltaR = prox ? r.resMes - prox.resMes : null;
+  // Cada linha = como o mês FECHOU na última atualização do André dentro daquele mês
+  // (retrato acumulado — não é soma de semanas)
+  const inv = mensal.slice().reverse();
+  const linhas = inv.map((r, i) => {
+    const ant = inv[i+1]; // mês anterior
+    const dG = ant ? r.gastoAcum - ant.gastoAcum : null;
+    const dR = ant ? r.resAcum - ant.resAcum : null;
     const seta = (d) => d === null ? '' : d > 0 ? ' <span style="color:#22c55e;font-size:11px">▲</span>' : d < 0 ? ' <span style="color:#ef4444;font-size:11px">▼</span>' : '';
     return '<tr>' +
       '<td style="padding:8px;font-weight:600">' + fmtMes(r.mes) + '</td>' +
-      '<td style="padding:8px;text-align:right">' + fmtR$(r.gastoMes) + seta(deltaG) + '</td>' +
-      '<td style="padding:8px;text-align:right;font-weight:600">' + r.resMes + seta(deltaR) + '</td>' +
-      '<td style="padding:8px;text-align:right">' + (r.cpaMes > 0 ? fmtR$(r.cpaMes) : '—') + '</td>' +
-      '<td style="padding:8px;text-align:right;color:var(--text-3)">' + fmtR$(r.gastoAcum) + '</td>' +
-      '<td style="padding:8px;text-align:right;color:var(--text-3)">' + r.resAcum + '</td>' +
+      '<td style="padding:8px;color:var(--text-3)">' + (r.ultimaData ? fmtDataPt(r.ultimaData) : '—') + '</td>' +
+      '<td style="padding:8px;text-align:right;font-weight:700">' + fmtR$(r.gastoAcum) + seta(dG) + '</td>' +
+      '<td style="padding:8px;text-align:right;font-weight:700">' + r.resAcum + seta(dR) + '</td>' +
+      '<td style="padding:8px;text-align:right">' + (r.cpaAcum > 0 ? fmtR$(r.cpaAcum) : '—') + '</td>' +
     '</tr>';
   }).join('');
-  const linhasAno = anual.slice().reverse().map(a =>
-    '<tr style="background:var(--surface-2);font-weight:700">' +
-      '<td style="padding:8px">📆 ' + a.ano + ' (total)</td>' +
-      '<td style="padding:8px;text-align:right">' + fmtR$(a.gastoAno) + '</td>' +
-      '<td style="padding:8px;text-align:right">' + a.resAno + '</td>' +
-      '<td style="padding:8px;text-align:right">' + (a.cpaAno > 0 ? fmtR$(a.cpaAno) : '—') + '</td>' +
-      '<td style="padding:8px;text-align:right;color:var(--text-3)" colspan="2">' + a.meses + ' mês(es) com dados</td>' +
-    '</tr>'
-  ).join('');
+  const atual = inv[0];
+  const linhaAtual = '<tr style="background:var(--surface-2);font-weight:700">' +
+    '<td style="padding:8px">📌 Retrato atual</td>' +
+    '<td style="padding:8px;color:var(--text-3)">' + (atual.ultimaData ? fmtDataPt(atual.ultimaData) : '—') + '</td>' +
+    '<td style="padding:8px;text-align:right">' + fmtR$(atual.gastoAcum) + '</td>' +
+    '<td style="padding:8px;text-align:right">' + atual.resAcum + '</td>' +
+    '<td style="padding:8px;text-align:right">' + (atual.cpaAcum > 0 ? fmtR$(atual.cpaAcum) : '—') + '</td>' +
+  '</tr>';
   return '<div class="card" style="margin-bottom:14px">' +
-    '<div class="card-header"><div class="card-title">📈 ' + (titulo||'Relatório mensal & anual') + '</div>' +
-    '<span class="text-xs text-3">"No mês" = diferença entre acumulados · nunca soma semanas repetidas</span></div>' +
-    '<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;min-width:680px">' +
+    '<div class="card-header"><div class="card-title">📈 ' + (titulo||'Fechamento mês a mês') + '</div>' +
+    '<span class="text-xs text-3">Cada mês mostra a ÚLTIMA atualização do André naquele mês — retrato, não somatória</span></div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;min-width:640px">' +
       '<thead><tr style="border-bottom:2px solid var(--border)">' +
-        '<th style="text-align:left;padding:8px">Período</th>' +
-        '<th style="text-align:right;padding:8px">Gasto no mês</th>' +
-        '<th style="text-align:right;padding:8px">Resultados no mês</th>' +
-        '<th style="text-align:right;padding:8px">CPA do mês</th>' +
-        '<th style="text-align:right;padding:8px">Gasto acum.</th>' +
-        '<th style="text-align:right;padding:8px">Result. acum.</th>' +
-      '</tr></thead><tbody>' + linhasAno + linhas + '</tbody></table></div></div>';
+        '<th style="text-align:left;padding:8px">Mês</th>' +
+        '<th style="text-align:left;padding:8px">Última atualização</th>' +
+        '<th style="text-align:right;padding:8px">Gasto</th>' +
+        '<th style="text-align:right;padding:8px">Resultados</th>' +
+        '<th style="text-align:right;padding:8px">CPA</th>' +
+      '</tr></thead><tbody>' + linhaAtual + linhas + '</tbody></table></div></div>';
 }
 
 // Storage por idx do chart pra permitir trocar periodo sem re-render geral
