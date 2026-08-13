@@ -3991,20 +3991,30 @@ function _relSetup(){
 .rel-page,.rel-page *{box-sizing:border-box}
 .rel-page{position:relative;width:${_REL_W}px;height:${_REL_H}px;overflow:hidden;background:linear-gradient(165deg,#1b0b30 0%,#3a1250 38%,#6d1f55 72%,#93275e 100%);font-family:'Montserrat',system-ui,sans-serif;color:#fff;flex-shrink:0;box-shadow:0 18px 50px rgba(0,0,0,.45);border-radius:10px}
 .rel-glow{position:absolute;inset:0;background:radial-gradient(42% 26% at 12% 6%,rgba(124,92,255,.55),transparent 70%),radial-gradient(38% 24% at 88% 10%,rgba(236,72,153,.45),transparent 70%),radial-gradient(46% 28% at 92% 78%,rgba(190,60,180,.32),transparent 70%),radial-gradient(40% 24% at 6% 88%,rgba(90,60,220,.32),transparent 70%)}
-.rel-deco{position:absolute;top:-30px;left:0;right:0;height:112px;display:flex;gap:14px;padding:0 26px;opacity:.45}
-.rel-deco span{flex:1;border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.17),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.10)}
-.rel-inner{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:58px 64px 42px}
-.rel-data{align-self:center;display:inline-flex;align-items:center;gap:10px;padding:10px 26px;border-radius:999px;background:linear-gradient(100deg,#6d5cf0,#8b5cf6 60%,#a855f7);font-size:19px;font-weight:700;box-shadow:0 8px 26px rgba(120,80,240,.42);margin-bottom:22px}
-.rel-data i{width:13px;height:13px;border-radius:50%;background:rgba(255,255,255,.88);display:block;flex-shrink:0}
-.rel-titulo{display:flex;align-items:center;gap:16px;padding:16px 30px;border-radius:999px;background:linear-gradient(100deg,#d9268a,#f02d78 55%,#ff3d6e);box-shadow:0 12px 34px rgba(240,45,120,.45);margin-bottom:32px}
-.rel-titulo i{width:26px;height:26px;border-radius:50%;background:#fff;flex-shrink:0}
-.rel-titulo span{font-size:27px;font-weight:800;line-height:1.12}
-.rel-texto{flex:1;font-size:17px;line-height:1.62;color:#efe6f7;overflow:hidden}
-.rel-texto p{margin:0 0 18px}
-.rel-marca{display:flex;align-items:center;gap:10px;margin-bottom:26px}
-.rel-marca b{font-size:14px;font-weight:800;letter-spacing:.06em}
-.rel-marca em{font-style:normal;font-size:11.5px;font-weight:600;letter-spacing:.14em;color:rgba(255,255,255,.45)}
-.rel-marca u{margin-left:auto;text-decoration:none;font-size:12px;color:rgba(255,255,255,.5)}
+/* faixa decorativa sobe: nunca encosta no cabecalho */
+.rel-deco{position:absolute;top:-58px;left:0;right:0;height:96px;display:flex;gap:14px;padding:0 26px;opacity:.30}
+.rel-deco span{flex:1;border-radius:24px;background:linear-gradient(135deg,rgba(255,255,255,.15),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.08)}
+.rel-inner{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;padding:64px 62px 52px}
+/* marca centralizada, com respiro proprio */
+.rel-marca{display:flex;flex-direction:column;align-items:center;gap:3px;margin-bottom:26px;position:relative}
+.rel-marca b{font-size:15px;font-weight:900;letter-spacing:.16em}
+.rel-marca em{font-style:normal;font-size:10.5px;font-weight:600;letter-spacing:.22em;color:rgba(255,255,255,.52)}
+.rel-marca u{position:absolute;right:0;top:2px;text-decoration:none;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.45)}
+.rel-data{align-self:center;display:inline-flex;align-items:center;gap:10px;padding:9px 24px;border-radius:999px;background:linear-gradient(100deg,#6d5cf0,#8b5cf6 60%,#a855f7);font-size:17px;font-weight:700;box-shadow:0 8px 26px rgba(120,80,240,.42);margin-bottom:18px}
+.rel-data i{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.88);display:block;flex-shrink:0}
+.rel-titulo{display:flex;align-items:center;justify-content:center;gap:14px;padding:15px 30px;border-radius:999px;background:linear-gradient(100deg,#d9268a,#f02d78 55%,#ff3d6e);box-shadow:0 12px 34px rgba(240,45,120,.45);margin-bottom:30px;text-align:center}
+.rel-titulo i{width:22px;height:22px;border-radius:50%;background:#fff;flex-shrink:0}
+.rel-titulo span{font-size:25px;font-weight:800;line-height:1.14;letter-spacing:-.01em}
+/* corpo em BLOCOS: cada assunto no seu cartao, letra maior */
+.rel-texto{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:13px}
+.rel-bloco{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:17px 21px}
+.rel-bloco p{margin:0;font-size:18.5px;line-height:1.66;color:#f3ecf9}
+.rel-h{display:flex;align-items:center;gap:11px;margin:5px 0 1px}
+.rel-h i{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,#ff3d6e,#a855f7);flex-shrink:0;box-shadow:0 0 12px rgba(240,45,120,.7)}
+.rel-h span{font-size:16.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#ffc8e0}
+.rel-li{display:flex;gap:13px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:14px 19px}
+.rel-li i{flex-shrink:0;width:7px;height:7px;border-radius:50%;background:#ff5d92;margin-top:11px;box-shadow:0 0 10px rgba(255,93,146,.8)}
+.rel-li p{margin:0;font-size:18px;line-height:1.6;color:#f3ecf9}
 @media print{
   /* o app trava html/body em height:100%+overflow:hidden — sem soltar isso o PDF sai só com a 1a folha */
   html,body{height:auto!important;min-height:0!important;overflow:visible!important;background:#fff!important}
@@ -4187,16 +4197,25 @@ function _relPaginar(d, paras){
     const el=ghost.querySelector('.rel-texto');
     return el ? (el.scrollHeight <= el.clientHeight + 1) : true;
   };
-  // 1) parágrafo que sozinho não cabe numa folha → quebra por palavras
+  // 1) bloco que sozinho nao cabe numa folha -> quebra por FRASE (nunca no meio de uma)
   const blocos=[];
   for(const par of paras){
     if(cabe([par])){ blocos.push(par); continue; }
-    const palavras=par.split(/\s+/); let buf=[];
-    for(const w of palavras){
-      buf.push(w);
-      if(!cabe([buf.join(' ')])){ buf.pop(); if(buf.length) blocos.push(buf.join(' ')); buf=[w]; }
+    const frases=_relFrases(par.txt); let buf=[];
+    const monta=function(arr){ return {t:par.t, txt:arr.join(' ')}; };
+    for(const f of frases){
+      buf.push(f);
+      if(!cabe([monta(buf)])){
+        buf.pop();
+        if(buf.length){ blocos.push(monta(buf)); buf=[f]; }
+        else {
+          const pal=f.split(/\s+/); let b2=[];
+          for(const w of pal){ b2.push(w); if(!cabe([monta(b2)])){ b2.pop(); if(b2.length) blocos.push(monta(b2)); b2=[w]; } }
+          buf = b2.length ? b2 : [];
+        }
+      }
     }
-    if(buf.length) blocos.push(buf.join(' '));
+    if(buf.length) blocos.push(monta(buf));
   }
   // 2) empacota os blocos em páginas
   const paginas=[]; let atual=[];
@@ -4208,6 +4227,31 @@ function _relPaginar(d, paras){
   ghost.remove();
   return paginas.length?paginas:[[]];
 }
+
+// Transforma o texto colado em blocos com sentido: titulo de secao, topico e paragrafo.
+function _relBlocos(texto){
+  const linhas = String(texto||'').split(/\r?\n/).map(function(l){return l.trim();});
+  const out=[];
+  for(const l of linhas){
+    if(!l) continue;
+    const semAcento = l.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const ehTopico = /^([-\u2022*\u2013\u2014]|\d+[.)])\s+/.test(l);
+    const semMarca = l.replace(/^([-\u2022*\u2013\u2014]|\d+[.)])\s+/,'');
+    const ehTitulo = !ehTopico && l.length<=64 && (
+      /:$/.test(l) || (semAcento===semAcento.toUpperCase() && /[A-Z]{3}/.test(semAcento) && l.length>=4)
+    );
+    if(ehTitulo) out.push({t:'h', txt:l.replace(/:$/,'')});
+    else if(ehTopico) out.push({t:'li', txt:semMarca});
+    else out.push({t:'p', txt:l});
+  }
+  return out.length?out:[{t:'p',txt:''}];
+}
+// Divide um bloco grande em FRASES (nunca corta no meio de uma frase)
+function _relFrases(txt){
+  const partes = String(txt).match(/[^.!?\u2026]+[.!?\u2026]+["')\]]*\s*|[^.!?\u2026]+$/g);
+  return (partes||[String(txt)]).map(function(x){return x.trim();}).filter(Boolean);
+}
+
 function _relPaginaHTML(d, paras, i, total){
   const esc=escapeHtml;
   return `<div class="rel-page">
@@ -4217,7 +4261,12 @@ function _relPaginaHTML(d, paras, i, total){
       <div class="rel-marca"><b>IMPULSE ONE</b><em>ACELERADORA DE NEGÓCIOS</em>${total>1?'<u>'+(i+1)+'/'+total+'</u>':''}</div>
       <div class="rel-data"><i></i>${esc(_relFmtData(d.data))}</div>
       <div class="rel-titulo"><i></i><span>RELATÓRIO ${esc(String(d.empresa||'').toUpperCase())}</span></div>
-      <div class="rel-texto">${paras.map(p=>'<p>'+esc(p)+'</p>').join('')}</div>
+      <div class="rel-texto">${paras.map(b=>{
+        if(typeof b === 'string') b = {t:'p', txt:b};
+        if(b.t==='h')  return '<div class="rel-h"><i></i><span>'+esc(b.txt)+'</span></div>';
+        if(b.t==='li') return '<div class="rel-li"><i></i><p>'+esc(b.txt)+'</p></div>';
+        return '<div class="rel-bloco"><p>'+esc(b.txt)+'</p></div>';
+      }).join('')}</div>
     </div>
   </div>`;
 }
@@ -4246,7 +4295,7 @@ function _relBaixarPDF(){
 }
 function _relAbrirPreview(d){
   _relSetup();
-  const paras = String(d.texto||'').split(/\n\s*\n|\n/).map(s=>s.trim()).filter(Boolean);
+  const paras = _relBlocos(d.texto);
   const paginas = _relPaginar(d, paras);
   _relDadosAtual = d; _relPaginasAtual = paginas;
   let ov=document.getElementById('relPreview'); if(ov) ov.remove();
