@@ -2657,7 +2657,18 @@ async function loadDataFromSupabase(){
     if(cliErr) throw cliErr;
     if(cliData && cliData.length > 0){
       clients.length = 0;
-      cliData.forEach((cl, idx) => {
+      // Acesso por cliente: quem tem carteira restrita so recebe os clientes dela.
+      const _permitidos = (function(){
+        try{
+          if(typeof veTodosOsClientes === 'function' && veTodosOsClientes()) return null;
+          const v = _currentProfile && _currentProfile.clientes_permitidos;
+          const arr = Array.isArray(v) ? v : JSON.parse(v || 'null');
+          return (Array.isArray(arr) && arr.length) ? arr.map(String) : null;
+        }catch(e){ return null; }
+      })();
+      const _cliVisiveis = _permitidos ? cliData.filter(function(cl){ return _permitidos.indexOf(String(cl.id)) !== -1; }) : cliData;
+      if(_permitidos) console.log('[clientes] carteira restrita:', _cliVisiveis.length, 'de', cliData.length);
+      _cliVisiveis.forEach((cl, idx) => {
         clients.push({
           id: idx + 1, _dbId: cl.id, origIdx: idx,
           name: cl.name, nome_social: cl.nome_social || '', segment: cl.segment || '', color: cl.color || '#1d1d1f',
@@ -4830,6 +4841,42 @@ async function loadCurrentProfile(){
       _currentProfile = created;
     }
   } catch(e) { console.error('Profile load:', e) }
+}
+
+
+// ── Acesso por cliente ────────────────────────────────────────────────
+// profiles.clientes_permitidos: null/vazio = ve TODOS · array de ids = ve so esses.
+// Dono, admin e gestor sempre veem todos.
+function _cliPermitidosLista(){
+  try{
+    const v = _currentProfile && _currentProfile.clientes_permitidos;
+    if(!v) return null;
+    const arr = Array.isArray(v) ? v : JSON.parse(v||'null');
+    return (Array.isArray(arr) && arr.length) ? arr.map(String) : null;
+  }catch(e){ return null; }
+}
+function veTodosOsClientes(){
+  if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;
+  if(typeof isAdmin==='function' && isAdmin()) return true;
+  if(typeof isGestor==='function' && isGestor()) return true;
+  return _cliPermitidosLista() === null;
+}
+// Um cliente especifico e visivel pra quem esta logado?
+function podeVerCliente(cli){
+  if(veTodosOsClientes()) return true;
+  const lista = _cliPermitidosLista();
+  if(!lista) return true;
+  const ids = [cli && cli._dbId, cli && cli.id].filter(function(x){ return x!==undefined && x!==null; }).map(String);
+  return ids.some(function(x){ return lista.indexOf(x) !== -1; });
+}
+// Filtra qualquer lista de clientes pelo acesso do usuario logado
+function clientesVisiveis(lista){
+  const base = lista || (typeof clients!=='undefined' ? clients : []);
+  if(veTodosOsClientes()) return base;
+  return base.filter(podeVerCliente);
+}
+if(typeof window!=='undefined'){
+  window.veTodosOsClientes=veTodosOsClientes; window.podeVerCliente=podeVerCliente; window.clientesVisiveis=clientesVisiveis;
 }
 
 function canAccess(pageId){
@@ -21280,6 +21327,41 @@ async function openEditUsuario(id){
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">
         ${allPages.map(pg=>`<label style="display:flex;gap:8px;align-items:center;padding:8px 11px;background:var(--surface-2);border-radius:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" class="eperm-chk" value="${pg.id}" ${(p.permissions||[]).includes(pg.id)?'checked':''} /> ${pg.label}</label>`).join('')}
       </div>
+
+      <div class="section-title">Quais clientes esta pessoa enxerga</div>
+      ${(()=>{
+        let sel = [];
+        try{ const v=p.clientes_permitidos; sel = (Array.isArray(v)?v:JSON.parse(v||'null'))||[]; }catch(e){ sel=[]; }
+        const restrito = sel.length > 0;
+        const ativos = (typeof clients!=='undefined'?clients:[]).filter(c=>c && c._dbId && !c.oculto)
+          .sort((a,b)=>(_nomeCli(a)||'').localeCompare(_nomeCli(b)||'','pt-BR',{sensitivity:'base'}));
+        return `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <label style="flex:1;min-width:190px;display:flex;gap:9px;align-items:flex-start;padding:12px 14px;background:var(--surface-2);border:1px solid ${restrito?'var(--border)':'var(--accent-border)'};border-radius:11px;cursor:pointer">
+            <input type="radio" name="euCliModo" value="todos" ${restrito?'':'checked'} onchange="_euToggleClientes()" style="margin-top:2px" />
+            <span><b style="font-size:13px">Todos os clientes</b><br><span class="text-xs text-3">Vê a carteira inteira, inclusive os que entrarem depois</span></span>
+          </label>
+          <label style="flex:1;min-width:190px;display:flex;gap:9px;align-items:flex-start;padding:12px 14px;background:var(--surface-2);border:1px solid ${restrito?'var(--accent-border)':'var(--border)'};border-radius:11px;cursor:pointer">
+            <input type="radio" name="euCliModo" value="alguns" ${restrito?'checked':''} onchange="_euToggleClientes()" style="margin-top:2px" />
+            <span><b style="font-size:13px">Somente os que eu marcar</b><br><span class="text-xs text-3">Só enxerga os clientes escolhidos abaixo</span></span>
+          </label>
+        </div>
+        <div id="euCliLista" style="display:${restrito?'block':'none'}">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <input id="euCliBusca" class="login-input" placeholder="Buscar cliente..." oninput="_euFiltraClientes(this.value)" style="background:var(--surface-2);flex:1;min-width:160px;padding:8px 11px;font-size:12.5px" />
+            <button type="button" class="btn btn-sm" onclick="_euMarcarClientes(true)">Marcar todos</button>
+            <button type="button" class="btn btn-sm" onclick="_euMarcarClientes(false)">Limpar</button>
+            <span class="text-xs text-3" id="euCliCont"></span>
+          </div>
+          <div style="max-height:230px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;padding:2px">
+            ${ativos.length ? ativos.map(c=>`<label class="ecli-row" data-nome="${escapeHtml((_nomeCli(c)||'').toLowerCase())}" style="display:flex;gap:8px;align-items:center;padding:8px 11px;background:var(--surface-2);border-radius:8px;cursor:pointer;font-size:12.5px">
+              <input type="checkbox" class="ecli-chk" value="${c._dbId}" ${sel.map(String).includes(String(c._dbId))?'checked':''} onchange="_euContaClientes()" />
+              <span style="width:9px;height:9px;border-radius:50%;background:${c.color||'#888'};flex-shrink:0"></span>
+              <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(_nomeCli(c)||'')}</span>
+            </label>`).join('') : '<div class="text-xs text-3" style="padding:10px">Nenhum cliente cadastrado.</div>'}
+          </div>
+        </div>`;
+      })()}
       <div style="display:flex;gap:8px;margin-top:24px;justify-content:space-between">
         <button class="btn" onclick="excluirUsuario('${p.id}','${(p.full_name||'').replace(/'/g,"\\'")}')" style="color:var(--danger)">🗑 Excluir usuário</button>
         <div style="display:flex;gap:8px"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="salvarEditUsuario('${p.id}')">Salvar alterações</button></div>
@@ -21289,12 +21371,48 @@ async function openEditUsuario(id){
   document.getElementById('modalBg').classList.add('open');
 }
 
+function _euToggleClientes(){
+  const alguns = document.querySelector('input[name="euCliModo"]:checked')?.value === 'alguns';
+  const box = document.getElementById('euCliLista');
+  if(box) box.style.display = alguns ? 'block' : 'none';
+  _euContaClientes();
+}
+function _euMarcarClientes(marcar){
+  document.querySelectorAll('.ecli-row').forEach(function(row){
+    if(row.style.display === 'none') return;              // respeita a busca
+    const chk = row.querySelector('.ecli-chk'); if(chk) chk.checked = !!marcar;
+  });
+  _euContaClientes();
+}
+function _euFiltraClientes(termo){
+  const t = (termo||'').trim().toLowerCase();
+  document.querySelectorAll('.ecli-row').forEach(function(row){
+    row.style.display = (!t || (row.dataset.nome||'').includes(t)) ? 'flex' : 'none';
+  });
+}
+function _euContaClientes(){
+  const el = document.getElementById('euCliCont'); if(!el) return;
+  const n = document.querySelectorAll('.ecli-chk:checked').length;
+  el.textContent = n ? (n + ' cliente' + (n===1?'':'s') + ' marcado' + (n===1?'':'s')) : 'nenhum marcado';
+}
+if(typeof window!=='undefined'){
+  window._euToggleClientes=_euToggleClientes; window._euMarcarClientes=_euMarcarClientes;
+  window._euFiltraClientes=_euFiltraClientes; window._euContaClientes=_euContaClientes;
+}
+
 async function salvarEditUsuario(id){
   const role = document.getElementById('euRole').value;
   const enabled = document.getElementById('euEnabled').value === 'true';
   const perms = Array.from(document.querySelectorAll('.eperm-chk:checked')).map(x=>x.value);
-  await _supa.from('profiles').update({role, permissions: perms, enabled}).eq('id', id);
-  toast('✓ Permissões atualizadas','success');
+  const modo = document.querySelector('input[name="euCliModo"]:checked')?.value || 'todos';
+  const marcados = Array.from(document.querySelectorAll('.ecli-chk:checked')).map(x=>x.value);
+  if(modo === 'alguns' && marcados.length === 0){
+    toast('Marque pelo menos um cliente, ou escolha "Todos os clientes"','info'); return;
+  }
+  const clientes_permitidos = (modo === 'alguns') ? marcados : null;
+  const r = await gravarSeguro({tabela:'profiles', tipo:'update', id, payload:{role, permissions: perms, enabled, clientes_permitidos}, descricao:'permissões do usuário'});
+  if(!r.ok) return;
+  toast(clientes_permitidos ? ('✓ Salvo · vê ' + marcados.length + ' cliente(s)') : '✓ Salvo · vê todos os clientes','success');
   closeModal();
   renderUsuarios(document.getElementById('content'));
 }
