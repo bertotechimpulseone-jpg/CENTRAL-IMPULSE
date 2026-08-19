@@ -2792,6 +2792,7 @@ async function loadDataFromSupabase(){
     // ===== PROFILES (mapear team + atualizar campos) =====
     // Carrega lista de excluidos ANTES dos profiles, pra filtrar corretamente
     try { await _loadColabExcluidos(); } catch(e){ console.warn('[excluidos] load falhou', e); }
+    try { await _loadColabOcultos(); } catch(e){ console.warn('[ocultos] load falhou', e); }
     // Normalizador: tira acentos e lowercase pra match de nomes (leticia ↔ Letícia)
     const _normNome = s => (s||'').normalize('NFD').replace(/[\u0300-\u036F]/g,'').toLowerCase().trim();
     const { data: profData } = profRes;
@@ -2881,6 +2882,8 @@ async function loadDataFromSupabase(){
           team.splice(k, 1);
         }
       }
+      // Ocultos (escondidos na Equipe ou Inativos em Usuarios) saem do team → somem de tudo
+      _aplicarOcultosNoTeam();
     }
 
     // ===== AUTOMATIONS =====
@@ -5397,6 +5400,108 @@ async function _removeColabExcluido(nome, dbId){
       }
     } catch(e){ console.warn('[excluidos] erro ao remover do banco', e); }
   }
+}
+
+// ===== Colaboradores ocultos =====
+// Duas portas de entrada: o botao "ocultar" na aba Equipe e o status Inativo (bloqueado)
+// no painel Usuarios. Quem esta oculto sai do array `team` no carregamento, entao some de
+// TODA a interface de uma vez (equipe, pagamentos, gamificacao, checklist, feedback,
+// ferias, ponto...). Nada e apagado: da pra devolver pela propria aba Equipe.
+let _colabOcultosCache = null;
+let _teamOcultos = [];   // quem saiu do team — a aba Equipe lista e devolve
+
+function _chaveColab(v){ return (v||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim(); }
+
+function _getColabOcultos(){
+  if(_colabOcultosCache) return _colabOcultosCache;
+  try{ _colabOcultosCache = JSON.parse(localStorage.getItem('colaboradoresOcultos')||'[]'); }
+  catch(e){ _colabOcultosCache = []; }
+  return _colabOcultosCache;
+}
+async function _loadColabOcultos(){
+  if(_supa){
+    try{
+      const { data } = await _supa.from('app_settings').select('value').eq('key','equipe_ocultos').maybeSingle();
+      if(data && data.value){
+        _colabOcultosCache = JSON.parse(data.value);
+        try{ localStorage.setItem('colaboradoresOcultos', data.value); }catch(e){}
+        return _colabOcultosCache;
+      }
+    }catch(e){ console.warn('[ocultos] banco falhou, usando o cache local', e); }
+  }
+  return _getColabOcultos();
+}
+async function _saveColabOcultos(lista){
+  _colabOcultosCache = lista;
+  try{ localStorage.setItem('colaboradoresOcultos', JSON.stringify(lista)); }catch(e){}
+  if(_supa){
+    try{ await _supa.from('app_settings').upsert({key:'equipe_ocultos', value:JSON.stringify(lista), updated_at:new Date().toISOString()}, {onConflict:'key'}); }
+    catch(e){ console.warn('[ocultos] nao consegui salvar no banco', e); }
+  }
+}
+function _chavesDoColab(m){
+  if(!m) return [];
+  return [_chaveColab(m._dbId), _chaveColab(m.name), _chaveColab((m.name||'').split(/\s+/)[0])].filter(Boolean);
+}
+// oculto = escondido a mao na Equipe OU Inativo (bloqueado) no painel Usuarios
+function _colabOculto(m){
+  if(!m) return false;
+  if(m.enabled === false) return true;
+  const lista = _getColabOcultos();
+  if(!lista.length) return false;
+  return _chavesDoColab(m).some(c => lista.indexOf(c) !== -1);
+}
+// Versao por nome solto (checklist e ranking guardam so o primeiro nome)
+function _colabOcultoPorNome(nome){
+  const k = _chaveColab(nome), kp = _chaveColab((nome||'').split(/\s+/)[0]);
+  if(!k) return false;
+  if((_teamOcultos||[]).some(m => _chavesDoColab(m).some(c => c===k || c===kp))) return true;
+  // A lista guarda ora o id, ora o nome completo. Checklist e ranking so tem o primeiro nome,
+  // entao comparamos tambem o primeiro pedaco de cada chave (um id nao tem espaco, nao casa).
+  return _getColabOcultos().some(c => c===k || c===kp || c.split(/\s+/)[0]===kp);
+}
+function _colabOcultoPorId(id){
+  const k = _chaveColab(id);
+  if(!k) return false;
+  if((_teamOcultos||[]).some(m => _chaveColab(m._dbId) === k)) return true;
+  return _getColabOcultos().indexOf(k) !== -1;
+}
+// Tira do team quem esta oculto e guarda em _teamOcultos (chamado no load e a cada mudanca)
+function _aplicarOcultosNoTeam(){
+  if(typeof team === 'undefined' || !Array.isArray(team)) return;
+  for(let k = team.length - 1; k >= 0; k--){
+    if(_colabOculto(team[k])){
+      const m = team[k];
+      if(!_teamOcultos.some(x => (x._dbId && m._dbId) ? x._dbId===m._dbId : x.name===m.name)) _teamOcultos.push(m);
+      team.splice(k, 1);
+    }
+  }
+}
+async function ocultarColaborador(dbIdOuNome, nome){
+  const chave = _chaveColab(dbIdOuNome || nome);
+  if(!chave){ toast('Não consegui identificar esse colaborador','info'); return; }
+  const lista = _getColabOcultos().slice();
+  if(lista.indexOf(chave) === -1) lista.push(chave);
+  await _saveColabOcultos(lista);
+  _aplicarOcultosNoTeam();
+  toast('🙈 ' + (nome||'Colaborador') + ' saiu de todas as telas · dá pra trazer de volta aqui','success');
+  if(typeof renderEquipe==='function' && document.getElementById('content')) renderEquipe(document.getElementById('content'));
+}
+async function reexibirColaborador(dbIdOuNome, nome){
+  const chaves = [_chaveColab(dbIdOuNome), _chaveColab(nome), _chaveColab((nome||'').split(/\s+/)[0])].filter(Boolean);
+  const lista = _getColabOcultos().filter(c => chaves.indexOf(c) === -1);
+  await _saveColabOcultos(lista);
+  let bloqueado = false;
+  for(let k = _teamOcultos.length - 1; k >= 0; k--){
+    const m = _teamOcultos[k];
+    if(!_chavesDoColab(m).some(c => chaves.indexOf(c) !== -1)) continue;
+    if(m.enabled === false){ bloqueado = true; continue; }   // continua fora: o bloqueio manda
+    team.push(m);
+    _teamOcultos.splice(k, 1);
+  }
+  if(bloqueado) toast('Esse colaborador está Inativo em Usuários & Permissões. Marque como Ativo lá pra ele voltar.','info');
+  else toast('↺ ' + (nome||'Colaborador') + ' voltou pras telas','success');
+  if(typeof renderEquipe==='function' && document.getElementById('content')) renderEquipe(document.getElementById('content'));
 }
 
 function _estaExcluido(nome, dbId){
@@ -9922,7 +10027,8 @@ function renderChecklistView(){
     Object.keys(dailyChecklists).forEach(k=>{ if(k && (dailyChecklists[k]||[]).length) set[k]=1; });
     // todo mundo do time atual entra (mesmo com 0 tarefas)
     (typeof team!=='undefined'?team:[]).forEach(m=>{ const fn=(m.name||'').trim().split(/\s+/)[0]; if(fn) set[fn]=1; });
-    return Object.keys(set);
+    // quem foi ocultado na Equipe (ou bloqueado no sistema) nao aparece nem com tarefa antiga
+    return Object.keys(set).filter(n => !(typeof _colabOcultoPorNome==='function' && _colabOcultoPorNome(n)));
   })();
   const currentList = dailyChecklists[currentCollab]||[];
   const doneCount = currentList.filter(t=>t.done).length;
@@ -12015,6 +12121,7 @@ async function confirmarRestaurarSelecionados(){
   setTimeout(() => location.reload(), 800);
 }
 
+let _equipeVerOcultos = false;   // painel "trazer de volta" na aba Equipe
 function renderEquipeLista(){
   const totalSal = team.reduce((s,t)=>s + (parseFloat(t.salary)||0), 0);
   const totalHoras = team.reduce((s,t)=>s + (parseInt(t.hours)||0), 0);
@@ -12026,10 +12133,26 @@ function renderEquipeLista(){
       ${statCard('Custo folha','R$ '+totalSal.toLocaleString('pt-BR'), totalSal===0?'cadastre salários':'mensal','M12 1v22')}
     </div>
 
-    <div class="section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+    <div class="section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <span>Colaboradores</span>
-      <span class="text-xs text-3" style="font-weight:400;cursor:pointer" onclick="restaurarColaboradoresExcluidos()" title="Restaurar colaboradores que voce excluiu por engano">↺ Restaurar excluídos (${(_getColabExcluidos()||[]).length})</span>
+      <span style="display:flex;align-items:center;gap:14px">
+        ${(_teamOcultos||[]).length ? `<button type="button" onclick="_equipeVerOcultos=!_equipeVerOcultos;renderEquipe(document.getElementById('content'))" style="display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--border);background:transparent;color:var(--text-2);border-radius:99px;padding:5px 12px;font:600 12px inherit;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-2)'">${_equipeVerOcultos?'✕ fechar':'🙈 '+_teamOcultos.length+' oculto'+(_teamOcultos.length!==1?'s':'')}</button>` : ''}
+        <span class="text-xs text-3" style="font-weight:400;cursor:pointer" onclick="restaurarColaboradoresExcluidos()" title="Restaurar colaboradores que voce excluiu por engano">↺ Restaurar excluídos (${(_getColabExcluidos()||[]).length})</span>
+      </span>
     </div>
+    ${(_equipeVerOcultos && (_teamOcultos||[]).length) ? `
+      <div style="margin-bottom:16px;padding:14px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px">
+        <div class="text-xs text-3" style="margin-bottom:11px;line-height:1.5">Fora de todas as telas: equipe, pagamentos, checklist, ranking e feedback. Nada foi apagado.</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          ${_teamOcultos.map(t=>`
+            <div style="display:inline-flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:5px 6px 5px 6px">
+              ${t.foto_url?`<img src="${escapeHtml(t.foto_url)}" alt="" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div class="avatar" style="background:${t.color||'#888'};width:26px;height:26px;font-size:11px">${t.init||(t.name||'?')[0]}</div>`}
+              <span style="font-size:13px;font-weight:600">${escapeHtml(t.name||'')}</span>
+              ${t.enabled===false?`<span class="text-xs text-3" style="font-weight:600" title="Bloqueado em Usuários &amp; Permissões — marque como Ativo lá pra ele voltar">🔒 bloqueado</span>`:''}
+              <button type="button" onclick="reexibirColaborador('${(t._dbId||t.name||'').toString().replace(/'/g,"\\'")}','${(t.name||'').replace(/'/g,"\\'")}')" title="Mostrar ${escapeHtml(t.name||'')} de novo" style="border:none;background:transparent;cursor:pointer;font-size:14px;font-weight:700;color:var(--success,#22c55e);padding:0 8px 0 2px;line-height:1">↺</button>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
     <div class="client-grid">
       ${team.map((t,i)=>({...t, _origIdx:i})).sort((a,b)=>(a.name||'').localeCompare(b.name||'','pt-BR',{sensitivity:'base'})).map((t)=>{const i=t._origIdx;return `
         <div class="client-card" style="position:relative">
@@ -12050,7 +12173,8 @@ function renderEquipeLista(){
             </div>
           </div>
           <button class="btn btn-sm" onclick="event.stopPropagation();whatsApp('${(t.phone||'').replace(/'/g,'')}','${(t.name||'').replace(/'/g,'')}')" title="${t.phone?'Chamar no WhatsApp':'Sem WhatsApp cadastrado'}" style="width:100%;margin-top:10px;justify-content:center;gap:6px;${t.phone?'':'opacity:.5'}"><svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.2-.6.2-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.2-1.2-.5-2.4-1.5-.9-.8-1.5-1.8-1.6-2.1-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5 0-.2-.6-1.5-.9-2.1-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.3.3-1 .9-1 2.3s1 2.7 1.2 2.9c.1.2 2 3.1 5 4.3.7.3 1.2.5 1.6.6.7.2 1.3.2 1.8.1.6-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.2-.3-.2-.6-.4M12 21.5c-1.7 0-3.3-.4-4.7-1.3l-.3-.2-3.5.9.9-3.4-.2-.4c-.9-1.5-1.4-3.2-1.4-5C2.5 6.7 6.8 2.5 12 2.5c2.5 0 4.9 1 6.7 2.8 1.8 1.8 2.8 4.2 2.8 6.7 0 5.2-4.3 9.5-9.5 9.5m8.1-17.6C18 1.8 15.1.5 12 .5 5.7.5.6 5.6.6 11.9c0 2 .5 4 1.5 5.7L.5 23.5l6-1.6c1.7.9 3.6 1.4 5.5 1.4 6.3 0 11.4-5.1 11.4-11.4 0-3-1.2-5.9-3.3-8.1"/></svg>WhatsApp</button>
-          ${isGestor() ? `<button class="icon-btn" onclick="event.stopPropagation();excluirColaborador('${t._dbId||i}')" title="Excluir colaborador" style="position:absolute;top:8px;right:8px;width:26px;height:26px;color:var(--danger);background:var(--surface);border:1px solid var(--border);font-size:12px">🗑</button>` : ''}
+          ${isGestor() ? `<button class="icon-btn" onclick="event.stopPropagation();ocultarColaborador('${(t._dbId||t.name||'').toString().replace(/'/g,"\\'")}','${(t.name||'').replace(/'/g,"\\'")}')" title="Ocultar de todas as telas — não apaga nada, dá pra trazer de volta" style="position:absolute;top:8px;right:38px;width:26px;height:26px;color:var(--text-3);background:var(--surface);border:1px solid var(--border);font-size:12px">👁️‍🗨️</button>
+          <button class="icon-btn" onclick="event.stopPropagation();excluirColaborador('${t._dbId||i}')" title="Excluir colaborador" style="position:absolute;top:8px;right:8px;width:26px;height:26px;color:var(--danger);background:var(--surface);border:1px solid var(--border);font-size:12px">🗑</button>` : ''}
         </div>
       `;}).join('')}
     </div>
@@ -17804,7 +17928,12 @@ function renderSolicitacoes(c){
   const _dtConcl = (s)=> s.concluido_em || s.updated_at || s.created_at;
   const entreguesPeriodo = lista.filter(s => (s.status||'')==='entregue' && _dtConcl(s) && new Date(_dtConcl(s)) >= inicio);
   const porExecutor = {};
-  entreguesPeriodo.forEach(s => { const nome=(s.executor_nome||'').trim()||'— sem responsável —'; if(!porExecutor[nome]) porExecutor[nome]={entregues:0}; porExecutor[nome].entregues++; });
+  entreguesPeriodo.forEach(s => {
+    const nome=(s.executor_nome||'').trim()||'— sem responsável —';
+    if(typeof _colabOcultoPorNome==='function' && _colabOcultoPorNome(nome)) return;   // oculto nao entra no ranking
+    if(!porExecutor[nome]) porExecutor[nome]={entregues:0};
+    porExecutor[nome].entregues++;
+  });
   const rankingOrd = Object.entries(porExecutor).sort((a,b)=>b[1].entregues-a[1].entregues);
   const maxEntr = rankingOrd.length ? rankingOrd[0][1].entregues : 1;
   const totalEntreguesPeriodo = entreguesPeriodo.length;
@@ -21447,6 +21576,16 @@ async function salvarEditUsuario(id){
   const clientes_permitidos = (modo === 'alguns') ? marcados : null;
   const r = await gravarSeguro({tabela:'profiles', tipo:'update', id, payload:{role, permissions: perms, enabled, clientes_permitidos}, descricao:'permissões do usuário'});
   if(!r.ok) return;
+  // Inativo = bloqueado: some de todas as telas na hora. Ativo de novo = volta.
+  const _tmAtivo = (typeof team!=='undefined'?team:[]).find(t => t._dbId === id);
+  if(_tmAtivo) _tmAtivo.enabled = enabled;
+  const _tmOculto = (_teamOcultos||[]).find(t => t._dbId === id);
+  if(_tmOculto) _tmOculto.enabled = enabled;
+  if(!enabled){ _aplicarOcultosNoTeam(); }
+  else if(_tmOculto && !_colabOculto(_tmOculto)){
+    team.push(_tmOculto);
+    _teamOcultos.splice(_teamOcultos.indexOf(_tmOculto), 1);
+  }
   toast(clientes_permitidos ? ('✓ Salvo · vê ' + marcados.length + ' cliente(s)') : '✓ Salvo · vê todos os clientes','success');
   closeModal();
   renderUsuarios(document.getElementById('content'));
@@ -26101,9 +26240,11 @@ async function renderPagamentos(c){
     // Recarrega team do banco pra pegar colabs novos (Gael, Antonio, etc)
     if(_supa && (team.length < 10 || true)){
       try {
-        const { data: novosProfiles } = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials').order('full_name');
+        const { data: novosProfiles } = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials, enabled').order('full_name');
         if(novosProfiles){
           novosProfiles.forEach(p => {
+            // colaborador oculto/bloqueado nao volta pra lista por aqui
+            if(p.enabled === false || _colabOcultoPorId(p.id) || _colabOcultoPorNome(p.full_name)) return;
             const existe = (team||[]).find(tm => tm._dbId === p.id || (tm.email||'').toLowerCase() === (p.email||'').toLowerCase());
             if(!existe){
               team.push({
@@ -26149,7 +26290,7 @@ async function renderPagamentos(c){
     }
 
     const fixos = _pagamentosFixos || [];
-    let todos = _colaboradorPagamentos || [];
+    let todos = (_colaboradorPagamentos || []).filter(pg => !(pg && pg.profile_id && _colabOcultoPorId(pg.profile_id)));
     if(_pagFiltroColab){
       todos = todos.filter(p => p.profile_id === _pagFiltroColab);
     }
