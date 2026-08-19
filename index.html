@@ -28078,11 +28078,30 @@ async function loadCalendarioEventos(){
    O cliente clica e leva TODOS os posts do calendario num arquivo so:
    data, formato, chamada, slides e legenda, prontos pra ler ou imprimir.
    ══════════════════════════════════════════════════════════════════ */
-function _calTemRoteiro(cal){
-  const posts = (cal && cal.posts) || [];
-  return posts.some(function(p){
-    return (p && ((p.legenda||'').trim() || (Array.isArray(p.slides) && p.slides.filter(Boolean).length) || (p.chamada||'').trim()));
+// Roteiro de gravacao e coisa de video: Reels e Video entram, foto e story nao.
+function _calEhReels(formato){
+  const f = (formato||'').toString().toLowerCase();
+  return f.indexOf('reel') !== -1 || f.indexOf('vide') !== -1 || f.indexOf('víde') !== -1;
+}
+function _calPostsRoteiro(cal){
+  return ((cal && cal.posts) || []).filter(function(p){
+    if(!p || !_calEhReels(p.formato)) return false;
+    return (p.legenda||'').trim() || (Array.isArray(p.slides) && p.slides.filter(Boolean).length) || (p.chamada||'').trim();
   });
+}
+function _calTemRoteiro(cal){ return _calPostsRoteiro(cal).length > 0; }
+// Meses abreviados do que vai no PDF, pro rotulo do botao: "Set e Out"
+function _calMesesCurto(posts){
+  const ab = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const ms = [];
+  (posts||[]).forEach(function(p){
+    const m = String(p.data||'').match(/(\d{1,2})[\/\-.](\d{1,2})/);
+    if(!m) return;
+    const nome = ab[parseInt(m[2],10)-1];
+    if(nome && ms.indexOf(nome) === -1) ms.push(nome);
+  });
+  if(!ms.length) return '';
+  return ms.length === 1 ? ms[0] : ms.slice(0,-1).join(', ') + ' e ' + ms[ms.length-1];
 }
 function _calMesExtenso(dataStr){
   const m = String(dataStr||'').match(/(\d{1,2})[\/\-.](\d{1,2})/);
@@ -28092,7 +28111,7 @@ function _calMesExtenso(dataStr){
 }
 async function baixarRoteirosPDF(){
   const cal = window._calPublico;
-  if(!cal || !(cal.posts||[]).length){ try{ toast('Este calendário ainda não tem roteiros','info'); }catch(e){} return; }
+  if(!cal || !_calPostsRoteiro(cal).length){ try{ toast('Este calendário ainda não tem roteiro de Reels','info'); }catch(e){} return; }
   const btn = document.getElementById('calPdfBtn');
   const txt = btn ? btn.querySelector('.calPdfTxt') : null;
   const rotulo = txt ? txt.textContent : '';
@@ -28117,7 +28136,7 @@ async function baixarRoteirosPDF(){
     if(x.indexOf('está')>=0||x.indexOf('esta')>=0) return '#0284C7';
     return '#6B6478'; };
 
-  const posts = (cal.posts||[]).slice().sort(function(a,b){
+  const posts = _calPostsRoteiro(cal).slice().sort(function(a,b){
     const pa=String(a.data||'').split('/'), pb=String(b.data||'').split('/');
     const ka=(parseInt(pa[1],10)||0)*100+(parseInt(pa[0],10)||0);
     const kb=(parseInt(pb[1],10)||0)*100+(parseInt(pb[0],10)||0);
@@ -28145,7 +28164,7 @@ async function baixarRoteirosPDF(){
       + '</article>';
   }).join('');
 
-  const doc = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Roteiros ' + esc(cal.cliente_nome||'') + '</title>'
+  const doc = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Roteiros para gravar - ' + esc(cal.cliente_nome||'') + '</title>'
     + (fonteCSS ? '<style>'+fonteCSS+'</style>'
                 : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=block">')
     + '<style>'
@@ -28174,18 +28193,18 @@ async function baixarRoteirosPDF(){
     + '</style></head><body>'
     + '<div class="capa">'
       + '<div class="marca"><i></i><b>IMPULSE ONE</b></div>'
-      + '<h1>Roteiros · ' + esc(cal.cliente_nome||'') + '</h1>'
-      + '<p>' + esc(cal.titulo || meses || '') + ' · ' + posts.length + (posts.length===1?' conteúdo':' conteúdos') + '</p>'
+      + '<h1>Roteiros para gravar · ' + esc(cal.cliente_nome||'') + '</h1>'
+      + '<p>' + esc(cal.titulo || meses || '') + ' · ' + posts.length + (posts.length===1?' vídeo':' vídeos') + '</p>'
     + '</div>'
     + cards
-    + '<div class="rodape">Impulse One · roteiros gerados pelo sistema</div>'
+    + '<div class="rodape">Impulse One · roteiros de gravação gerados pelo sistema</div>'
     + '</body></html>';
 
   _abrirParaImprimir(w, doc);
   if(txt) txt.textContent = rotulo;
   if(btn) btn.disabled = false;
 }
-if(typeof window!=='undefined'){ window.baixarRoteirosPDF = baixarRoteirosPDF; window._calTemRoteiro = _calTemRoteiro; }
+if(typeof window!=='undefined'){ window.baixarRoteirosPDF=baixarRoteirosPDF; window._calTemRoteiro=_calTemRoteiro; window._calPostsRoteiro=_calPostsRoteiro; window._calEhReels=_calEhReels; window._calMesesCurto=_calMesesCurto; }
 
 /* ---------- 2. PÁGINA PÚBLICA: ?aprovar=<token> ---------- */
 async function renderPublicAprovarCalendario(token){
@@ -28377,7 +28396,6 @@ async function renderPublicAprovarCalendario(token){
             <img src="/logo.png" alt="Impulse One" style="height:24px;width:auto;display:block" />
           </div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:11px">
-            ${_calTemRoteiro(window._calPublico) ? `<button id="calPdfBtn" type="button" onclick="baixarRoteirosPDF()" title="Baixar todos os roteiros deste calendário em PDF" style="border:1px solid var(--border-strong);background:var(--surface);color:var(--text);border-radius:99px;padding:9px 15px;font-size:12.5px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;transition:.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'">⬇ <span class="calPdfTxt">Roteiros em PDF</span></button>` : ''}
             <div style="width:clamp(70px,22vw,120px);height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--grad);border-radius:99px;transition:width .5s cubic-bezier(.2,.7,.2,1)"></div></div>
             <span style="font-size:12.5px;color:var(--text-2);font-weight:700;white-space:nowrap" id="calProg">${c.ok}/${c.total}</span>
           </div>
@@ -28388,7 +28406,14 @@ async function renderPublicAprovarCalendario(token){
         <h1 style="font-family:'Sora',sans-serif;font-size:clamp(30px,7.5vw,50px);font-weight:800;line-height:1.02;letter-spacing:-.038em;margin:16px 0 12px;text-wrap:balance">${esc((cal.titulo||'').length > 26 ? 'Seu calendário' : (cal.titulo||'Seu calendário'))}<span style="color:var(--text-3);font-weight:600"> · pra você aprovar</span></h1>
         <p style="color:var(--text-2);font-size:15px;margin:0 0 24px;line-height:1.6;max-width:58ch">Toque em cada post pra ver a arte e o texto. Você pode <b style="color:var(--text)">aprovar</b>, <b style="color:var(--text)">pedir alteração</b> ou <b style="color:var(--text)">editar</b> direto — cada mudança fica registrada com data e hora.</p>
         ${(function(){
-          const mats = ((window._calPublico && window._calPublico.posts) || []).filter(p => p && p.formato==='__material' && (p.pdf || p.url));
+          // PDF de roteiro agora e gerado na hora (sempre atualizado). Se houver um anexado a mao,
+          // ele fica escondido pra nao aparecerem dois botoes iguais — o dado continua no banco.
+          const temGerado = _calPostsRoteiro(window._calPublico).length > 0;
+          const mats = ((window._calPublico && window._calPublico.posts) || []).filter(p => {
+            if(!p || p.formato!=='__material' || !(p.pdf || p.url)) return false;
+            if(temGerado && /roteiro/i.test(String(p.nome||''))) return false;
+            return true;
+          });
           if(!mats.length) return '';
           return '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 26px">' + mats.map(mt => {
             const href = mt.pdf || mt.url;
@@ -28396,6 +28421,19 @@ async function renderPublicAprovarCalendario(token){
             const arq = (nome.replace(/[^\w.\- ]+/g,'').trim() || 'material') + (/\.pdf$/i.test(nome)?'':'.pdf');
             return '<a href="'+esc(href)+'" download="'+esc(arq)+'" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:12px;padding:12px 16px;color:var(--text);font-size:13.5px;font-weight:700;transition:.18s"><span style="font-size:17px">📄</span><span>Baixar '+esc(nome)+'</span><span style="font-size:11px;color:var(--text-3);font-weight:600">PDF</span></a>';
           }).join('') + '</div>';
+        })()}
+        ${(function(){
+          const rot = _calPostsRoteiro(window._calPublico);
+          if(!rot.length) return '';
+          const meses = _calMesesCurto(rot);
+          return `<button id="calPdfBtn" type="button" onclick="baixarRoteirosPDF()" style="display:inline-flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--accent-border);border-radius:14px;padding:14px 18px;margin:0 0 26px;cursor:pointer;font-family:inherit;text-align:left;transition:.15s;box-shadow:0 2px 10px rgba(236,30,121,.08)" onmouseover="this.style.borderColor='var(--accent)';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='var(--accent-border)';this.style.transform=''">
+            <span style="width:34px;height:34px;border-radius:9px;background:var(--accent-soft);display:grid;place-items:center;font-size:16px;flex-shrink:0">📄</span>
+            <span style="flex:1;min-width:0">
+              <span class="calPdfTxt" style="display:block;font:700 14px 'Sora',sans-serif;letter-spacing:-.01em;color:var(--text)">Baixar Roteiros para gravar${meses?' · '+meses:''}</span>
+              <span style="display:block;font-size:11.5px;color:var(--text-3);margin-top:2px">${rot.length} ${rot.length===1?'vídeo':'vídeos'} · só Reels, com slides e legenda</span>
+            </span>
+            <span style="font:700 10.5px 'Sora',sans-serif;letter-spacing:.1em;color:var(--text-3);flex-shrink:0">PDF</span>
+          </button>`;
         })()}
         ${_calBuildCorpo(window._calPublico)}
         <div style="text-align:center;color:var(--text-3);font-size:12.5px;padding:28px 0 14px">Suas respostas salvam sozinhas. Pode fechar e voltar depois. 💾</div>
