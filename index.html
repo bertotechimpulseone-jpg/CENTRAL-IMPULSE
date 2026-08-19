@@ -4322,6 +4322,41 @@ let _relDadosAtual=null, _relPaginasAtual=null;
 // Baixa a fonte Montserrat e devolve o CSS com ela EMBUTIDA em base64.
 // Sem isso o PDF abria antes da fonte carregar e saia com outra letra:
 // a largura do texto mudava e as frases estouravam a folha.
+// Baixa uma familia do Google Fonts e devolve o CSS com os arquivos EMBUTIDOS em base64.
+// Serve pra qualquer PDF do sistema: sem isso a impressao dispara antes da fonte
+// carregar e o documento sai com outra letra (texto estoura, quebra errado).
+window._fontesEmbutidasCache = window._fontesEmbutidasCache || {};
+async function _fonteEmbutida(url){
+  if(window._fontesEmbutidasCache[url] !== undefined) return window._fontesEmbutidasCache[url];
+  try{
+    const css = await (await fetch(url)).text();
+    const blocos = css.split('@font-face').filter(function(b){ return b.indexOf('U+0000-00FF') !== -1; });
+    let out = blocos.map(function(b){ return '@font-face' + b.split('}')[0] + '}'; }).join('\n');
+    const urls = [];
+    out.replace(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g, function(m,u){ urls.push(u); return m; });
+    const unicos = urls.filter(function(u,i){ return urls.indexOf(u) === i; });
+    const pares = await Promise.all(unicos.map(async function(u){
+      const b = await (await fetch(u)).blob();
+      const d = await new Promise(function(r){ const fr = new FileReader(); fr.onload = function(){ r(fr.result); }; fr.readAsDataURL(b); });
+      return [u, d];
+    }));
+    pares.forEach(function(par){ out = out.split(par[0]).join(par[1]); });
+    window._fontesEmbutidasCache[url] = out;
+    return out;
+  }catch(e){ console.warn('[fonte] nao consegui embutir:', e); window._fontesEmbutidasCache[url] = ''; return ''; }
+}
+// Abre uma janela e manda imprimir SO depois que a fonte estiver pronta de verdade.
+function _abrirParaImprimir(w, doc){
+  const script = '<scr'+'ipt>(function(){var foi=false;'
+    +'function imprimir(){ if(foi) return; foi=true; setTimeout(function(){ try{ window.focus(); window.print(); }catch(e){} }, 250); }'
+    +'function ok(){ try{ return document.fonts.status === "loaded"; }catch(e){ return true; } }'
+    +'if(document.fonts && document.fonts.ready){ document.fonts.ready.then(function(){ if(ok()) return imprimir();'
+    +'  var t0=Date.now(); var iv=setInterval(function(){ if(ok()||Date.now()-t0>6000){ clearInterval(iv); imprimir(); } },120); });'
+    +'  setTimeout(imprimir, 9000); } else { setTimeout(imprimir, 1500); } })();</scr'+'ipt>';
+  try{ w.document.open(); w.document.write(doc.replace('</body>', script+'</body>')); w.document.close(); }
+  catch(e){ try{ toast('Não consegui abrir a janela do PDF','info'); }catch(_e){} }
+}
+
 async function _relFonteEmbutida(){
   if(window._relFontCSS !== undefined) return window._relFontCSS;
   try{
@@ -27276,7 +27311,7 @@ function _calLinkPublico(token){
   return location.origin + location.pathname + '?aprovar=' + token;
 }
 function _calContagem(cal){
-  const p = (cal && cal.posts) || [];
+  const p = ((cal && cal.posts) || []).filter(x => x && x.formato !== '__material');
   return {
     total: p.length,
     ok: p.filter(x=>x.status==='aprovado').length,
@@ -27884,6 +27919,13 @@ async function salvarNovoCalendario(cliId){
   });
   if(!posts.length){ toast('Clique num dia do calendário e coloque pelo menos um conteúdo.','info'); return; }
 
+  // Preserva materiais anexados (ex: PDF de roteiros) — eles não moram na grade de dias, então o rebuild não pode apagá-los
+  if(s.editId){
+    const _atual = (typeof _calendarios!=='undefined' ? _calendarios : []).find(c=>c.id===s.editId);
+    const _mats = ((_atual && _atual.posts) || []).filter(p => p && p.formato==='__material');
+    if(_mats.length) posts = [..._mats, ...posts];
+  }
+
   // ----- modo edição: atualiza o calendário existente (mantém o mesmo link) -----
   if(s.editId){
     const r = await gravarSeguro({ tabela:'calendarios', tipo:'update', id:s.editId, payload:{ titulo, posts, updated_at: new Date().toISOString() }, descricao:'editar calendário' });
@@ -27936,6 +27978,7 @@ async function verCalendario(id){
   m.id = 'verCalendarioModal';
   m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:16px';
   const postsHtml = (cal.posts||[]).map((p,idx)=>{
+    if(p && p.formato==='__material') return '';
     const mudouCh = p.editado && p.chamada !== p.chamada_orig;
     const mudouLg = p.editado && p.legenda !== p.legenda_orig;
     const cor = p.status==='aprovado' ? 'var(--success)' : p.status==='ajustar' ? 'var(--danger)' : 'var(--border)';
@@ -28028,6 +28071,121 @@ async function loadCalendarioEventos(){
     }
   } catch(e){ console.warn('[calendario eventos]', e); }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ROTEIROS EM PDF · padrao de todo calendario que tenha roteiro.
+   O cliente clica e leva TODOS os posts do calendario num arquivo so:
+   data, formato, chamada, slides e legenda, prontos pra ler ou imprimir.
+   ══════════════════════════════════════════════════════════════════ */
+function _calTemRoteiro(cal){
+  const posts = (cal && cal.posts) || [];
+  return posts.some(function(p){
+    return (p && ((p.legenda||'').trim() || (Array.isArray(p.slides) && p.slides.filter(Boolean).length) || (p.chamada||'').trim()));
+  });
+}
+function _calMesExtenso(dataStr){
+  const m = String(dataStr||'').match(/(\d{1,2})[\/\-.](\d{1,2})/);
+  if(!m) return '';
+  const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return nomes[parseInt(m[2],10)-1] || '';
+}
+async function baixarRoteirosPDF(){
+  const cal = window._calPublico;
+  if(!cal || !(cal.posts||[]).length){ try{ toast('Este calendário ainda não tem roteiros','info'); }catch(e){} return; }
+  const btn = document.getElementById('calPdfBtn');
+  const txt = btn ? btn.querySelector('.calPdfTxt') : null;
+  const rotulo = txt ? txt.textContent : '';
+  if(txt) txt.textContent = 'Preparando…';
+  if(btn) btn.disabled = true;
+
+  const w = window.open('', '_blank');
+  if(!w){
+    if(txt) txt.textContent = rotulo; if(btn) btn.disabled = false;
+    try{ toast('Libere os pop-ups do navegador pra baixar o PDF','info'); }catch(e){}
+    return;
+  }
+  try{ w.document.write('<!doctype html><meta charset="utf-8"><title>Preparando os roteiros…</title><body style="margin:0;display:grid;place-items:center;height:100vh;font:600 15px system-ui;background:#0b0b14;color:#fff">Preparando os roteiros…</body>'); }catch(e){}
+
+  const fonteCSS = await _fonteEmbutida('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=block');
+  const esc = function(t){ return (t==null?'':String(t)).replace(/[&<>"']/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]; }); };
+  const cor = function(f){ const x=(f||'').toLowerCase();
+    if(x.indexOf('carros')>=0) return '#7C5CFF';
+    if(x.indexOf('reel')>=0||x.indexOf('víde')>=0||x.indexOf('vide')>=0) return '#EC1E79';
+    if(x.indexOf('story')>=0) return '#D97706';
+    if(x.indexOf('foto')>=0) return '#16A34A';
+    if(x.indexOf('está')>=0||x.indexOf('esta')>=0) return '#0284C7';
+    return '#6B6478'; };
+
+  const posts = (cal.posts||[]).slice().sort(function(a,b){
+    const pa=String(a.data||'').split('/'), pb=String(b.data||'').split('/');
+    const ka=(parseInt(pa[1],10)||0)*100+(parseInt(pa[0],10)||0);
+    const kb=(parseInt(pb[1],10)||0)*100+(parseInt(pb[0],10)||0);
+    return ka-kb;
+  });
+  const meses = [...new Set(posts.map(function(p){ return _calMesExtenso(p.data); }).filter(Boolean))].join(' e ');
+
+  const cards = posts.map(function(p, i){
+    const c = cor(p.formato);
+    const slides = (Array.isArray(p.slides)?p.slides:[]).filter(function(x){ return String(x||'').trim(); });
+    return '<article class="post">'
+      + '<div class="cab">'
+        + '<span class="dia">' + esc(p.data||'') + '</span>'
+        + '<span class="fmt" style="background:' + c + '">' + esc(p.formato||'Post') + '</span>'
+        + '<span class="num">' + String(i+1).padStart(2,'0') + ' de ' + String(posts.length).padStart(2,'0') + '</span>'
+      + '</div>'
+      + '<h2>' + esc(p.chamada||'(sem título)') + '</h2>'
+      + (slides.length
+          ? '<div class="bloco"><b>Roteiro · ' + slides.length + (slides.length===1?' slide':' slides') + '</b>'
+            + '<ol>' + slides.map(function(sl){ return '<li>' + esc(sl) + '</li>'; }).join('') + '</ol></div>'
+          : '')
+      + ((p.legenda||'').trim()
+          ? '<div class="bloco"><b>Legenda</b><p>' + esc(p.legenda).replace(/\n/g,'<br>') + '</p></div>'
+          : '')
+      + '</article>';
+  }).join('');
+
+  const doc = '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Roteiros ' + esc(cal.cliente_nome||'') + '</title>'
+    + (fonteCSS ? '<style>'+fonteCSS+'</style>'
+                : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=block">')
+    + '<style>'
+    + '@page{size:A4 portrait;margin:14mm 13mm}'
+    + '*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+    + 'body{font-family:Inter,system-ui,sans-serif;color:#14101B;background:#fff;line-height:1.5}'
+    + '.capa{border-bottom:3px solid #EC1E79;padding-bottom:16px;margin-bottom:22px}'
+    + '.marca{display:flex;align-items:center;gap:9px;margin-bottom:14px}'
+    + '.marca i{width:26px;height:26px;border-radius:8px;background:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2);display:inline-block}'
+    + '.marca b{font:800 13px Sora,sans-serif;letter-spacing:.02em}'
+    + '.capa h1{font:800 27px/1.12 Sora,sans-serif;letter-spacing:-.03em}'
+    + '.capa p{color:#5B5568;font-size:12.5px;margin-top:7px}'
+    + '.post{border:1px solid #E7E3EE;border-radius:13px;padding:17px 19px;margin-bottom:13px;break-inside:avoid;page-break-inside:avoid}'
+    + '.cab{display:flex;align-items:center;gap:9px;margin-bottom:9px}'
+    + '.dia{font:800 14px Sora,sans-serif;letter-spacing:-.01em}'
+    + '.fmt{font:700 9px Inter,sans-serif;letter-spacing:.09em;text-transform:uppercase;color:#fff;border-radius:99px;padding:4px 10px}'
+    + '.num{margin-left:auto;font-size:10px;color:#8C8698;font-weight:600}'
+    + '.post h2{font:700 16px/1.32 Sora,sans-serif;letter-spacing:-.015em;margin-bottom:10px}'
+    + '.bloco{background:#F8F6FB;border-radius:10px;padding:11px 13px;margin-top:8px}'
+    + '.bloco b{display:block;font:700 9.5px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#8C8698;margin-bottom:6px}'
+    + '.bloco p{font-size:12.3px;line-height:1.62;color:#2E2838}'
+    + '.bloco ol{margin:0;padding-left:17px}'
+    + '.bloco li{font-size:12.3px;line-height:1.55;color:#2E2838;margin-bottom:5px}'
+    + '.bloco li::marker{color:#EC1E79;font-weight:700}'
+    + '.rodape{margin-top:20px;padding-top:12px;border-top:1px solid #E7E3EE;font-size:10px;color:#8C8698;text-align:center}'
+    + '</style></head><body>'
+    + '<div class="capa">'
+      + '<div class="marca"><i></i><b>IMPULSE ONE</b></div>'
+      + '<h1>Roteiros · ' + esc(cal.cliente_nome||'') + '</h1>'
+      + '<p>' + esc(cal.titulo || meses || '') + ' · ' + posts.length + (posts.length===1?' conteúdo':' conteúdos') + '</p>'
+    + '</div>'
+    + cards
+    + '<div class="rodape">Impulse One · roteiros gerados pelo sistema</div>'
+    + '</body></html>';
+
+  _abrirParaImprimir(w, doc);
+  if(txt) txt.textContent = rotulo;
+  if(btn) btn.disabled = false;
+}
+if(typeof window!=='undefined'){ window.baixarRoteirosPDF = baixarRoteirosPDF; window._calTemRoteiro = _calTemRoteiro; }
 
 /* ---------- 2. PÁGINA PÚBLICA: ?aprovar=<token> ---------- */
 async function renderPublicAprovarCalendario(token){
@@ -28219,6 +28377,7 @@ async function renderPublicAprovarCalendario(token){
             <img src="/logo.png" alt="Impulse One" style="height:24px;width:auto;display:block" />
           </div>
           <div style="margin-left:auto;display:flex;align-items:center;gap:11px">
+            ${_calTemRoteiro(window._calPublico) ? `<button id="calPdfBtn" type="button" onclick="baixarRoteirosPDF()" title="Baixar todos os roteiros deste calendário em PDF" style="border:1px solid var(--border-strong);background:var(--surface);color:var(--text);border-radius:99px;padding:9px 15px;font-size:12.5px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;transition:.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-strong)'">⬇ <span class="calPdfTxt">Roteiros em PDF</span></button>` : ''}
             <div style="width:clamp(70px,22vw,120px);height:8px;border-radius:99px;background:var(--surface-2);overflow:hidden"><div style="height:100%;width:${pct}%;background:var(--grad);border-radius:99px;transition:width .5s cubic-bezier(.2,.7,.2,1)"></div></div>
             <span style="font-size:12.5px;color:var(--text-2);font-weight:700;white-space:nowrap" id="calProg">${c.ok}/${c.total}</span>
           </div>
@@ -28228,6 +28387,16 @@ async function renderPublicAprovarCalendario(token){
         <div style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--accent-2,#F25FA8);background:var(--accent-soft);padding:6px 13px;border-radius:99px;border:1px solid var(--accent-border)">📅 Calendário editorial · ${esc(cal.cliente_nome||'')}</div>
         <h1 style="font-family:'Sora',sans-serif;font-size:clamp(30px,7.5vw,50px);font-weight:800;line-height:1.02;letter-spacing:-.038em;margin:16px 0 12px;text-wrap:balance">${esc((cal.titulo||'').length > 26 ? 'Seu calendário' : (cal.titulo||'Seu calendário'))}<span style="color:var(--text-3);font-weight:600"> · pra você aprovar</span></h1>
         <p style="color:var(--text-2);font-size:15px;margin:0 0 24px;line-height:1.6;max-width:58ch">Toque em cada post pra ver a arte e o texto. Você pode <b style="color:var(--text)">aprovar</b>, <b style="color:var(--text)">pedir alteração</b> ou <b style="color:var(--text)">editar</b> direto — cada mudança fica registrada com data e hora.</p>
+        ${(function(){
+          const mats = ((window._calPublico && window._calPublico.posts) || []).filter(p => p && p.formato==='__material' && (p.pdf || p.url));
+          if(!mats.length) return '';
+          return '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:0 0 26px">' + mats.map(mt => {
+            const href = mt.pdf || mt.url;
+            const nome = (mt.nome || 'Material').toString();
+            const arq = (nome.replace(/[^\w.\- ]+/g,'').trim() || 'material') + (/\.pdf$/i.test(nome)?'':'.pdf');
+            return '<a href="'+esc(href)+'" download="'+esc(arq)+'" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:9px;text-decoration:none;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:12px;padding:12px 16px;color:var(--text);font-size:13.5px;font-weight:700;transition:.18s"><span style="font-size:17px">📄</span><span>Baixar '+esc(nome)+'</span><span style="font-size:11px;color:var(--text-3);font-weight:600">PDF</span></a>';
+          }).join('') + '</div>';
+        })()}
         ${_calBuildCorpo(window._calPublico)}
         <div style="text-align:center;color:var(--text-3);font-size:12.5px;padding:28px 0 14px">Suas respostas salvam sozinhas. Pode fechar e voltar depois. 💾</div>
       </div>
