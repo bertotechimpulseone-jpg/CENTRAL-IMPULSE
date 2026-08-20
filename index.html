@@ -16797,6 +16797,65 @@ renderPage = function(page){
 let cronMonth = new Date().getMonth() + 1;
 let cronQuery = '';
 let cronStatusFilter = 'all';
+let cronDesignerFilter = '';   // '' = todos, '__sem' = sem designer
+// Rotulos de status do cronograma, num lugar so (antes cada view tinha a sua copia)
+const CRON_STATUS_LABELS = {'planejado':'Planejado','agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprovação','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado'};
+
+// Quantos conteudos o calendario editorial do cliente tem em cada mes.
+// Uma consulta so, guardada em cache: { cliente_dbid: { mes: quantidade } }
+let _cronCalCache = null;
+async function _cronContagemCalendarios(recarregar){
+  if(_cronCalCache && !recarregar) return _cronCalCache;
+  if(!_supa){ _cronCalCache = {}; return _cronCalCache; }
+  try{
+    const { data } = await _supa.from('calendarios').select('cliente_id, posts');
+    const mapa = {};
+    (data||[]).forEach(function(cal){
+      const cid = String(cal.cliente_id||'');
+      if(!cid) return;
+      if(!mapa[cid]) mapa[cid] = {};
+      ((cal.posts)||[]).forEach(function(post){
+        if(!post || post.formato === '__material') return;
+        const m = String(post.data||'').match(/(\d{1,2})[\/\-.](\d{1,2})/);
+        if(!m) return;
+        const mes = parseInt(m[2], 10);
+        if(!mes || mes < 1 || mes > 12) return;
+        mapa[cid][mes] = (mapa[cid][mes] || 0) + 1;
+      });
+    });
+    _cronCalCache = mapa;
+  }catch(e){ console.warn('[cronograma] nao consegui ler os calendarios', e); _cronCalCache = {}; }
+  return _cronCalCache;
+}
+// Puxa a quantidade de um cliente
+async function puxarConteudosDoCalendario(cliId, mes){
+  const cli = (clients||[]).find(function(c){ return c.id === cliId; });
+  if(!cli){ toast('Cliente não encontrado','info'); return; }
+  const mapa = await _cronContagemCalendarios(true);
+  const qtd = ((mapa[String(cli._dbId)]||{})[mes]) || 0;
+  if(!qtd){ toast('O calendário de ' + (typeof _nomeCli==='function'?_nomeCli(cli):cli.name) + ' não tem conteúdo nesse mês','info'); return; }
+  updateCronField(cliId, mes, 'target', qtd);
+  toast('✓ ' + qtd + ' conteúdo' + (qtd>1?'s':'') + ' puxados do calendário','success');
+  renderCronograma(document.getElementById('content'));
+}
+// Puxa de todos os clientes que estao na tela
+async function puxarConteudosDeTodos(mes){
+  const mapa = await _cronContagemCalendarios(true);
+  let mexidos = 0, semCal = 0;
+  (clients||[]).forEach(function(cli){
+    if(cli.oculto) return;
+    const qtd = ((mapa[String(cli._dbId)]||{})[mes]) || 0;
+    if(!qtd){ semCal++; return; }
+    const d = (cronograma[cli.id]||{})[mes];
+    if(d && (parseInt(d.target)||0) === qtd) return;   // ja esta certo
+    updateCronField(cli.id, mes, 'target', qtd);
+    mexidos++;
+  });
+  renderCronograma(document.getElementById('content'));
+  if(!mexidos) toast('Nada a atualizar: nenhum calendário desse mês trouxe número novo','info');
+  else toast('✓ ' + mexidos + ' cliente' + (mexidos>1?'s':'') + ' atualizados pelo calendário' + (semCal?' · ' + semCal + ' sem calendário no mês':''),'success');
+}
+if(typeof window!=='undefined'){ window.puxarConteudosDoCalendario=puxarConteudosDoCalendario; window.puxarConteudosDeTodos=puxarConteudosDeTodos; }
 const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const monthNamesLong = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
@@ -16855,6 +16914,11 @@ function renderCronograma(c){
       if(cli.oculto) return false;
     }
     if(cronStatusFilter!=='all' && cronStatusFilter!=='ocultos' && d.status!==cronStatusFilter) return false;
+    if(cronDesignerFilter){
+      const dz = (d.designer||'').trim();
+      if(cronDesignerFilter === '__sem'){ if(dz) return false; }
+      else if(dz !== cronDesignerFilter) return false;
+    }
     if(cronQuery){
       const q = cronQuery.toLowerCase();
       const hay = (cli.name+' '+(cli.segment||'')+' '+(d.designer||'')+' '+(d.trafficManager||'')).toLowerCase();
@@ -16888,7 +16952,7 @@ function renderCronograma(c){
       <div class="page-header">
         <div>
           <div class="page-title">Cronograma — ${monthNamesLong[cronMonth-1]} 2026</div>
-          <div class="page-subtitle">${rows.length} cliente(s) · ${totalProd}/${totalTarget} conteúdos produzidos · ${atrasados} atrasado(s)</div>
+          <div class="page-subtitle">${rows.length} cliente(s) · ${totalTarget} conteúdo(s) no mês · ${atrasados} atrasado(s)</div>
         </div>
         <div class="page-actions">
           <div class="page-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Buscar cliente, designer, gestor..." oninput="cronQuery=this.value;renderCronograma(document.getElementById('content'))" value="${cronQuery}"/></div>
@@ -16902,7 +16966,7 @@ function renderCronograma(c){
       ${renderDeadlineBanner()}
 
       <div class="stat-grid">
-        ${statCard('Conteúdos do mês',totalProd+'/'+totalTarget, Math.round(totalProd/Math.max(totalTarget,1)*100)+'% concluído','M9 11l3 3L22 4')}
+        ${statCard('Conteúdos do mês',String(totalTarget), rows.length+' cliente(s) na visão','M9 11l3 3L22 4')}
         ${statCard('Atrasados',atrasados,'precisam atenção','M12 9v4',null,'warning')}
         ${statCard('Prazos próximos',proxPrazo,'D-3 a hoje','M12 8v4l3 3',null,'warning')}
         ${statCard('Em produção',rows.filter(r=>cronograma[r.id][cronMonth].status==='em-andamento').length,'fluindo','M3 3v18h18')}
@@ -16915,6 +16979,32 @@ function renderCronograma(c){
           const isCurrent = idx===(new Date().getMonth()+1);
           return `<button class="cron-month-tab ${cronMonth===idx?'active':''} ${isCurrent?'current':''}" onclick="cronMonth=${idx};setTimeout(()=>renderCronograma(document.getElementById('content')),0)">${m}${cnt>0?`<span class="badge-mini">${cnt}</span>`:''}</button>`;
         }).join('')}
+      </div>
+
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        ${(function(){
+          const nomes = Array.from(new Set((team||[]).map(function(x){ return (x.name||'').split(' ')[0]; }).filter(Boolean))).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
+          const est = 'background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:7px 11px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);outline:none;cursor:pointer';
+          const semDesigner = (clients||[]).filter(function(c){ return !c.oculto && !((cronograma[c.id]||{})[cronMonth]||{}).designer; }).length;
+          return `
+            <label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);font-weight:600">🎨
+              <select onchange="cronDesignerFilter=this.value;renderCronograma(document.getElementById('content'))" style="${est}">
+                <option value="">Todos os designers</option>
+                ${nomes.map(function(n){ return '<option value="'+n+'"'+(cronDesignerFilter===n?' selected':'')+'>'+n+'</option>'; }).join('')}
+                <option value="__sem" ${cronDesignerFilter==='__sem'?'selected':''}>— sem designer${semDesigner?' ('+semDesigner+')':''} —</option>
+              </select>
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);font-weight:600">📊
+              <select onchange="cronStatusFilter=this.value;renderCronograma(document.getElementById('content'))" style="${est}">
+                <option value="all">Todos os status</option>
+                ${Object.keys(CRON_STATUS_LABELS).map(function(k){ return '<option value="'+k+'"'+(cronStatusFilter===k?' selected':'')+'>'+CRON_STATUS_LABELS[k]+'</option>'; }).join('')}
+                <option value="ocultos" ${cronStatusFilter==='ocultos'?'selected':''}>🗄 Arquivados</option>
+              </select>
+            </label>
+            <button class="btn" onclick="puxarConteudosDeTodos(${cronMonth})" title="Conta os conteúdos do calendário editorial de cada cliente neste mês e preenche a coluna" style="font-size:12.5px">🗓 Puxar conteúdos do calendário</button>
+            ${(cronDesignerFilter || cronStatusFilter!=='all') ? `<button class="btn" onclick="cronDesignerFilter='';cronStatusFilter='all';renderCronograma(document.getElementById('content'))" style="font-size:12.5px;color:var(--text-3)">✕ Limpar filtros</button>` : ''}
+          `;
+        })()}
       </div>
 
       <div class="filter-bar" style="flex-wrap:wrap;gap:5px">
@@ -16969,12 +17059,10 @@ function renderCronograma(c){
                       <button class="icon-btn" onclick="event.stopPropagation();toggleClienteOculto(${cli.id})" title="${cli.oculto?'Voltar pra lista visivel':'Ocultar da lista'}" style="width:24px;height:24px;color:var(--text-3);font-size:13px;background:transparent;border:none">${cli.oculto?'👁':'👁‍🗨'}</button>
                     </div></td>
                     <td>
-                      <div style="display:flex;align-items:center;gap:4px;font-size:13px;font-weight:600">
-                        <input type="number" min="0" value="${d.produced||0}" onchange="updateCronField(${cli.id},${cronMonth},'produced',parseInt(this.value)||0)" style="width:44px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:13px;font-weight:600;color:var(--text);padding:1px 2px;outline:none;text-align:right" />
-                        <span class="text-3">/</span>
-                        <input type="number" min="0" value="${d.target||0}" onchange="updateCronField(${cli.id},${cronMonth},'target',parseInt(this.value)||0)" style="width:44px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:13px;font-weight:600;color:var(--text-2);padding:1px 2px;outline:none;text-align:left" />
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <input type="number" min="0" value="${d.target||0}" title="Quantidade de conteúdos do mês" onchange="updateCronField(${cli.id},${cronMonth},'target',parseInt(this.value)||0)" style="width:52px;background:var(--surface-2);border:1px solid var(--border);border-radius:7px;font-family:inherit;font-size:13.5px;font-weight:700;color:var(--text);padding:5px 7px;outline:none;text-align:center" />
+                        <button class="icon-btn" onclick="event.stopPropagation();puxarConteudosDoCalendario(${cli.id},${cronMonth})" title="Puxar do calendário editorial deste cliente" style="width:26px;height:26px;font-size:13px;color:var(--text-3);background:transparent;border:1px solid var(--border)">🗓</button>
                       </div>
-                      <div class="cron-progress" style="margin-top:5px"><div class="cron-progress-bar ${pctCls}" style="width:${Math.min(pct,100)}%"></div></div>
                     </td>
                     <td>
                       <div style="display:flex;align-items:center;gap:5px">
@@ -17051,10 +17139,9 @@ function renderCronograma(c){
                 '<div class="cron-mobile-row"><div class="lbl">📊 Status</div><div class="val"><select onchange="updateCronField('+cli.id+','+cronMonth+',\'status\',this.value)">' +
                   Object.keys(statusLabels).map(k => '<option value="'+k+'"' + (d.status===k?' selected':'') + '>'+statusLabels[k]+'</option>').join('') +
                 '</select></div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">📝 Conteúdos · ' + pct + '%</div><div class="val">' +
-                  '<input type="number" min="0" value="'+(d.produced||0)+'" class="num-input" onchange="updateCronField('+cli.id+','+cronMonth+',\'produced\',parseInt(this.value)||0)" />' +
-                  '<span style="font-weight:700;font-size:18px;color:#94a3b8;padding:0 4px">/</span>' +
+                '<div class="cron-mobile-row"><div class="lbl">📝 Conteúdos</div><div class="val">' +
                   '<input type="number" min="0" value="'+(d.target||0)+'" class="num-input" onchange="updateCronField('+cli.id+','+cronMonth+',\'target\',parseInt(this.value)||0)" />' +
+                  '<button onclick="puxarConteudosDoCalendario('+cli.id+','+cronMonth+')" title="Puxar do calendário" style="margin-left:8px;background:transparent;border:1px solid var(--border);border-radius:7px;width:34px;height:34px;font-size:15px;cursor:pointer">🗓</button>' +
                 '</div></div>' +
                 '<div class="cron-mobile-row"><div class="lbl">🎨 Designer</div><div class="val"><select onchange="updateCronField('+cli.id+','+cronMonth+',\'designer\',this.value)">' +
                   '<option value="">— ninguém —</option>' +
@@ -17117,6 +17204,11 @@ function renderCronogramaMobile(c){
     if(cronStatusFilter === 'ocultos'){ if(!cli.oculto) return false; }
     else { if(cli.oculto) return false; }
     if(cronStatusFilter!=='all' && cronStatusFilter!=='ocultos' && d.status!==cronStatusFilter) return false;
+    if(cronDesignerFilter){
+      const dz = (d.designer||'').trim();
+      if(cronDesignerFilter === '__sem'){ if(dz) return false; }
+      else if(dz !== cronDesignerFilter) return false;
+    }
     if(cronQuery){
       const q = cronQuery.toLowerCase();
       const hay = (cli.name+' '+(cli.segment||'')+' '+(d.designer||'')+' '+(d.trafficManager||'')).toLowerCase();
@@ -17205,10 +17297,8 @@ function renderCronogramaMobile(c){
 
         // Conteudos
         const contInputs =
-          '<input type="number" min="0" value="'+(d.produced||0)+'" style="'+numStyle+'" onchange="updateCronField('+cli.id+','+cronMonth+',\'produced\',parseInt(this.value)||0)" />' +
-          '<span style="font-size:18px;color:#94a3b8;font-weight:700;padding:0 4px">/</span>' +
           '<input type="number" min="0" value="'+(d.target||0)+'" style="'+numStyle+'" onchange="updateCronField('+cli.id+','+cronMonth+',\'target\',parseInt(this.value)||0)" />' +
-          '<span style="margin-left:auto;font-size:13px;font-weight:600;color:var(--text-2)">'+pct+'%</span>';
+          '<button onclick="puxarConteudosDoCalendario('+cli.id+','+cronMonth+')" title="Puxar do calendário" style="margin-left:8px;background:transparent;border:1px solid var(--border);border-radius:7px;width:34px;height:34px;font-size:15px;cursor:pointer">🗓</button>';
 
         // Designer
         const desigSel = '<select onchange="updateCronField('+cli.id+','+cronMonth+',\'designer\',this.value)" style="'+selectStyle+'">' +
@@ -17246,7 +17336,7 @@ function renderCronogramaMobile(c){
 
         card.innerHTML = headerHtml +
           linha('📊 Status', statusSel) +
-          linha('📝 Conteúdos · '+pct+'%', contInputs) +
+          linha('📝 Conteúdos', contInputs) +
           linha('🎨 Designer', desigSel) +
           linha('🚀 Tráfego pago', trafContent) +
           linha('📋 POP', popSel) +
