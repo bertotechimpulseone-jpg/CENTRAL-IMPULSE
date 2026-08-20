@@ -84,6 +84,29 @@
        background:var(--card);color:var(--ink-2)}
   .tag.on{background:rgba(236,30,121,.16);border-color:transparent;color:#fff}
 
+  /* pilares editoriais: lista de consulta, letra menor e bullet discreto */
+  .pilares{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px;margin-top:6px}
+  .pilar{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:17px 18px}
+  .pilar .pn{font-family:var(--sora);font-weight:700;font-size:.7rem;color:var(--accent-soft);letter-spacing:.03em}
+  .pilar h3{font-family:var(--sora);font-weight:700;font-size:.98rem;letter-spacing:-.015em;margin:5px 0 11px;line-height:1.2}
+  .pilar ul{gap:6px;margin-top:0}
+  .pilar ul li{font-size:.845rem;line-height:1.4;padding-left:13px;color:var(--ink-2);max-width:none}
+  .pilar ul li::before{width:4px;height:4px;top:.58em;left:0;background:var(--ink-3)}
+
+  /* plano e lacunas */
+  .listas{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+  @media(max-width:640px){.listas{grid-template-columns:1fr}}
+  .lista{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .lista h3{font-family:var(--sora);font-weight:700;font-size:.88rem;color:var(--accent-soft);margin-bottom:11px;letter-spacing:-.01em}
+  .lista ul{gap:7px;margin-top:0}
+  .lista ul li{font-size:.87rem;line-height:1.4;padding-left:14px;max-width:none}
+  .lista ul li::before{width:4px;height:4px;top:.58em;left:0}
+  .lista.risco h3{color:#FFB547}
+  .lista.risco ul li::before{background:#FFB547}
+
+  .metas{margin-top:16px;display:flex;flex-wrap:wrap;gap:7px}
+  .meta{font-size:.82rem;padding:6px 12px;border-radius:999px;border:1px dashed var(--line-2);color:var(--ink-2)}
+
   footer.wrap{border-top:1px solid var(--line);padding:38px 24px 52px}
   footer p{font-size:.86rem;color:var(--ink-3);max-width:58ch}
   footer .assina{font-family:var(--sora);font-size:.8rem;color:var(--ink-3);margin-top:18px}
@@ -187,6 +210,136 @@
     <p class="fala">Síndico: você sabe quando foi feito o último teste de estanqueidade?</p>
   </div>
   <p style="margin-top:20px"><strong>Um cuidado:</strong> a visão do Pablo é ser grande, mas a comunicação mostra a evolução real da empresa. Crescer à vista de todos, sem parecer maior do que é.</p>
+</section>
+
+<section class="wrap">
+  <h2>O que vamos falar nas redes</h2>
+  <p>Seis linhas editoriais, do educativo à conversão. Cada post deve caber em uma delas. Se não couber, provavelmente não é assunto da Convert.</p>
+  <div class="pilares">
+    <div class="pilar">
+      <span class="pn">Pilar 01</span>
+      <h3>Educação e prevenção</h3>
+      <ul>
+        <li>Como identificar vazamentos</li>
+        <li>Por que o gás tem cheiro</li>
+        <li>Preventiva × emergencial</li>
+        <li>Periodicidade dos testes</li>
+        <li>Validade de componentes</li>
+        <li>Risco de prestador não qualificado</li>
+      </ul>
+    </div>
+    <div class="pilar">
+      <span class="pn">Pilar 02</span>
+      <h3>Conteúdo para síndicos</h3>
+      <ul>
+        <li>Responsabilidades sobre o gás</li>
+        <li>Checklist de manutenção</li>
+        <li>Como funciona um contrato recorrente</li>
+        <li>Como reduzir emergências</li>
+        <li>Documentos e homologações</li>
+        <li>Preparar assembleia para aprovar serviço</li>
+      </ul>
+    </div>
+    <div class="pilar">
+      <span class="pn">Pilar 03</span>
+      <h3>Autoridade e credibilidade</h3>
+      <ul>
+        <li>Homologação Sulgás</li>
+        <li>Marcas com assistência homologada</li>
+        <li>Responsável técnica</li>
+        <li>Formação e experiência do Pablo</li>
+        <li>Bastidores e antes/depois</li>
+        <li>Procedimentos de segurança</li>
+      </ul>
+    </div>
+    <div class="pilar">
+      <span class="pn">Pilar 04</span>
+      <h3>Atendimento e resolução</h3>
+      <ul>
+        <li>Casos reais de emergência</li>
+        <li>Problema encontrado, solução aplicada</li>
+        <li>Atendimento noturno</li>
+        <li>Depoimentos</li>
+        <li>Compromisso com prazos</li>
+        <li>Rotina da equipe</li>
+      </ul>
+    </div>
+    <div class="pilar">
+      <span class="pn">Pilar 05</span>
+      <h3>História e crescimento</h3>
+      <ul>
+        <li>Origem da empresa</li>
+        <li>Trajetória do Pablo</li>
+        <li>Primeiros clientes</li>
+        <li>Evolução da estrutura</li>
+        <li>Novos técnicos e parceiros</li>
+        <li>Frota, equipamentos, sede e metas</li>
+      </ul>
+    </div>
+    <div class="pilar">
+      <span class="pn">Pilar 06</span>
+      <h3>Conversão comercial</h3>
+      <ul>
+        <li>Diagnóstico do sistema</li>
+        <li>Solicitação de orçamento</li>
+        <li>Contratos de manutenção</li>
+        <li>Atendimento para condomínios</li>
+        <li>Chamada direta para o WhatsApp</li>
+        <li>Visitas e apresentações em assembleia</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="wrap">
+  <h2>O que sustenta o resultado, e o que ainda falta</h2>
+  <p>Só rede social não chega no síndico. O conteúdo trabalha junto com relacionamento e prospecção. E há lacunas para fechar antes de acelerar.</p>
+  <div class="listas">
+    <div class="lista">
+      <h3>Estratégia comercial que anda junto</h3>
+      <ul>
+        <li>Grupos e eventos de síndicos</li>
+        <li>Parcerias com administradoras</li>
+        <li>Relacionamento com zeladores</li>
+        <li>Apresentação comercial para condomínios</li>
+        <li>Presença em assembleias</li>
+        <li>Plano recorrente de manutenção estruturado</li>
+        <li>Material impresso coerente com o digital</li>
+        <li>Indicações entre síndicos</li>
+        <li>Avaliação no Google após cada atendimento</li>
+        <li>Rotina de acompanhamento de propostas</li>
+      </ul>
+    </div>
+    <div class="lista risco">
+      <h3>Fragilidades atuais</h3>
+      <ul>
+        <li>Sem metas comerciais mensuráveis</li>
+        <li>Estratégia de crescimento informal</li>
+        <li>Baixa recorrência fora dos condomínios</li>
+        <li>Operação dependente do próprio Pablo</li>
+        <li>Produto condominial não estruturado</li>
+        <li>Google sem alimentação consistente</li>
+        <li>Ausência de landing page</li>
+        <li>Gestão de leads 100% manual</li>
+        <li>Posicionamento pouco diferenciado</li>
+        <li>Sem indicadores para medir o marketing</li>
+      </ul>
+    </div>
+  </div>
+  <div class="rotulo" style="margin-top:26px">Metas a definir, para virar número o "captar mais condomínios"</div>
+  <div class="metas">
+    <span class="meta">Contratos condominiais hoje</span>
+    <span class="meta">Novos em 3, 6 e 12 meses</span>
+    <span class="meta">Ticket médio</span>
+    <span class="meta">Leads por mês</span>
+    <span class="meta">Taxa de conversão</span>
+    <span class="meta">Limite operacional</span>
+    <span class="meta">Quando contratar técnico</span>
+    <span class="meta">Receita atual × desejada</span>
+    <span class="meta">Regiões prioritárias</span>
+    <span class="meta">Serviços de entrada em condomínio</span>
+    <span class="meta">Indicadores de sucesso</span>
+  </div>
 </section>
 
 <section class="wrap">
