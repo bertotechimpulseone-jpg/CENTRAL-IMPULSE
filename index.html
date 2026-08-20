@@ -4053,6 +4053,20 @@ async function loadRelatorios(){
 }
 function _relFmtData(d){ if(!d) return ''; try{ const p=String(d).slice(0,10).split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0].slice(2)):String(d); }catch(e){ return String(d); } }
 let _relClienteAberto = null;   // nome do cliente cujos relatorios estao abertos
+let _relVerOcultos = false;     // grade dos inativos (arquivados ou que sairam do cadastro)
+
+// Regra do sistema: quem nao esta ativo nao aparece na visao principal, vai pro
+// chip de ocultos. Vale pro cliente arquivado, pro cancelado e pra empresa que
+// nao esta mais no cadastro. Nada e apagado.
+function _relEmpresaInativa(nome){
+  const alvo = (nome||'').trim().toLowerCase();
+  if(!alvo) return true;
+  const cli = (typeof clients!=='undefined'?clients:[]).find(function(c){ return (c.name||'').trim().toLowerCase() === alvo; });
+  if(!cli) return true;                    // saiu do cadastro de clientes
+  if(cli.oculto) return true;              // arquivado
+  if(cli.status === 'cancelado') return true;
+  return false;
+}
 function renderRelatorios(c){
   _relSetup();
   if(!_relCarregado) loadRelatorios();
@@ -4070,6 +4084,9 @@ function renderRelatorios(c){
     return `<div style="width:38px;height:38px;border-radius:10px;background:${cor};color:#fff;display:grid;place-items:center;font-size:13.5px;font-weight:700;flex-shrink:0">${esc(ini)}</div>`;
   };
   const _ultima = (n)=> _relFmtData((grupos[n][0]||{}).data);
+  const nomesAtivos  = nomes.filter(function(n){ return !_relEmpresaInativa(n); });
+  const nomesOcultos = nomes.filter(function(n){ return  _relEmpresaInativa(n); });
+  const nomesNaGrade = _relVerOcultos ? nomesOcultos : nomesAtivos;
   const aberto = _relClienteAberto && grupos[_relClienteAberto] ? _relClienteAberto : null;
 
   // Um relatorio da lista (usado quando o cliente esta aberto)
@@ -4114,11 +4131,15 @@ function renderRelatorios(c){
         </div>`
       : `
         <div style="display:flex;align-items:center;justify-content:space-between;margin:0 2px 12px;gap:12px;flex-wrap:wrap">
-          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)">Por cliente</div>
-          <div style="font-size:11.5px;color:var(--text-3)">${nomes.length} cliente${nomes.length!==1?'s':''} · toque pra ver os relatórios</div>
+          <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3)">${_relVerOcultos?'Fora do sistema':'Por cliente'}</div>
+          <div style="display:flex;align-items:center;gap:14px">
+            ${nomesOcultos.length ? `<button type="button" onclick="_relVerOcultos=!_relVerOcultos;renderRelatorios(document.getElementById('content'))" style="display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--border);background:transparent;color:var(--text-2);border-radius:99px;padding:5px 12px;font:600 12px inherit;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-2)'">${_relVerOcultos?'← Voltar pros ativos':'🙈 '+nomesOcultos.length+' oculto'+(nomesOcultos.length!==1?'s':'')}</button>` : ''}
+            <span style="font-size:11.5px;color:var(--text-3)">${nomesNaGrade.length} cliente${nomesNaGrade.length!==1?'s':''} · toque pra ver os relatórios</span>
+          </div>
         </div>
+        ${_relVerOcultos ? `<div class="text-xs text-3" style="margin:0 2px 12px;line-height:1.55;max-width:74ch">Empresas arquivadas ou que saíram do cadastro de clientes. Os relatórios continuam guardados: se o cliente voltar a ficar ativo, ele volta sozinho pra lista de cima.</div>` : ''}
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:11px">
-          ${nomes.map(n=>`
+          ${nomesNaGrade.map(n=>`
             <button type="button" onclick="_relClienteAberto=${JSON.stringify(n).replace(/"/g,'&quot;')};renderRelatorios(document.getElementById('content'))"
               title="Ver os relatórios de ${esc(n)}"
               style="display:flex;align-items:center;gap:11px;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:13px 14px;cursor:pointer;font-family:inherit;transition:.15s"
@@ -4130,7 +4151,8 @@ function renderRelatorios(c){
                 <span style="display:block;font-size:11.5px;color:var(--text-3);margin-top:2px">último em ${_ultima(n)}</span>
               </span>
             </button>`).join('')}
-        </div>`}
+        </div>
+        ${!nomesNaGrade.length ? `<div class="text-xs text-3" style="padding:26px 2px">${_relVerOcultos?'Nenhuma empresa oculta.':'Nenhum cliente ativo com relatório. Veja em “ocultos”.'}</div>` : ''}`}
     </div>`;
 }
 
