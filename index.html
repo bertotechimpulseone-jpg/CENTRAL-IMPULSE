@@ -16957,6 +16957,7 @@ function renderCronograma(c){
         <div class="page-actions">
           <div class="page-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Buscar cliente, designer, gestor..." oninput="cronQuery=this.value;renderCronograma(document.getElementById('content'))" value="${cronQuery}"/></div>
           <button class="btn" onclick="abrirCombinadosPrazos()" title="Manual de combinados e prazos do calendário editorial — quem está atrasado no prazo do dia 20" style="background:var(--accent);color:var(--surface);border:none;font-weight:700">⚡ Combinados & Prazos</button>
+          <button class="btn" onclick="puxarConteudosDeTodos(cronMonth)" title="Conta os conteúdos do calendário editorial de cada cliente neste mês e preenche a coluna Conteúdos">🗓 Puxar conteúdos do calendário</button>
           <button class="btn" onclick="replicarMesParaFuturos(cronMonth)" title="Copia designer e gestor de tráfego deste mês pros próximos meses do ano que estão vazios">📋 Replicar daqui pra frente</button>
           <button class="btn" onclick="toast('Exportando cronograma…','info')">📤 Exportar</button>
           <button class="btn btn-primary" onclick="toast('Adicionar novo item ao cronograma','info')">+ Novo</button>
@@ -16979,32 +16980,6 @@ function renderCronograma(c){
           const isCurrent = idx===(new Date().getMonth()+1);
           return `<button class="cron-month-tab ${cronMonth===idx?'active':''} ${isCurrent?'current':''}" onclick="cronMonth=${idx};setTimeout(()=>renderCronograma(document.getElementById('content')),0)">${m}${cnt>0?`<span class="badge-mini">${cnt}</span>`:''}</button>`;
         }).join('')}
-      </div>
-
-      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-        ${(function(){
-          const nomes = Array.from(new Set((team||[]).map(function(x){ return (x.name||'').split(' ')[0]; }).filter(Boolean))).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
-          const est = 'background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:7px 11px;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);outline:none;cursor:pointer';
-          const semDesigner = (clients||[]).filter(function(c){ return !c.oculto && !((cronograma[c.id]||{})[cronMonth]||{}).designer; }).length;
-          return `
-            <label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);font-weight:600">🎨
-              <select onchange="cronDesignerFilter=this.value;renderCronograma(document.getElementById('content'))" style="${est}">
-                <option value="">Todos os designers</option>
-                ${nomes.map(function(n){ return '<option value="'+n+'"'+(cronDesignerFilter===n?' selected':'')+'>'+n+'</option>'; }).join('')}
-                <option value="__sem" ${cronDesignerFilter==='__sem'?'selected':''}>— sem designer${semDesigner?' ('+semDesigner+')':''} —</option>
-              </select>
-            </label>
-            <label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text-3);font-weight:600">📊
-              <select onchange="cronStatusFilter=this.value;renderCronograma(document.getElementById('content'))" style="${est}">
-                <option value="all">Todos os status</option>
-                ${Object.keys(CRON_STATUS_LABELS).map(function(k){ return '<option value="'+k+'"'+(cronStatusFilter===k?' selected':'')+'>'+CRON_STATUS_LABELS[k]+'</option>'; }).join('')}
-                <option value="ocultos" ${cronStatusFilter==='ocultos'?'selected':''}>🗄 Arquivados</option>
-              </select>
-            </label>
-            <button class="btn" onclick="puxarConteudosDeTodos(${cronMonth})" title="Conta os conteúdos do calendário editorial de cada cliente neste mês e preenche a coluna" style="font-size:12.5px">🗓 Puxar conteúdos do calendário</button>
-            ${(cronDesignerFilter || cronStatusFilter!=='all') ? `<button class="btn" onclick="cronDesignerFilter='';cronStatusFilter='all';renderCronograma(document.getElementById('content'))" style="font-size:12.5px;color:var(--text-3)">✕ Limpar filtros</button>` : ''}
-          `;
-        })()}
       </div>
 
       <div class="filter-bar" style="flex-wrap:wrap;gap:5px">
@@ -17030,8 +17005,31 @@ function renderCronograma(c){
                 <th>Cliente</th>
                 <th>Conteúdos</th>
                 <th>Tráfego</th>
-                <th>Designer</th>
-                <th>Status</th>
+                ${(function(){
+                  // O titulo da coluna E o filtro: um select que herda o visual do cabecalho.
+                  const base = 'width:100%;background:transparent;border:none;font:inherit;font-family:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer;outline:none;padding:0;appearance:none;-webkit-appearance:none;';
+                  const ativo = 'color:var(--accent);font-weight:800;';
+                  const inerte = 'color:inherit;';
+                  const nomes = Array.from(new Set((team||[]).map(function(x){ return (x.name||'').split(' ')[0]; }).filter(Boolean)))
+                                     .sort(function(a,b){ return a.localeCompare(b,'pt-BR'); });
+                  const semDesigner = (clients||[]).filter(function(c){ return !c.oculto && !((cronograma[c.id]||{})[cronMonth]||{}).designer; }).length;
+                  const seta = (on) => on ? ' ▾' : ' ▾';
+                  return `
+                    <th title="Filtrar por designer">
+                      <select onchange="cronDesignerFilter=this.value;renderCronograma(document.getElementById('content'))" style="${base}${cronDesignerFilter?ativo:inerte}">
+                        <option value="">Designer${seta(false)}</option>
+                        ${nomes.map(function(n){ return '<option value="'+n+'"'+(cronDesignerFilter===n?' selected':'')+'>'+n+'</option>'; }).join('')}
+                        <option value="__sem" ${cronDesignerFilter==='__sem'?'selected':''}>Sem designer${semDesigner?' ('+semDesigner+')':''}</option>
+                      </select>
+                    </th>
+                    <th title="Filtrar por status">
+                      <select onchange="cronStatusFilter=this.value;renderCronograma(document.getElementById('content'))" style="${base}${cronStatusFilter!=='all'?ativo:inerte}">
+                        <option value="all">Status${seta(false)}</option>
+                        ${Object.keys(CRON_STATUS_LABELS).map(function(k){ return '<option value="'+k+'"'+(cronStatusFilter===k?' selected':'')+'>'+CRON_STATUS_LABELS[k]+'</option>'; }).join('')}
+                        <option value="ocultos" ${cronStatusFilter==='ocultos'?'selected':''}>🗄 Arquivados</option>
+                      </select>
+                    </th>`;
+                })()}
                 <th>POP</th>
                 <th>Prazo</th>
                 <th>Observações</th>
