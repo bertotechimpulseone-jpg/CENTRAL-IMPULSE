@@ -2849,6 +2849,7 @@ async function loadDataFromSupabase(){
           if(p.initials) found.init = p.initials;
           if(p.foto_url !== undefined) found.foto_url = p.foto_url || '';
           if(p.enabled !== undefined) found.enabled = p.enabled;   // false = inativo (some do Feedback automaticamente)
+          if(p.role !== undefined) found.perfil_role = p.role;      // cargo do login (videomaker, designer...)
         } else {
           // Profile no banco que não está no mock — adiciona ao team
           team.push({
@@ -2871,7 +2872,8 @@ async function loadDataFromSupabase(){
             color: p.avatar_color || '#1d1d1f',
             init: p.initials || (p.full_name?.[0]||'?').toUpperCase(),
             foto_url: p.foto_url || '',
-            enabled: p.enabled
+            enabled: p.enabled,
+            perfil_role: p.role
           });
         }
       });
@@ -20745,7 +20747,12 @@ async function openCaptacaoFormModal(cap){
     `<option value="${cli._dbId||''}" ${cliVinculado && cli._dbId===c.client_id?'selected':''}>${cli.name}</option>`
   ).join('');
   // Opções do select de responsável — videomakers primeiro; em captação NOVA já sugere a videomaker
-  const _isVM = (t) => /videomaker/i.test(String(t && t.role || '').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s/g,''));
+  // Videomaker tanto pelo cargo escrito (Videomaker/Fotógrafo) quanto pelo cargo do login
+  const _isVM = (t) => {
+    if(!t) return false;
+    if(String(t.perfil_role||'').toLowerCase() === 'videomaker') return true;
+    return /videomaker/i.test(String(t.role || '').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s/g,''));
+  };
   const _teamNom = (team||[]).filter(t => t && t.name && t.name.trim());
   const _vmList = _teamNom.filter(_isVM);
   const _respDefault = c.responsavel_nome || (!isEdit && _vmList.length ? _vmList[0].name : '');
@@ -21524,7 +21531,7 @@ async function renderUsuarios(c){
               <tr>
                 <td><div style="display:flex;align-items:center;gap:10px">${p.foto_url?`<img src="${escapeHtml(p.foto_url)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0">`:`<div class="avatar" style="background:${p.avatar_color||'#1d1d1f'}">${p.initials||(p.full_name||'?')[0]}</div>`}<strong>${p.full_name||'(sem nome)'}</strong></div></td>
                 <td class="text-mu">${p.email||'—'}</td>
-                <td><span class="badge ${p.role==='admin'?'b-purple':p.role==='gestor'?'b-info':'b-default'}">${p.role||'colaborador'}</span></td>
+                <td><span class="badge ${p.role==='admin'?'b-purple':p.role==='gestor'?'b-info':p.role==='videomaker'?'b-warning':p.role==='designer'?'b-success':'b-default'}">${p.role==='videomaker'?'🎬 videomaker':p.role==='designer'?'🎨 designer':(p.role||'colaborador')}</span></td>
                 <td><span class="text-xs text-3">${(p.permissions||[]).length} áreas</span>${p.stored_password_hint?'<div style="font-size:11px;color:var(--text-2);margin-top:2px"><strong>🔑</strong> <input type="text" value="'+p.stored_password_hint+'" onblur="updateStoredPwd(\''+p.id+'\',this.value)" style="background:transparent;border:none;font-family:monospace;color:var(--text-2);padding:0;font-size:11px;width:120px" /></div>':''}</td>
                 <td>${p.enabled!==false?'<span class="badge b-success"><span class="dot"></span>Ativo</span>':'<span class="badge b-default">Inativo</span>'}</td>
                 <td style="text-align:right">
@@ -21677,11 +21684,14 @@ async function openEditUsuario(id){
       <div class="section-title">👤 Configurações</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div><div class="info-label" style="margin-bottom:5px">Cargo</div>
-          <select id="euRole" class="login-input" style="background:var(--surface-2)">
+          <select id="euRole" class="login-input" style="background:var(--surface-2)" onchange="_euCargoMudou(this.value)">
             <option value="colaborador" ${p.role==='colaborador'?'selected':''}>Colaborador</option>
+            <option value="designer" ${p.role==='designer'?'selected':''}>Designer</option>
+            <option value="videomaker" ${p.role==='videomaker'?'selected':''}>Videomaker</option>
             <option value="gestor" ${p.role==='gestor'?'selected':''}>Gestor</option>
             <option value="admin" ${p.role==='admin'?'selected':''}>Admin (acesso total)</option>
           </select>
+          <div id="euCargoDica" class="text-xs text-3" style="margin-top:6px;line-height:1.5;display:${p.role==='videomaker'?'block':'none'}">🎬 Videomaker entra direto na Captação e já aparece como responsável na hora de agendar.</div>
         </div>
         <div><div class="info-label" style="margin-bottom:5px">Status</div>
           <select id="euEnabled" class="login-input" style="background:var(--surface-2)">
@@ -21767,6 +21777,17 @@ if(typeof window!=='undefined'){
   window._euFiltraClientes=_euFiltraClientes; window._euContaClientes=_euContaClientes;
 }
 
+// Videomaker so precisa da Captacao: marcar o cargo ja acerta as permissoes.
+function _euCargoMudou(valor){
+  const dica = document.getElementById('euCargoDica');
+  if(dica) dica.style.display = (valor === 'videomaker') ? 'block' : 'none';
+  if(valor !== 'videomaker') return;
+  const marcadas = Array.from(document.querySelectorAll('.eperm-chk')).filter(function(x){ return x.checked && x.value !== 'captacao'; });
+  if(marcadas.length && !confirm('Videomaker acessa só a Captação.\n\nDesmarcar as outras ' + marcadas.length + ' área(s)?')) return;
+  document.querySelectorAll('.eperm-chk').forEach(function(x){ x.checked = (x.value === 'captacao'); });
+}
+if(typeof window!=='undefined'){ window._euCargoMudou=_euCargoMudou; }
+
 async function salvarEditUsuario(id){
   const role = document.getElementById('euRole').value;
   const enabled = document.getElementById('euEnabled').value === 'true';
@@ -21777,7 +21798,14 @@ async function salvarEditUsuario(id){
     toast('Marque pelo menos um cliente, ou escolha "Todos os clientes"','info'); return;
   }
   const clientes_permitidos = (modo === 'alguns') ? marcados : null;
-  const r = await gravarSeguro({tabela:'profiles', tipo:'update', id, payload:{role, permissions: perms, enabled, clientes_permitidos}, descricao:'permissões do usuário'});
+  // Designer e Videomaker sao cargo de verdade: se a pessoa ainda nao tem cargo
+  // escrito, preenche, senao ela some das listas que filtram por cargo (Captacao, Equipe).
+  const payload = {role, permissions: perms, enabled, clientes_permitidos};
+  const _perfilAtual = (_allProfiles||[]).find(function(x){ return x.id === id; });
+  if((role === 'videomaker' || role === 'designer') && !((_perfilAtual && _perfilAtual.position || '').trim())){
+    payload.position = (role === 'videomaker') ? 'Videomaker' : 'Designer';
+  }
+  const r = await gravarSeguro({tabela:'profiles', tipo:'update', id, payload, descricao:'permissões do usuário'});
   if(!r.ok) return;
   // Inativo = bloqueado: some de todas as telas na hora. Ativo de novo = volta.
   const _tmAtivo = (typeof team!=='undefined'?team:[]).find(t => t._dbId === id);
