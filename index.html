@@ -7834,7 +7834,6 @@ function openClient(id, targetPane){
       <div class="modal-tab" onclick="cliTab(this,'acessos')">🔐 Acessos</div>
       <div class="modal-tab" onclick="cliTab(this,'jornada')">Jornada</div>
       <div class="modal-tab" onclick="cliTab(this,'briefing')">Briefing</div>
-      <div class="modal-tab" onclick="cliTab(this,'conhecendo')">📗 Conhecendo o Cliente</div>
       <div class="modal-tab" onclick="cliTab(this,'calendario')">🗓 Calendário</div>
       <div class="modal-tab" onclick="cliTab(this,'plano')">Plano</div>
       <div class="modal-tab" onclick="cliTab(this,'arquivos')">Arquivos</div>
@@ -7847,7 +7846,6 @@ function openClient(id, targetPane){
       ${paneAcessos(cli)}
       ${paneJornada(cli)}
       ${paneBriefing(cli)}
-      ${paneConhecendo(cli)}
       ${paneCalendario(cli)}
       ${paneFinanceiro(cli)}
       ${paneArquivos(cli)}
@@ -8761,6 +8759,7 @@ function paneJornada(cli){
                 ${s.done && dt ? `<div class="text-xs text-3" style="margin-top:4px;color:var(--success-text);font-weight:500">✓ concluído em ${dt}</div>` : ''}
                 <!-- Links e anexos desta etapa -->
                 <div style="margin-top:8px;display:flex;flex-direction:column;gap:5px">
+                  ${_ehEtapaConhecendo(s.name) ? _conhecendoNaJornada(cli, s) : ''}
                   ${(Array.isArray(s.links)?s.links:[]).map((lk,li)=>`
                     <div style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 9px">
                       <span style="font-size:13px;flex-shrink:0">${lk.tipo==='anexo'?'📎':'🔗'}</span>
@@ -9603,49 +9602,43 @@ function paneArquivos(cli){
 }
 
 // ===== Conhecendo o Cliente =====
-// Documento estrategico do cliente (quem e, publico, posicionamento, tom de voz).
-// Mora no proprio sistema, em documentos/conhecendo/, e nao num link de fora.
-function paneConhecendo(cli){
-  const url = (cli.conhecendo_url || '').trim();
-  const nome = (typeof _nomeCli === 'function') ? _nomeCli(cli) : (cli.name || '');
-  const podeEditar = (typeof isGestor === 'function') ? isGestor() : true;
-
-  if(!url){
-    return `
-      <div class="modal-pane" data-pane="conhecendo" style="padding:18px 22px">
-        <div style="max-width:60ch;margin:26px auto;text-align:center">
-          <div style="font-size:40px;line-height:1;margin-bottom:14px">📗</div>
-          <div style="font:700 17px 'Sora',sans-serif;letter-spacing:-.02em;margin-bottom:8px">Ainda não temos o documento de ${escapeHtml(nome)}</div>
-          <div class="text-sm text-2" style="line-height:1.6;margin-bottom:20px">O "Conhecendo o Cliente" reúne num lugar só quem é a empresa, o que ela vende, quem decide a compra, o posicionamento e o tom de voz. É o que a equipe lê antes de escrever qualquer coisa para esse cliente.</div>
-          ${podeEditar ? `
-            <div style="display:flex;gap:8px;max-width:440px;margin:0 auto">
-              <input id="conhecendoUrl_${cli.id}" class="login-input" placeholder="documentos/conhecendo/nome-do-cliente.html" style="background:var(--surface-2);flex:1;font-size:13px" />
-              <button class="btn btn-primary" onclick="salvarConhecendoUrl(${cli.id})">Vincular</button>
-            </div>
-            <div class="text-xs text-3" style="margin-top:10px">Cole o caminho do documento dentro do sistema, ou um link completo.</div>`
-          : `<div class="text-xs text-3">Peça para a gestão vincular o documento.</div>`}
-        </div>
-      </div>`;
-  }
-
-  const abs = /^https?:/i.test(url) ? url : (location.origin + '/' + url.replace(/^\//,''));
-  return `
-    <div class="modal-pane" data-pane="conhecendo" style="padding:14px 18px 18px">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-        <div>
-          <div style="font:700 15px 'Sora',sans-serif;letter-spacing:-.02em">Conhecendo ${escapeHtml(nome)}</div>
-          <div class="text-xs text-3" style="margin-top:2px">Leia antes de produzir qualquer conteúdo desse cliente</div>
-        </div>
-        <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <a class="btn" href="${escapeHtml(abs)}" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">⤢ Abrir inteiro</a>
-          <button class="btn" onclick="copiarLinkConhecendo(${cli.id})" title="Copiar o link pra mandar pra alguém">🔗 Copiar link</button>
-          ${podeEditar ? `<button class="btn" onclick="trocarConhecendoUrl(${cli.id})" title="Apontar para outro documento">✎ Trocar</button>` : ''}
-        </div>
-      </div>
-      <iframe src="${escapeHtml(abs)}" title="Conhecendo ${escapeHtml(nome)}" loading="lazy"
-        style="width:100%;height:64dvh;min-height:380px;border:1px solid var(--border);border-radius:12px;background:#08080C;display:block"></iframe>
-    </div>`;
+// Documento estrategico do cliente. Nao tem aba propria: aparece dentro da etapa
+// "Conhecendo o cliente" da Jornada, que ja existe no template padrao de todo cliente.
+function _ehEtapaConhecendo(nome){ return /conhecendo\s+o\s+cliente/i.test(nome || ''); }
+function _conhecendoAbs(cli){
+  const url = ((cli && cli.conhecendo_url) || '').trim();
+  if(!url) return '';
+  return /^https?:/i.test(url) ? url : (location.origin + '/' + url.replace(/^\//,''));
 }
+// Cartao do documento dentro da etapa da jornada
+function _conhecendoNaJornada(cli, etapa){
+  const abs = _conhecendoAbs(cli);
+  const podeEditar = (typeof isGestor === 'function') ? isGestor() : true;
+  // se a pessoa ja pos o link do documento a mao nessa etapa, o dela manda
+  if(abs && etapa && Array.isArray(etapa.links) && etapa.links.some(function(lk){
+    return lk && String(lk.url||'').replace(/\/+$/,'') === abs.replace(/\/+$/,'');
+  })) return '';
+  if(!abs){
+    if(!podeEditar) return '';
+    return `<button class="btn btn-sm" onclick="event.stopPropagation();trocarConhecendoUrl(${cli.id})" title="Apontar o documento Conhecendo o Cliente deste cliente" style="font-size:11.5px;padding:4px 10px;color:var(--text-3)">📗 Vincular documento</button>`;
+  }
+  return `
+    <a href="${escapeHtml(abs)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"
+       style="display:flex;align-items:center;gap:10px;background:var(--accent-soft);border:1px solid var(--accent-border);border-radius:9px;padding:9px 11px;text-decoration:none;transition:.15s"
+       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--accent-border)'">
+      <span style="font-size:15px;flex-shrink:0">📗</span>
+      <span style="flex:1;min-width:0">
+        <span style="display:block;font-size:12.5px;font-weight:700;color:var(--text)">Conhecendo o Cliente</span>
+        <span style="display:block;font-size:11px;color:var(--text-3);margin-top:1px">Quem é, quem decide, posicionamento e tom de voz</span>
+      </span>
+      <span style="font-size:11px;color:var(--text-3);flex-shrink:0">abrir ↗</span>
+    </a>
+    ${podeEditar ? `<div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="event.stopPropagation();copiarLinkConhecendo(${cli.id})" style="font-size:11.5px;padding:4px 10px;color:var(--info-text)">🔗 Copiar link</button>
+      <button class="btn btn-sm" onclick="event.stopPropagation();trocarConhecendoUrl(${cli.id})" style="font-size:11.5px;padding:4px 10px;color:var(--text-3)">✎ Trocar</button>
+    </div>` : ''}`;
+}
+if(typeof window!=='undefined'){ window._conhecendoNaJornada=_conhecendoNaJornada; window._ehEtapaConhecendo=_ehEtapaConhecendo; }
 
 async function salvarConhecendoUrl(cliId, valorDireto){
   const cli = (clients||[]).find(c => c.id === cliId);
@@ -9657,7 +9650,7 @@ async function salvarConhecendoUrl(cliId, valorDireto){
   if(!r.ok) return;
   cli.conhecendo_url = valor;
   toast(valor ? '✓ Documento vinculado' : '✓ Documento desvinculado','success');
-  openClient(cli.id, 'conhecendo');
+  openClient(cli.id, 'jornada');
 }
 async function copiarLinkConhecendo(cliId){
   const cli = (clients||[]).find(c => c.id === cliId);
@@ -9674,7 +9667,7 @@ function trocarConhecendoUrl(cliId){
   if(novo === null) return;
   salvarConhecendoUrl(cliId, novo.trim());
 }
-if(typeof window!=='undefined'){ window.paneConhecendo=paneConhecendo; window.salvarConhecendoUrl=salvarConhecendoUrl; window.trocarConhecendoUrl=trocarConhecendoUrl; window.copiarLinkConhecendo=copiarLinkConhecendo; }
+if(typeof window!=='undefined'){ window.salvarConhecendoUrl=salvarConhecendoUrl; window.trocarConhecendoUrl=trocarConhecendoUrl; window.copiarLinkConhecendo=copiarLinkConhecendo; }
 
 function paneAntes(cli){
   const antes = cli.antes_impulse || {};

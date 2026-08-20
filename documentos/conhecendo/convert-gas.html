@@ -7,724 +7,202 @@
 <title>Conhecendo o Cliente — Convert Gás · Impulse One</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#08080C; --bg-2:#0D0D14; --card:#121219; --card-2:#16161F;
-    --ink:#FFFFFF; --ink-soft:#A6A6B4; --ink-dim:#6C6C7A;
-    --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
-    --g1:#F7941E; --g2:#EC1E79; --g3:#A23BD6; --g4:#29ABE2;
+    --bg:#08080C; --card:#12121A; --card-2:#171720;
+    --ink:#FFFFFF; --ink-2:#B9B9C6; --ink-3:#82828F;
+    --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.18);
+    --accent:#EC1E79; --accent-soft:#F98CC0;
     --grad:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2);
-    --accent:#EC1E79; --accent-soft:#F25FA8;
-    --ok:#2FD48B; --warn:#FFB547;
     --sora:"Sora",system-ui,sans-serif;
     --inter:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    --maxw:1080px; --ease:cubic-bezier(.16,.84,.34,1);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  html{-webkit-text-size-adjust:100%}
   body{
     background:
-      radial-gradient(900px 520px at 82% -6%, rgba(236,30,121,.20), transparent 60%),
-      radial-gradient(820px 460px at -8% 8%, rgba(162,59,214,.16), transparent 58%),
-      radial-gradient(700px 500px at 50% 108%, rgba(41,171,226,.12), transparent 60%),
+      radial-gradient(720px 420px at 88% -8%, rgba(236,30,121,.16), transparent 62%),
+      radial-gradient(620px 380px at -6% 4%, rgba(162,59,214,.12), transparent 60%),
       var(--bg);
-    color:var(--ink);font-family:var(--inter);line-height:1.65;
-    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;
+    color:var(--ink); font-family:var(--inter); line-height:1.6;
+    -webkit-font-smoothing:antialiased;
   }
   ::selection{background:var(--accent);color:#fff}
-  a{color:inherit}
-  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
-  section{padding:64px 0}
-  @media(max-width:640px){section{padding:44px 0}}
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px}
 
-  h1,h2,h3,h4{font-family:var(--sora);line-height:1.06;letter-spacing:-.025em;text-wrap:balance;font-weight:800}
-  h2{font-size:clamp(1.75rem,3.6vw,2.5rem)}
-  h3{font-size:clamp(1.15rem,2vw,1.4rem);font-weight:700}
-  h4{font-size:1.02rem;font-weight:700;letter-spacing:-.01em}
-  p{max-width:68ch}
-  strong{color:var(--ink);font-weight:600}
-  .lead{font-size:clamp(1.04rem,1.5vw,1.2rem);color:var(--ink-soft);line-height:1.6;max-width:62ch}
-  .note{font-size:.86rem;color:var(--ink-dim);max-width:72ch}
-  .mag{color:var(--accent-soft);font-weight:600}
+  .topo{border-bottom:1px solid var(--line);background:rgba(8,8,12,.82);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+  .topo .row{max-width:760px;margin:0 auto;padding:13px 24px;display:flex;align-items:center;gap:11px}
+  .mark{width:26px;height:26px;border-radius:7px;background:var(--grad);flex-shrink:0}
+  .wm{font-family:var(--sora);font-weight:700;font-size:.86rem;letter-spacing:-.01em}
+  .wm b{font-weight:800}
 
-  /* progress + brand */
-  .progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:80;background:var(--grad)}
-  .topbar{position:sticky;top:0;z-index:60;backdrop-filter:blur(12px);
-    background:rgba(8,8,12,.72);border-bottom:1px solid var(--line)}
-  .topbar .row{max-width:var(--maxw);margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-  .brand{display:flex;align-items:center;gap:11px}
-  .brand .mark{width:30px;height:30px;border-radius:8px;background:var(--grad);flex-shrink:0;
-    box-shadow:0 4px 16px -4px rgba(236,30,121,.6)}
-  .brand .wm{font-family:var(--sora);font-weight:700;font-size:.92rem;letter-spacing:-.01em}
-  .brand .wm b{font-weight:800}
-  .topbar .tag{font-size:.72rem;color:var(--ink-dim);font-family:var(--sora);letter-spacing:.02em}
-  @media(max-width:560px){.topbar .tag{display:none}}
+  header{padding:52px 0 40px}
+  .bar{width:58px;height:5px;border-radius:99px;background:var(--grad);margin-bottom:22px}
+  h1{font-family:var(--sora);font-weight:800;font-size:clamp(2.2rem,6vw,3.4rem);
+     letter-spacing:-.04em;line-height:1.02;margin-bottom:16px;text-wrap:balance}
+  .sub{font-size:1.06rem;color:var(--ink-2);max-width:52ch;line-height:1.6}
+  .fatos{margin-top:26px;display:flex;flex-wrap:wrap;gap:8px}
+  .fato{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;
+        font-size:.83rem;color:var(--ink-2)}
+  .fato b{color:var(--ink);font-weight:600;font-family:var(--sora);margin-right:5px}
 
-  .eyebrow{font-family:var(--sora);font-size:.74rem;letter-spacing:.03em;color:var(--accent-soft);
-    font-weight:600;display:inline-flex;align-items:center;gap:.6em}
-  .eyebrow .n{font-variant-numeric:tabular-nums;color:var(--ink-dim);font-weight:700}
-  .sec-head{margin-bottom:30px}
-  .sec-head .eyebrow{margin-bottom:12px}
+  section{padding:34px 0;border-top:1px solid var(--line)}
+  h2{font-family:var(--sora);font-weight:800;font-size:clamp(1.3rem,3vw,1.7rem);
+     letter-spacing:-.03em;line-height:1.15;margin-bottom:14px;text-wrap:balance}
+  p{color:var(--ink-2);max-width:62ch}
+  p + p{margin-top:.9em}
+  p strong, li strong{color:var(--ink);font-weight:600}
 
-  /* hero */
-  .hero{padding:78px 0 40px;position:relative}
-  .hero .accent-bar{width:64px;height:5px;border-radius:99px;background:var(--grad);margin-bottom:26px}
-  .kicker{display:inline-flex;align-items:center;gap:9px;font-family:var(--sora);font-size:.76rem;
-    letter-spacing:.04em;color:var(--ink-soft);font-weight:600;
-    border:1px solid var(--line-2);border-radius:999px;padding:7px 15px;margin-bottom:24px}
-  .kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);
-    box-shadow:0 0 0 4px rgba(236,30,121,.2)}
-  .hero h1{font-size:clamp(3rem,9vw,6.2rem);letter-spacing:-.045em;line-height:.94;margin-bottom:18px}
-  .hero .thesis{max-width:44ch;font-size:clamp(1.1rem,2vw,1.4rem);color:var(--ink-soft);line-height:1.5}
-  .hero .thesis b{color:var(--ink);font-weight:600}
-  .meta-row{margin-top:40px;display:flex;flex-wrap:wrap;gap:10px}
-  .mchip{border:1px solid var(--line);background:var(--card);border-radius:999px;
-    padding:8px 15px;font-size:.82rem;color:var(--ink-soft);display:inline-flex;gap:8px;align-items:center}
-  .mchip b{color:var(--ink);font-weight:600;font-family:var(--sora)}
+  .tese{border:1px solid var(--line-2);border-radius:16px;padding:26px 24px;
+        background:linear-gradient(150deg,rgba(236,30,121,.14),rgba(162,59,214,.06))}
+  .tese .frase{font-family:var(--sora);font-weight:700;font-size:clamp(1.15rem,2.6vw,1.5rem);
+        letter-spacing:-.025em;line-height:1.28;max-width:26ch;color:var(--ink)}
+  .tese .apoio{margin-top:14px;font-size:.95rem;color:var(--ink-2);max-width:56ch}
 
-  /* sumário */
-  .idx{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
-  .idx a{display:flex;gap:14px;padding:15px 17px;border:1px solid var(--line);border-radius:13px;
-    background:var(--card);text-decoration:none;transition:.25s var(--ease)}
-  .idx a:hover{border-color:var(--line-2);transform:translateY(-2px);background:var(--card-2)}
-  .idx .n{font-family:var(--sora);font-weight:800;font-size:.8rem;color:var(--accent-soft);padding-top:2px;min-width:22px}
-  .idx .t{font-family:var(--sora);font-weight:600;font-size:.95rem}
-  .idx .d{color:var(--ink-dim);font-size:.8rem;margin-top:2px;line-height:1.4}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}
+  @media(max-width:640px){.duo{grid-template-columns:1fr}}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+  .box h3{font-family:var(--sora);font-weight:700;font-size:1rem;letter-spacing:-.015em;margin-bottom:6px}
+  .box p{font-size:.93rem}
+  .box .quem{font-size:.78rem;color:var(--accent-soft);font-weight:600;font-family:var(--sora);margin-bottom:10px;display:block}
 
-  /* layout helpers */
-  .split{display:grid;grid-template-columns:200px 1fr;gap:44px;align-items:start}
-  @media(max-width:820px){.split{grid-template-columns:1fr;gap:18px}}
-  .split .aside p{font-size:.88rem;color:var(--ink-dim);max-width:28ch;margin-top:10px}
-  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-  @media(max-width:820px){.grid-2,.grid-3{grid-template-columns:1fr}}
-  .prose p{color:var(--ink-soft)}.prose p+p{margin-top:1em}
+  ul{list-style:none;display:flex;flex-direction:column;gap:11px;margin-top:4px}
+  ul li{color:var(--ink-2);padding-left:22px;position:relative;line-height:1.55;max-width:62ch}
+  ul li::before{content:"";position:absolute;left:2px;top:.62em;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  ul.check li::before{content:"✓";left:0;top:0;width:auto;height:auto;border-radius:0;background:none;color:var(--accent-soft);font-weight:700;font-size:.9rem}
 
-  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px}
-  .card.g{background:linear-gradient(150deg,rgba(236,30,121,.12),rgba(162,59,214,.06));border-color:var(--line-2)}
+  .falas{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+  .fala{background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:14px 17px;
+        color:var(--ink);font-size:1rem;line-height:1.45;max-width:none}
+  .rotulo{font-family:var(--sora);font-size:.76rem;font-weight:700;color:var(--ink-3);
+          margin-bottom:10px;display:flex;align-items:center;gap:10px}
+  .rotulo::after{content:"";flex:1;height:1px;background:var(--line)}
 
-  /* figs */
-  .figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-  .fig{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
-  .fig .v{font-family:var(--sora);font-weight:800;font-size:clamp(1.5rem,3vw,2.1rem);letter-spacing:-.03em;line-height:1}
-  .fig .v.sm{font-size:1.25rem}
-  .fig .v small{font-size:.85rem;color:var(--ink-dim);font-weight:500}
-  .fig .k{margin-top:8px;font-size:.82rem;color:var(--ink-dim);line-height:1.35}
+  .tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .tag{font-size:.83rem;padding:6px 12px;border-radius:999px;border:1px solid var(--line);
+       background:var(--card);color:var(--ink-2)}
+  .tag.on{background:rgba(236,30,121,.16);border-color:transparent;color:#fff}
 
-  /* ticks */
-  .ticks{list-style:none;display:flex;flex-direction:column;gap:10px}
-  .ticks li{display:flex;gap:11px;align-items:flex-start;color:var(--ink-soft);line-height:1.5}
-  .ticks li svg{flex:0 0 auto;width:18px;height:18px;margin-top:2px;color:var(--accent-soft)}
+  footer{border-top:1px solid var(--line);padding:34px 0 46px;margin-top:8px}
+  footer p{font-size:.86rem;color:var(--ink-3);max-width:58ch}
+  footer .assina{font-family:var(--sora);font-size:.8rem;color:var(--ink-3);margin-top:18px}
 
-  /* chips */
-  .chips{display:flex;flex-wrap:wrap;gap:8px}
-  .chip{font-size:.84rem;padding:7px 13px;border-radius:999px;border:1px solid var(--line);
-    background:var(--card);color:var(--ink-soft)}
-  .chip.pri{border-color:transparent;background:rgba(236,30,121,.16);color:#fff}
-  .chip.on{border-color:var(--line-2);background:var(--card-2);color:var(--ink)}
-
-  /* quote */
-  .quote{position:relative;padding:34px 30px;border:1px solid var(--line-2);border-radius:18px;
-    background:linear-gradient(150deg,rgba(247,148,30,.08),rgba(236,30,121,.06))}
-  .quote .barq{width:44px;height:4px;border-radius:99px;background:var(--grad);margin-bottom:18px}
-  .quote p{font-family:var(--sora);font-size:clamp(1.2rem,2.4vw,1.55rem);line-height:1.3;font-weight:700;
-    letter-spacing:-.02em;max-width:32ch}
-  .quote cite{display:block;margin-top:14px;font-style:normal;font-size:.82rem;color:var(--ink-dim)}
-
-  /* voice */
-  .voice{display:flex;flex-direction:column;gap:12px}
-  .voice .v{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:15px 18px 15px 20px;
-    position:relative;color:var(--ink);line-height:1.45;font-size:1.02rem}
-  .voice .v::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:3px;background:var(--grad)}
-
-  /* table */
-  .tbl{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
-  table{width:100%;border-collapse:collapse;min-width:460px;font-size:.94rem}
-  th,td{text-align:left;padding:14px 18px;border-bottom:1px solid var(--line)}
-  thead th{background:var(--bg-2);font-family:var(--sora);font-size:.68rem;text-transform:uppercase;
-    letter-spacing:.1em;color:var(--ink-dim);font-weight:700}
-  tbody tr:last-child td{border-bottom:0}
-  td .rng{font-family:var(--sora);font-weight:700;white-space:nowrap}
-  td .rng b{color:var(--accent-soft);font-weight:700}
-
-  /* confirm badge */
-  .confirm{display:inline-flex;align-items:center;gap:6px;font-family:var(--sora);font-size:.66rem;
-    letter-spacing:.04em;text-transform:uppercase;color:var(--g4);background:rgba(41,171,226,.12);
-    padding:4px 10px;border-radius:999px;font-weight:600}
-  .confirm svg{width:12px;height:12px}
-
-  /* pillars */
-  .pillars{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:16px}
-  .pillar{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;transition:.3s var(--ease)}
-  .pillar:hover{transform:translateY(-3px);border-color:var(--line-2)}
-  .pillar .pn{font-family:var(--sora);font-weight:800;font-size:.72rem;color:var(--accent-soft);letter-spacing:.04em}
-  .pillar h4{margin:8px 0 12px;font-size:1.1rem}
-  .pillar ul{list-style:none;display:flex;flex-direction:column;gap:7px}
-  .pillar li{font-size:.88rem;color:var(--ink-soft);padding-left:15px;position:relative;line-height:1.4}
-  .pillar li::before{content:"";position:absolute;left:0;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--g3)}
-
-  /* steps */
-  .steps{border:1px solid var(--line);border-radius:14px;overflow:hidden}
-  .step{display:flex;gap:16px;align-items:baseline;padding:14px 20px;border-bottom:1px solid var(--line)}
-  .step:last-child{border-bottom:0}
-  .step .sn{font-family:var(--sora);font-weight:800;font-size:.8rem;color:var(--accent-soft);min-width:26px}
-  .step .st{color:var(--ink-soft)}
-  .step .st strong{color:var(--ink)}
-
-  /* rows */
-  .rows{display:flex;flex-direction:column;gap:9px}
-  .row-i{display:flex;gap:13px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:13px 16px}
-  .row-i .ic{flex:0 0 auto;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
-    background:rgba(247,148,30,.14);color:var(--g1)}
-  .row-i .ic svg{width:15px;height:15px}
-  .row-i p{color:var(--ink-soft);font-size:.94rem;line-height:1.45}
-
-  /* diff highlight */
-  .diff{border:1px solid var(--line-2);border-radius:18px;padding:30px;
-    background:linear-gradient(150deg,rgba(236,30,121,.13),rgba(41,171,226,.05))}
-  .diff .big{font-family:var(--sora);font-size:clamp(1.25rem,2.6vw,1.7rem);font-weight:700;letter-spacing:-.02em;line-height:1.3}
-  .diff .big em{font-style:normal;color:var(--accent-soft)}
-
-  /* meters */
-  .meter+.meter{margin-top:15px}
-  .meter .lab{display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:6px}
-  .meter .lab b{font-family:var(--sora)}
-  .meter .lab .val{font-family:var(--sora);font-weight:700}
-  .meter .track{height:8px;border-radius:6px;background:var(--bg-2);overflow:hidden}
-  .meter .fill{height:100%;border-radius:6px;background:var(--grad)}
-  .meter.low .fill{background:var(--ink-dim)}
-  .meter.low .val{color:var(--ink-dim)}
-  .meter .val.hi{color:var(--accent-soft)}
-
-  /* checklist */
-  .checklist{border:1px solid var(--line);border-radius:16px;overflow:hidden}
-  .ck{display:flex;gap:13px;align-items:flex-start;padding:15px 20px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .2s;user-select:none}
-  .ck:last-child{border-bottom:0}
-  .ck:hover{background:var(--card-2)}
-  .ck input{position:absolute;opacity:0;pointer-events:none}
-  .ck .box{flex:0 0 auto;width:22px;height:22px;border-radius:7px;border:2px solid var(--line-2);
-    display:grid;place-items:center;margin-top:1px;transition:.2s var(--ease);background:var(--card)}
-  .ck .box svg{width:13px;height:13px;color:#fff;opacity:0;transform:scale(.5);transition:.2s var(--ease)}
-  .ck input:checked + .box{background:var(--ok);border-color:var(--ok)}
-  .ck input:checked + .box svg{opacity:1;transform:scale(1)}
-  .ck .lab{font-size:.98rem;color:var(--ink);line-height:1.4}
-  .ck input:checked ~ .lab{color:var(--ink-dim);text-decoration:line-through;text-decoration-color:var(--line-2)}
-  .ck .q{font-family:var(--sora);font-size:.66rem;color:var(--g4);margin-left:auto;flex:0 0 auto;padding-top:3px;text-transform:uppercase;letter-spacing:.04em}
-
-  footer{border-top:1px solid var(--line);padding:56px 0 46px;margin-top:20px}
-  footer .fmeta{margin-top:22px;display:flex;flex-wrap:wrap;gap:10px 24px;font-family:var(--sora);font-size:.76rem;color:var(--ink-dim)}
-  footer .fmeta b{color:var(--ink-soft)}
-  .divider{height:1px;background:var(--line);max-width:var(--maxw);margin:0 auto}
-
-  .reveal{opacity:0;transform:translateY(20px)}
-  .reveal.in{opacity:1;transform:none;transition:opacity .6s var(--ease),transform .6s var(--ease)}
-  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}}
-  @media(prefers-reduced-motion:no-preference){
-    .hero .accent-bar{animation:grow .7s var(--ease) both}
-    @keyframes grow{from{width:0;opacity:0}to{width:64px;opacity:1}}
-  }
   @media print{
-    @page{size:A4;margin:0}
+    @page{size:A4;margin:14mm}
     *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .topbar,.progress{display:none}
-    .reveal{opacity:1;transform:none}
-    section{padding:22px 0}
-    .card,.pillar,.quote,.diff,.tbl,.fig,.step,tr{break-inside:avoid}
+    .topo{display:none}
+    section,.tese,.box,.fala{break-inside:avoid}
   }
 </style>
 </head>
 <body>
-<div class="progress" id="prog"></div>
 
-<div class="topbar">
-  <div class="row">
-    <div class="brand">
-      <div class="mark"></div>
-      <div class="wm">IMPULSE <b>ONE</b></div>
-    </div>
-    <div class="tag">Conhecendo o Cliente · Convert Gás</div>
-  </div>
-</div>
+<div class="topo"><div class="row">
+  <div class="mark"></div>
+  <div class="wm">IMPULSE <b>ONE</b></div>
+  <div style="margin-left:auto;font-size:.76rem;color:var(--ink-3)">Conhecendo o Cliente</div>
+</div></div>
 
-<!-- HERO -->
-<header class="hero">
-  <div class="wrap">
-    <div class="accent-bar"></div>
-    <span class="kicker"><span class="dot"></span> Documento estratégico · Impulse One × Convert Gás</span>
-    <h1>Conhecendo<br>a Convert Gás</h1>
-    <p class="thesis">Tudo o que já sabemos sobre a empresa, reunido em um só lugar para <b>validar ponto a ponto com o Pablo</b> antes de partirmos para a execução.</p>
-    <div class="meta-row">
-      <span class="mchip"><b>Cliente</b> Convert Gás · @convertgasinst</span>
-      <span class="mchip"><b>Responsável</b> Pablo Edgar</span>
-      <span class="mchip"><b>Sede</b> São Leopoldo · RS</span>
-      <span class="mchip"><b>Fundada</b> 05/07/2025</span>
-      <span class="mchip"><b>Status</b> Para validação</span>
-    </div>
+<header class="wrap">
+  <div class="bar"></div>
+  <h1>Convert Gás</h1>
+  <p class="sub">O que a equipe precisa saber antes de escrever qualquer coisa para esse cliente.</p>
+  <div class="fatos">
+    <span class="fato"><b>Quem toca</b> Pablo Edgar</span>
+    <span class="fato"><b>Onde</b> São Leopoldo, atende o RS</span>
+    <span class="fato"><b>Instagram</b> @convertgasinst</span>
+    <span class="fato"><b>Aprova os criativos</b> Pablo</span>
   </div>
 </header>
 
-<!-- SUMÁRIO -->
-<section style="padding-top:20px">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="eyebrow"><span class="n">00</span> Sumário</div>
-      <h2>O que este documento cobre</h2>
-      <p class="lead" style="margin-top:8px">Nove blocos que descrevem a Convert como a entendemos hoje. Leia com o cliente e confirme cada um. O que não bater, corrigimos na hora.</p>
-    </div>
-    <nav class="idx reveal">
-      <a href="#s1"><span class="n">01</span><span><span class="t">A empresa</span><span class="d">Visão geral, história e momento atual</span></span></a>
-      <a href="#s2"><span class="n">02</span><span><span class="t">Serviços & oportunidade</span><span class="d">O catálogo e a recorrência condominial</span></span></a>
-      <a href="#s3"><span class="n">03</span><span><span class="t">Público & mercado</span><span class="d">Quem decide e as dores do setor</span></span></a>
-      <a href="#s4"><span class="n">04</span><span><span class="t">Objetivos & essência</span><span class="d">Missão, visão, valores e metas</span></span></a>
-      <a href="#s5"><span class="n">05</span><span><span class="t">Posicionamento & marca</span><span class="d">Diferenciais, promessa e tom de voz</span></span></a>
-      <a href="#s6"><span class="n">06</span><span><span class="t">Presença & aquisição</span><span class="d">Regiões, canais e identidade</span></span></a>
-      <a href="#s7"><span class="n">07</span><span><span class="t">Pilares de conteúdo</span><span class="d">Os seis eixos editoriais</span></span></a>
-      <a href="#s8"><span class="n">08</span><span><span class="t">Plano & lacunas</span><span class="d">Estratégia, fragilidades e metas</span></span></a>
-      <a href="#s9"><span class="n">09</span><span><span class="t">Está certinho?</span><span class="d">Checklist de validação</span></span></a>
-    </nav>
+<section class="wrap">
+  <h2>A empresa em um parágrafo</h2>
+  <p>A Convert instala, converte, faz assistência e manutenção de sistemas de gás. Atende casa e condomínio, mas quer crescer nos <strong>condomínios</strong>. É uma operação nova, de 2025, tocada pelo Pablo com um ajudante. Faz de quatro a cinco atendimentos por dia e acredita conseguir o dobro com a estrutura que já tem.</p>
+  <p>A maior parte dos clientes contrata um serviço e não volta. Só um condomínio hoje tem contrato recorrente.</p>
+</section>
+
+<section class="wrap">
+  <h2>Onde está o dinheiro</h2>
+  <div class="tese">
+    <p class="frase">Um condomínio não é um cliente. É uma porta para centenas.</p>
+    <p class="apoio">O condomínio paga todo mês pela revisão do sistema. E, uma vez lá dentro, cada apartamento vira instalação, conversão ou reparo. Todo conteúdo deve puxar para esse modelo.</p>
   </div>
 </section>
 
-<div class="divider"></div>
-
-<!-- 01 -->
-<section id="s1">
-  <div class="wrap"><div class="split">
-    <div class="aside reveal"><div class="eyebrow"><span class="n">01</span> A empresa</div><p>Quem é a Convert, de onde veio e onde está agora.</p></div>
-    <div>
-      <div class="reveal">
-        <h2>Uma operação técnica em fase de estruturação</h2>
-        <p class="lead" style="margin-top:14px">A Convert Gás faz instalações, conversões, assistência técnica e manutenção de sistemas de gás. Atende residências e condomínios, mas quer concentrar o crescimento em <strong>condomínios e no relacionamento recorrente com síndicos</strong>.</p>
-      </div>
-      <div class="prose reveal" style="margin-top:26px;max-width:66ch">
-        <p>A operação é liderada por <strong>Pablo Edgar</strong>, fundador e principal responsável técnico e comercial — também é ele quem aprova os criativos. Há demanda ativa e capacidade de expansão, mas ainda não existem metas comerciais formalizadas nem uma estratégia consistente de marketing e aquisição.</p>
-      </div>
-      <div class="figs reveal" style="margin-top:24px">
-        <div class="fig"><div class="v sm">São Leopoldo</div><div class="k">Sede · atende todo o RS</div></div>
-        <div class="fig"><div class="v sm">05/07/2025</div><div class="k">Fundação · empresa nova, ~1 ano</div></div>
-        <div class="fig"><div class="v">2</div><div class="k">Pessoas hoje: o Pablo + 1 ajudante (terceiriza quando aperta)</div></div>
-      </div>
-      <div class="reveal" style="margin-top:34px">
-        <div class="eyebrow" style="margin-bottom:14px">A trajetória do Pablo</div>
-        <div class="steps">
-          <div class="step"><span class="sn">→</span><span class="st"><strong>Mig Gás</strong> — entrou como ajudante, por indicação. Percebeu que poderia executar por conta própria.</span></div>
-          <div class="step"><span class="sn">→</span><span class="st"><strong>OK Gás</strong> — concluiu a formação técnica, virou supervisor, atuou em operações terceirizadas da Sulgás e foi incentivado a empreender.</span></div>
-          <div class="step"><span class="sn">→</span><span class="st"><strong>45 dias em casa</strong> — com a queda temporária de demanda, trabalhou como se já tivesse o próprio negócio e teve bons resultados.</span></div>
-          <div class="step"><span class="sn">→</span><span class="st"><strong>Convert</strong> — fundou em sociedade com Cristiano. A sociedade foi encerrada e hoje o Pablo toca a empresa sozinho.</span></div>
-        </div>
-      </div>
-      <div class="reveal" style="margin-top:30px">
-        <div class="eyebrow" style="margin-bottom:14px">Momento atual, em números</div>
-        <div class="figs">
-          <div class="fig"><div class="v">4–5<small> /dia</small></div><div class="k">Atendimentos por dia entre assistências, visitas, instalações e manutenções</div></div>
-          <div class="fig"><div class="v">2×</div><div class="k">Capacidade que ele acredita conseguir atender com a estrutura atual</div></div>
-          <div class="fig"><div class="v">1</div><div class="k">Condomínio hoje com contrato recorrente de manutenção (3 anos)</div></div>
-        </div>
-        <p class="note" style="margin-top:12px">A maioria dos clientes contrata um serviço pontual e não volta. A exceção — e a grande oportunidade — são os condomínios.</p>
-      </div>
+<section class="wrap">
+  <h2>Quem decide muda conforme o problema</h2>
+  <div class="duo">
+    <div class="box">
+      <span class="quem">Área comum</span>
+      <h3>O síndico assina</h3>
+      <p>Síndico profissional, síndico morador, administradora e zelador. É o público prioritário da comunicação.</p>
     </div>
-  </div></div>
-</section>
-
-<div class="divider"></div>
-
-<!-- 02 -->
-<section id="s2">
-  <div class="wrap"><div class="split">
-    <div class="aside reveal"><div class="eyebrow"><span class="n">02</span> Serviços</div><p>Tudo o que a Convert entrega e onde está o dinheiro recorrente.</p></div>
-    <div>
-      <div class="reveal">
-        <h2>Muitos serviços, uma oportunidade central</h2>
-        <p class="lead" style="margin-top:14px">O portfólio é amplo. Não há um único serviço "mais rentável" para puxar a comunicação, então a divulgação começa distribuída entre as soluções.</p>
-      </div>
-      <div class="chips reveal" style="margin-top:26px">
-        <span class="chip">Instalação (fogão, aquecedor, lareira)</span>
-        <span class="chip">Conversões GLP ⇄ GN</span>
-        <span class="chip">Assistência técnica</span>
-        <span class="chip">Visitas técnicas</span>
-        <span class="chip">Testes de estanqueidade / pressão</span>
-        <span class="chip">Execução e modificação de rede</span>
-        <span class="chip">Troca de medidores</span>
-        <span class="chip">Troca de reguladores</span>
-        <span class="chip">Reparo e identificação de vazamento</span>
-        <span class="chip">Manutenção preventiva e preditiva</span>
-        <span class="chip pri">Contratos recorrentes p/ condomínios</span>
-      </div>
-      <div class="reveal" style="margin-top:32px">
-        <div class="eyebrow" style="margin-bottom:14px">Faixas de valor <span class="confirm" style="margin-left:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg> Confirmar com o cliente</span></div>
-        <div class="tbl">
-          <table>
-            <thead><tr><th>Serviço</th><th>Faixa de valor</th><th>Observação</th></tr></thead>
-            <tbody>
-              <tr><td>Troca de medidores e reguladores</td><td><span class="rng"><b>R$ 2 mil</b> – R$ 300 mil</span></td><td>Varia conforme tamanho e complexidade</td></tr>
-              <tr><td>Teste de estanqueidade</td><td><span class="rng"><b>R$ 1,4 mil</b> – R$ 10,8 mil</span></td><td>Depende do porte do sistema</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div class="reveal" style="margin-top:38px">
-        <div class="eyebrow" style="margin-bottom:14px">O modelo que queremos multiplicar</div>
-        <div class="grid-2">
-          <div class="card">
-            <h3>Condomínio como contrato recorrente</h3>
-            <p style="color:var(--ink-soft);margin-top:10px;font-size:.96rem">A Convert já tem um condomínio em contrato de 3 anos. É esse modelo que queremos repetir.</p>
-            <ul class="ticks" style="margin-top:16px">
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>O condomínio paga mensalmente</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Revisão geral do sistema todo mês</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>A relação abre espaço para novos serviços</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>A confiança facilita contratações lá dentro</li>
-            </ul>
-          </div>
-          <div class="quote" style="display:flex;flex-direction:column;justify-content:center">
-            <div class="barq"></div>
-            <p>Um condomínio não é um cliente. É uma porta para centenas.</p>
-            <cite>Áreas comuns + apartamentos: instalações, conversões e reparos morador a morador</cite>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div></div>
-</section>
-
-<div class="divider"></div>
-
-<!-- 03 -->
-<section id="s3">
-  <div class="wrap"><div class="split">
-    <div class="aside reveal"><div class="eyebrow"><span class="n">03</span> Público & mercado</div><p>Quem precisamos convencer — e o que os trava hoje.</p></div>
-    <div>
-      <div class="reveal">
-        <h2>Quem decide muda conforme o problema</h2>
-        <p class="lead" style="margin-top:14px">Nas áreas comuns, quem decide é o síndico. Dentro do apartamento, quem contrata é o morador. Síndicos parceiros ainda indicam a Convert diretamente aos moradores.</p>
-      </div>
-      <div class="grid-3 reveal" style="margin-top:26px">
-        <div class="card g"><div class="eyebrow" style="margin-bottom:10px">Prioritário</div>
-          <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.9rem;color:var(--ink-soft)">
-            <li>Síndicos profissionais</li><li>Síndicos moradores</li><li>Administradoras</li><li>Condomínios residenciais</li><li>Zeladores / manutenção</li></ul></div>
-        <div class="card"><div class="eyebrow" style="margin-bottom:10px">Secundário</div>
-          <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.9rem;color:var(--ink-soft)">
-            <li>Proprietários e moradores</li><li>Clientes residenciais</li><li>Quem precisa instalar/converter</li><li>Emergências de vazamento</li><li>Empresas que usam gás</li></ul></div>
-        <div class="card"><div class="eyebrow" style="margin-bottom:10px">Quem assina</div>
-          <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.9rem;color:var(--ink-soft)">
-            <li><strong>Área comum</strong> → síndico</li><li><strong>Apartamento</strong> → morador</li><li><strong>Indicação</strong> → síndico parceiro</li></ul></div>
-      </div>
-      <div class="grid-2 reveal" style="margin-top:18px">
-        <div class="card">
-          <div class="eyebrow" style="margin-bottom:10px">A persona, na visão do Pablo</div>
-          <p style="color:var(--ink-soft);font-size:.94rem">Idade variada: o <strong>jovem que acabou de se mudar</strong> e precisa instalar, ou a <strong>pessoa mais velha</strong> que precisa de manutenção. A necessidade nº 1, nas palavras dele: <strong>segurança</strong>.</p>
-          <p class="note" style="margin-top:10px">Como esse público se informa ainda é uma incógnita para o cliente — ponto a resolver na estratégia.</p>
-        </div>
-        <div class="card">
-          <div class="eyebrow" style="margin-bottom:10px">Concorrentes citados</div>
-          <div class="chips"><span class="chip">Ok Gás</span><span class="chip">Mig Gás</span><span class="chip">Instal System</span><span class="chip">Gás POA</span></div>
-          <p class="note" style="margin-top:12px">Ok Gás e Mig Gás são, além de concorrentes, parte da história do Pablo. Vale mapear como cada um se comunica.</p>
-        </div>
-      </div>
-      <div class="reveal" style="margin-top:34px">
-        <div class="eyebrow" style="margin-bottom:14px">As dores do setor — nosso combustível de conteúdo</div>
-        <div class="rows">
-          <div class="row-i"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><p>As pessoas só procuram ajuda quando sentem cheiro de gás ou quando o problema já aconteceu.</p></div>
-          <div class="row-i"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><p>Manutenção preventiva é negligenciada. Vazamentos aumentam o consumo sem ninguém perceber.</p></div>
-          <div class="row-i"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><p>Condomínios deixam testes, medidores e reguladores vencerem.</p></div>
-          <div class="row-i"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><p>Síndicos têm dificuldade de achar quem realmente assuma e resolva o problema.</p></div>
-          <div class="row-i"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><p>Empresas prometem 24h e não cumprem. E há muita dúvida sobre homologações e quem pode executar legalmente.</p></div>
-        </div>
-        <p class="note" style="margin-top:14px">Cada dor dessas é um gancho para conteúdo educativo, preventivo e focado em segurança.</p>
-      </div>
-    </div>
-  </div></div>
-</section>
-
-<div class="divider"></div>
-
-<!-- 04 -->
-<section id="s4">
-  <div class="wrap"><div class="split">
-    <div class="aside reveal"><div class="eyebrow"><span class="n">04</span> Objetivos & essência</div><p>O que a comunicação precisa fazer acontecer — e a alma da marca.</p></div>
-    <div>
-      <div class="reveal">
-        <h2>Não é sobre parecer grande. É sobre gerar contrato.</h2>
-        <p class="lead" style="margin-top:14px">O Pablo prefere mostrar a evolução verdadeira da Convert a comunicar uma empresa que ainda não é. A narrativa acompanha o crescimento real: equipe, estrutura, frota, sede e carteira.</p>
-      </div>
-      <ul class="ticks reveal" style="margin-top:24px">
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>Atrair mais <strong>síndicos e condomínios</strong> e gerar oportunidades de contrato recorrente</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>Demonstrar profissionalismo e segurança, construindo autoridade aos poucos</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>Transformar o Pablo em um rosto reconhecido no segmento</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>Apoiar a aquisição pelo Google e criar confiança <strong>antes</strong> do contato comercial</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg><span>Sustentar o networking e as apresentações em condomínios, sem criar expectativa acima da estrutura</span></li>
-      </ul>
-      <div class="reveal" style="margin-top:34px">
-        <div class="eyebrow" style="margin-bottom:14px">A essência, nas palavras do Pablo</div>
-        <div class="grid-2">
-          <div class="card">
-            <h4 class="mag" style="margin-bottom:6px">Missão</h4>
-            <p style="color:var(--ink-soft);font-size:.95rem;margin-bottom:16px">Ser <strong>referência em instalações e manutenção no Rio Grande do Sul</strong>.</p>
-            <h4 class="mag" style="margin-bottom:6px">Visão</h4>
-            <p style="color:var(--ink-soft);font-size:.95rem">Tornar-se uma empresa grande, capaz de atender várias cidades do Sul com <strong>rapidez e comprometimento</strong>.</p>
-          </div>
-          <div class="card">
-            <h4 class="mag" style="margin-bottom:8px">Valores</h4>
-            <div class="chips" style="margin-bottom:16px"><span class="chip on">Segurança</span><span class="chip on">Respeito</span><span class="chip on">Responsabilidade</span></div>
-            <h4 class="mag" style="margin-bottom:8px">Personalidade</h4>
-            <div class="chips"><span class="chip">Responsável</span><span class="chip">Comprometida</span><span class="chip">Pontual</span></div>
-          </div>
-        </div>
-        <p class="note" style="margin-top:14px">Detalhe importante: a <strong>visão</strong> é ser grande, mas a <strong>comunicação</strong> deve mostrar a evolução real — crescer à vista de todos, sem fingir que já chegou lá.</p>
-      </div>
-    </div>
-  </div></div>
-</section>
-
-<div class="divider"></div>
-
-<!-- 05 -->
-<section id="s5">
-  <div class="wrap">
-    <div class="sec-head reveal"><div class="eyebrow"><span class="n">05</span> Posicionamento & marca</div><h2>Como a Convert precisa ser lembrada</h2></div>
-    <div class="reveal">
-      <div class="diff">
-        <div class="eyebrow" style="margin-bottom:12px">Proposta central</div>
-        <p class="big">A Convert cuida do sistema de gás do condomínio de forma <em>preventiva, técnica e responsável</em> — dá suporte quando o síndico precisa e <em>resolve sem transferir a responsabilidade de volta pra ele.</em></p>
-        <p style="margin-top:18px;font-family:var(--sora);font-size:.82rem;color:var(--ink-dim);letter-spacing:.02em">PROMESSA DE MARCA → Segurança, disponibilidade e resolução de verdade.</p>
-      </div>
-    </div>
-    <div class="grid-2 reveal" style="margin-top:34px">
-      <div>
-        <div class="eyebrow" style="margin-bottom:14px">Como queremos ser vistos</div>
-        <div class="chips">
-          <span class="chip pri">Técnica e confiável</span><span class="chip pri">Próxima e acessível</span>
-          <span class="chip pri">Ágil na resolução</span><span class="chip pri">Cumpre o que promete</span>
-          <span class="chip pri">Preparada para emergências</span><span class="chip pri">Foco em segurança</span>
-          <span class="chip pri">Especialista em condomínios</span><span class="chip pri">Transparente na trajetória</span>
-        </div>
-      </div>
-      <div>
-        <div class="eyebrow" style="margin-bottom:14px">Diferenciais reais</div>
-        <ul class="ticks">
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Homologada pela <strong>Sulgás</strong></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Assistência homologada de <strong>Titã e LCZ Lareiras</strong></li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Responsável técnica registrada no conselho</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Atendimento <strong>24h/7</strong> e disponibilidade real</li>
-          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Atende todo o RS, com imagens reais</li>
-        </ul>
-      </div>
-    </div>
-    <div class="reveal" style="margin-top:30px">
-      <div class="quote"><div class="barq"></div>
-        <p>"24 horas" todo mundo diz. O nosso diferencial é atender, comparecer e resolver.</p>
-        <cite>O ponto central da marca não é declarar disponibilidade — é provar resolução</cite>
-      </div>
-    </div>
-    <div class="reveal" style="margin-top:38px">
-      <div class="eyebrow" style="margin-bottom:16px">Tom de voz</div>
-      <div class="grid-2">
-        <div>
-          <div class="chips" style="margin-bottom:18px">
-            <span class="chip">Seguro, sem alarmar</span><span class="chip">Técnico, mas fácil</span>
-            <span class="chip">Direto e objetivo</span><span class="chip">Humano e próximo</span>
-            <span class="chip">Responsável</span><span class="chip">Didático</span><span class="chip">Transparente</span>
-          </div>
-          <p class="note">Traduzimos riscos e procedimentos para síndicos e moradores. Nada de jargão sem explicação.</p>
-        </div>
-        <div class="voice">
-          <div class="v">Seu condomínio não precisa esperar aparecer um vazamento para revisar o sistema de gás.</div>
-          <div class="v">Atendimento 24 horas não é só estar com o telefone ligado. É comparecer e resolver.</div>
-          <div class="v">Síndico: você sabe quando foi feito o último teste de estanqueidade?</div>
-        </div>
-      </div>
+    <div class="box">
+      <span class="quem">Dentro do apartamento</span>
+      <h3>O morador contrata</h3>
+      <p>Quem acabou de se mudar e precisa instalar, ou quem já mora e precisa de manutenção. Síndico parceiro indica.</p>
     </div>
   </div>
 </section>
 
-<div class="divider"></div>
-
-<!-- 06 -->
-<section id="s6">
-  <div class="wrap">
-    <div class="sec-head reveal"><div class="eyebrow"><span class="n">06</span> Presença & aquisição</div><h2>Onde a Convert atua e por onde os clientes chegam</h2></div>
-    <div class="grid-2 reveal">
-      <div class="card">
-        <div class="eyebrow" style="margin-bottom:12px">Área de atuação</div>
-        <p style="color:var(--ink-soft);font-size:.95rem">Pode atender <strong>todo o RS</strong> — já trabalhou em Pelotas e Gramado. A preferência dele: <strong>RM de Porto Alegre, Serra e Vale dos Sinos</strong>.</p>
-        <div class="chips" style="margin-top:16px">
-          <span class="chip pri">RM Porto Alegre</span><span class="chip pri">Serra Gaúcha</span><span class="chip pri">Vale dos Sinos</span>
-          <span class="chip">Pelotas</span><span class="chip">Gramado</span><span class="chip">Todo o RS</span>
-        </div>
-      </div>
-      <div class="card">
-        <div class="eyebrow" style="margin-bottom:12px">Como os clientes chegam</div>
-        <div class="chips" style="margin-bottom:14px">
-          <span class="chip">Google</span><span class="chip">Instagram</span><span class="chip">WhatsApp</span>
-          <span class="chip">Panfletos</span><span class="chip">Site das companhias de gás</span><span class="chip">Ligações</span><span class="chip">Indicações</span>
-        </div>
-        <p style="color:var(--ink-soft);font-size:.95rem">Atendimento <strong>humano e manual</strong>. Ele já pensou em chatbot, mas prefere manter o contato humano enquanto o volume permitir — o que combina com o posicionamento de proximidade.</p>
-      </div>
-    </div>
-    <div class="grid-2 reveal" style="margin-top:18px">
-      <div class="card">
-        <div class="eyebrow" style="margin-bottom:16px">Diagnóstico dos canais <span class="note" style="color:var(--ink-dim)">· nota do Pablo, de 1 a 5</span></div>
-        <div class="meter"><div class="lab"><b>Instagram</b><span class="val hi">2/5</span></div><div class="track"><div class="fill" style="width:40%"></div></div></div>
-        <div class="meter"><div class="lab"><b>Google</b><span class="val hi">2/5</span></div><div class="track"><div class="fill" style="width:40%"></div></div></div>
-        <div class="meter low"><div class="lab"><b>Facebook</b><span class="val">1/5</span></div><div class="track"><div class="fill" style="width:20%"></div></div></div>
-        <div class="meter low"><div class="lab"><b>LinkedIn</b><span class="val">1/5</span></div><div class="track"><div class="fill" style="width:20%"></div></div></div>
-        <p class="note" style="margin-top:14px">Todos no chão — não é problema, é o ponto de partida. Os mais aderentes, pra ele: <strong>Google</strong> (procura de serviço) e <strong>Instagram</strong> (síndicos).</p>
-      </div>
-      <div class="card g">
-        <div class="eyebrow" style="margin-bottom:14px">O que ele espera da Impulse</div>
-        <p style="font-family:var(--sora);font-size:clamp(1.1rem,2vw,1.35rem);font-weight:700;letter-spacing:-.02em;line-height:1.3">Aumento de <span class="mag">leads via Instagram</span>.</p>
-        <p style="color:var(--ink-soft);font-size:.95rem;margin-top:14px">Objetivos de negócio, nas palavras dele: <strong>aumentar instalações</strong>, ter <strong>mais contato com síndicos</strong> e <strong>firmar mais parcerias</strong>.</p>
-        <div class="divider" style="margin:16px 0"></div>
-        <div class="eyebrow" style="margin-bottom:8px">O que já foi feito</div>
-        <p style="color:var(--ink-soft);font-size:.92rem">Apenas <strong>vídeos e publicações impulsionadas no Instagram</strong>. Nunca houve estratégia estruturada — o terreno está aberto.</p>
-      </div>
-    </div>
-    <div class="reveal" style="margin-top:30px">
-      <div class="eyebrow" style="margin-bottom:14px">Identidade — o que o cliente pediu</div>
-      <div class="grid-2">
-        <div class="card g"><h4 class="mag" style="margin-bottom:12px">Prefere</h4>
-          <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.92rem;color:var(--ink-soft)">
-            <li>Fotografias reais</li><li>Identidade visual própria</li><li>Comunicação humana com personalidade</li><li>Vídeos apresentados por ele</li><li>Evolução visual coerente com o crescimento</li></ul></div>
-        <div class="card"><h4 style="margin-bottom:12px">Quer evitar</h4>
-          <ul style="list-style:none;display:flex;flex-direction:column;gap:7px;font-size:.92rem;color:var(--ink-soft)">
-            <li>Cara evidente de inteligência artificial</li><li>Imagens genéricas</li><li>Design igual ao das outras pequenas empresas</li><li>Excesso de elementos / maximalismo</li><li>Imagem grande demais, distante da realidade</li></ul></div>
-      </div>
-      <p class="note" style="margin-top:14px">Referência citada: <strong>Loja Agral (Novo Hamburgo)</strong> — gosta de como o dono aparece em vídeos e constrói reconhecimento pessoal. Já tem logo e cores que gosta.</p>
-    </div>
-  </div>
+<section class="wrap">
+  <h2>As dores que viram conteúdo</h2>
+  <ul>
+    <li>As pessoas só procuram ajuda <strong>depois</strong> de sentir cheiro de gás.</li>
+    <li>Manutenção preventiva fica para depois, e o vazamento aumenta a conta sem ninguém perceber.</li>
+    <li>Condomínio deixa teste, medidor e regulador vencerem.</li>
+    <li>Síndico não sabe a quem recorrer, e quem promete 24 horas costuma não aparecer.</li>
+    <li>Há muita dúvida sobre quem pode executar o serviço legalmente.</li>
+  </ul>
 </section>
 
-<div class="divider"></div>
-
-<!-- 07 -->
-<section id="s7">
-  <div class="wrap">
-    <div class="sec-head reveal"><div class="eyebrow"><span class="n">07</span> Pilares editoriais</div><h2>Seis eixos para alimentar o conteúdo</h2>
-      <p class="lead" style="margin-top:8px">Do educativo à conversão. Cada pilar tem função clara na jornada do síndico e do morador.</p></div>
-    <div class="pillars reveal">
-      <div class="pillar"><div class="pn">Pilar 01</div><h4>Educação e prevenção</h4><ul><li>Como identificar vazamentos</li><li>Por que o gás tem cheiro</li><li>Preventiva × emergencial</li><li>Periodicidade dos testes</li><li>Validade de componentes</li><li>Risco de prestador não qualificado</li></ul></div>
-      <div class="pillar"><div class="pn">Pilar 02</div><h4>Conteúdo para síndicos</h4><ul><li>Responsabilidades sobre o gás</li><li>Checklist de manutenção</li><li>Como funciona um contrato recorrente</li><li>Como reduzir emergências</li><li>Documentos e homologações</li><li>Preparar assembleia p/ aprovar serviço</li></ul></div>
-      <div class="pillar"><div class="pn">Pilar 03</div><h4>Autoridade e credibilidade</h4><ul><li>Homologação Sulgás</li><li>Marcas com assistência homologada</li><li>Responsável técnica</li><li>Formação e experiência do Pablo</li><li>Bastidores e antes/depois</li><li>Procedimentos de segurança</li></ul></div>
-      <div class="pillar"><div class="pn">Pilar 04</div><h4>Atendimento e resolução</h4><ul><li>Casos reais de emergência</li><li>Problema encontrado → solução</li><li>Atendimento noturno</li><li>Depoimentos</li><li>Compromisso com prazos</li><li>Rotina da equipe</li></ul></div>
-      <div class="pillar"><div class="pn">Pilar 05</div><h4>História e crescimento</h4><ul><li>Origem da empresa</li><li>Trajetória do Pablo</li><li>Primeiros clientes</li><li>Evolução da estrutura</li><li>Novos técnicos e parceiros</li><li>Frota, equipamentos, sede, metas</li></ul></div>
-      <div class="pillar"><div class="pn">Pilar 06</div><h4>Conversão comercial</h4><ul><li>Diagnóstico do sistema</li><li>Solicitação de orçamento</li><li>Contratos de manutenção</li><li>Atendimento para condomínios</li><li>Chamada direta p/ WhatsApp</li><li>Visitas e apresentações em assembleia</li></ul></div>
-    </div>
+<section class="wrap">
+  <h2>Como a Convert precisa ser lembrada</h2>
+  <div class="tese">
+    <p class="frase">Resolve e não devolve o problema para o síndico.</p>
+    <p class="apoio">A promessa é segurança, disponibilidade de verdade e resolução. "Atendimento 24 horas" todo concorrente diz, então o nosso diferencial não é declarar disponibilidade: é provar que comparece e resolve.</p>
   </div>
+
+  <div class="rotulo" style="margin-top:26px">O que podemos afirmar</div>
+  <ul class="check">
+    <li>Homologada pela <strong>Sulgás</strong></li>
+    <li>Assistência homologada de <strong>Titã</strong> e <strong>LCZ Lareiras</strong></li>
+    <li>Responsável técnica registrada no conselho</li>
+    <li>Atende todo o RS, com imagens reais do trabalho</li>
+  </ul>
 </section>
 
-<div class="divider"></div>
-
-<!-- 08 -->
-<section id="s8">
-  <div class="wrap">
-    <div class="sec-head reveal"><div class="eyebrow"><span class="n">08</span> Plano & lacunas</div><h2>O que sustenta o resultado — e o que ainda falta</h2>
-      <p class="lead" style="margin-top:8px">Só rede social não chega no síndico. A estratégia combina conteúdo com relacionamento e prospecção. E há lacunas para fechar antes de acelerar.</p></div>
-    <div class="grid-2 reveal">
-      <div class="card"><div class="eyebrow" style="margin-bottom:12px">Estratégia comercial complementar</div>
-        <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;font-size:.92rem;color:var(--ink-soft)">
-          <li>Grupos e eventos de síndicos</li><li>Parcerias com administradoras</li><li>Relacionamento com zeladores</li><li>Apresentação comercial p/ condomínios</li><li>Presença em assembleias</li><li>Plano recorrente de manutenção estruturado</li><li>Material impresso coerente com o digital</li><li>Indicações entre síndicos</li><li>Avaliação no Google após cada atendimento</li><li>Rotina de acompanhamento de propostas</li></ul></div>
-      <div class="card"><div class="eyebrow" style="margin-bottom:12px">Fragilidades atuais</div>
-        <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;font-size:.92rem;color:var(--ink-soft)">
-          <li>Sem metas comerciais mensuráveis</li><li>Estratégia de crescimento informal</li><li>Baixa recorrência fora dos condomínios</li><li>Operação dependente do próprio Pablo</li><li>Produto condominial não estruturado</li><li>Google sem alimentação consistente</li><li>Ausência de landing page</li><li>Gestão de leads 100% manual</li><li>Posicionamento pouco diferenciado</li><li>Sem indicadores para medir o marketing</li></ul></div>
-    </div>
-    <div class="reveal" style="margin-top:30px">
-      <div class="eyebrow" style="margin-bottom:14px">Metas a definir — transformar "captar mais condomínios" em números</div>
-      <div class="chips">
-        <span class="chip on">Contratos condominiais hoje</span><span class="chip on">Novos em 3 / 6 / 12 meses</span>
-        <span class="chip on">Ticket médio</span><span class="chip on">Leads/mês</span><span class="chip on">Taxa de conversão</span>
-        <span class="chip on">Limite operacional</span><span class="chip on">Quando contratar técnico</span>
-        <span class="chip on">Receita atual × desejada</span><span class="chip on">Regiões prioritárias</span>
-        <span class="chip on">Serviços de entrada em condomínio</span><span class="chip on">Indicadores de sucesso</span>
-      </div>
-    </div>
-    <div class="reveal" style="margin-top:34px">
-      <div class="eyebrow" style="margin-bottom:14px">Próximos passos</div>
-      <div class="steps">
-        <div class="step"><span class="sn">01</span><span class="st">Receber e organizar os materiais do cliente</span></div>
-        <div class="step"><span class="sn">02</span><span class="st">Validar o nome oficial: <strong>Convert</strong> ou <strong>Convert Gás</strong></span></div>
-        <div class="step"><span class="sn">03</span><span class="st">Analisar concorrentes: Ok Gás, Mig Gás, Instal System e Gás POA</span></div>
-        <div class="step"><span class="sn">04</span><span class="st">Estruturar o produto de manutenção recorrente p/ condomínios</span></div>
-        <div class="step"><span class="sn">05</span><span class="st">Definir metas para os próximos três meses</span></div>
-        <div class="step"><span class="sn">06</span><span class="st">Criar tom de voz e linhas editoriais</span></div>
-        <div class="step"><span class="sn">07</span><span class="st">Desenvolver identidade visual consistente, sem cara de IA</span></div>
-        <div class="step"><span class="sn">08</span><span class="st">Organizar o Google e iniciar campanha de avaliações</span></div>
-        <div class="step"><span class="sn">09</span><span class="st">Avaliar a criação da landing page</span></div>
-        <div class="step"><span class="sn">10</span><span class="st">Planejar conteúdo p/ síndicos + apresentação comercial</span></div>
-        <div class="step"><span class="sn">11</span><span class="st">Mapear a capacidade operacional antes de ampliar a demanda</span></div>
-        <div class="step"><span class="sn">12</span><span class="st">Definir processo de acompanhamento e relatório</span></div>
-      </div>
-    </div>
-    <div class="reveal" style="margin-top:28px">
-      <div class="eyebrow" style="margin-bottom:12px">Materiais que o Pablo ficou de enviar</div>
-      <div class="chips">
-        <span class="chip">Contrato de manutenção atual</span><span class="chip">Apresentações usadas em condomínios</span>
-        <span class="chip">Fotos reais dos serviços</span><span class="chip">Pasta no Google Drive</span>
-        <span class="chip">Logo e arquivos da identidade</span><span class="chip">Referências de comunicação</span>
-        <span class="chip">Acesso ao Instagram e Google</span><span class="chip">Info de homologações</span>
-      </div>
-    </div>
+<section class="wrap">
+  <h2>Como falar</h2>
+  <p>Seguro sem assustar, técnico mas fácil, direto, humano. Traduzimos risco e procedimento para quem não é do ramo. Nada de jargão sem explicação.</p>
+  <div class="tags">
+    <span class="tag on">Segurança</span><span class="tag on">Prevenção</span><span class="tag on">Condomínio</span>
+    <span class="tag">Didático</span><span class="tag">Transparente</span><span class="tag">Sem alarmismo</span>
   </div>
+  <div class="rotulo" style="margin-top:26px">O tom, na prática</div>
+  <div class="falas">
+    <p class="fala">Seu condomínio não precisa esperar aparecer um vazamento para revisar o sistema de gás.</p>
+    <p class="fala">Atendimento 24 horas não é só estar com o telefone ligado. É comparecer e resolver.</p>
+    <p class="fala">Síndico: você sabe quando foi feito o último teste de estanqueidade?</p>
+  </div>
+  <p style="margin-top:20px"><strong>Um cuidado:</strong> a visão do Pablo é ser grande, mas a comunicação mostra a evolução real da empresa. Crescer à vista de todos, sem parecer maior do que é.</p>
 </section>
 
-<div class="divider"></div>
-
-<!-- 09 -->
-<section id="s9">
-  <div class="wrap">
-    <div class="sec-head reveal"><div class="eyebrow"><span class="n">09</span> Está certinho?</div><h2>Checklist de validação com o cliente</h2>
-      <p class="lead" style="margin-top:8px">Marque com o Pablo o que está confirmado. O que ficar em aberto vira pauta da próxima conversa. <span class="note" id="ckcount" style="color:var(--accent-soft)"></span></p></div>
-    <div class="reveal"><div class="checklist" id="checklist">
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">O nome oficial é <strong>Convert</strong> ou <strong>Convert Gás</strong>?</span><span class="q">definir</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Confirmar a grafia do nome: <strong>Pablo</strong> ou <strong>Pabllo</strong> Edgar</span><span class="q">conferir</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Sede em São Leopoldo e fundação em 05/07/2025 estão corretas</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">A trajetória (Mig Gás → OK Gás → Convert) está correta</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">As faixas de valor dos serviços estão corretas</span><span class="q">conferir</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Foco em condomínios e contratos recorrentes é a prioridade nº 1</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">A proposta central e a promessa de marca representam a Convert</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Homologações (Sulgás, Titã, LCZ) e responsável técnica estão corretas</span><span class="q">conferir</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">O tom de voz e os exemplos de mensagem soam como a Convert</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Regiões prioritárias (RMPA, Serra, Vale dos Sinos) estão corretas</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">A expectativa principal é mesmo <strong>gerar leads via Instagram</strong></span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">A direção de identidade (fotos reais, sem cara de IA, ref. Loja Agral) está alinhada</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Os 6 pilares editoriais fazem sentido para a Convert</span></label>
-      <label class="ck"><input type="checkbox"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg></span><span class="lab">Podemos partir para a definição de metas dos próximos 3 meses</span></label>
-    </div></div>
-  </div>
+<section class="wrap">
+  <h2>O que ainda falta confirmar com o Pablo</h2>
+  <ul>
+    <li>Onde esse público realmente se informa. Hoje é palpite.</li>
+    <li>Faixas de valor por serviço, para orientar o que a comunicação promete.</li>
+    <li>Meta comercial: quantos condomínios ele quer fechar, e em quanto tempo.</li>
+    <li>Até onde a estrutura atende sem quebrar, para o conteúdo não gerar demanda que ele não cumpre.</li>
+  </ul>
 </section>
 
-<footer>
-  <div class="wrap">
-    <div class="eyebrow" style="margin-bottom:14px">Síntese estratégica</div>
-    <h2 style="max-width:24ch">O foco não é fazer mais serviços de gás. É cuidar do sistema para que o síndico não lide sozinho com emergências, riscos e manutenções atrasadas.</h2>
-    <p class="lead" style="margin-top:18px">A oportunidade da Convert está em transformar experiência técnica e disponibilidade em uma proposta recorrente para condomínios: evita que o problema aconteça, comparece quando acontece, resolve sem gerar mais trabalho, tem as credenciais e mantém a confiança contínua.</p>
-    <div class="fmeta">
-      <span><b>Impulse One</b> · Estratégia & Conteúdo</span>
-      <span>Documento vivo · v1</span>
-      <span>Convert Gás · Agosto 2026</span>
-    </div>
-  </div>
+<footer class="wrap">
+  <p>Documento de trabalho da Impulse One. Muda conforme aprendemos mais sobre o cliente. Se algo aqui não bate com a realidade, avise para corrigirmos.</p>
+  <div class="assina">Impulse One × Convert Gás</div>
 </footer>
 
-<script>
-  (function(){
-    var bar=document.getElementById('prog');
-    function upd(){var h=document.documentElement.scrollHeight-window.innerHeight;bar.style.width=(h>0?(scrollY/h)*100:0)+'%';}
-    addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
-  })();
-  (function(){
-    var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var els=document.querySelectorAll('.reveal');
-    if(reduce||!('IntersectionObserver'in window)){els.forEach(function(e){e.classList.add('in')});return;}
-    var io=new IntersectionObserver(function(en){en.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.1,rootMargin:'0px 0px -8% 0px'});
-    els.forEach(function(e){io.observe(e)});
-  })();
-  (function(){
-    var list=document.getElementById('checklist'),out=document.getElementById('ckcount');
-    var boxes=list.querySelectorAll('input');
-    function upd(){var n=0;boxes.forEach(function(b){if(b.checked)n++;});out.textContent='· '+n+' de '+boxes.length+' confirmados';}
-    boxes.forEach(function(b){b.addEventListener('change',upd)});upd();
-  })();
-</script>
 </body>
 </html>
