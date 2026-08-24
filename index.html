@@ -14693,6 +14693,9 @@ function abrirLeadDetalhe(leadId){
     '</div>' +
     '<div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><div class="info-label" style="margin-bottom:5px">Funil</div><select id="ldFunil" class="login-input" style="background:var(--surface-2)" onchange="_ldTrocarFunil(this.value)">'
+          + Object.keys(_funis()).map(function(k){ const c=_funis()[k]; return '<option value="'+k+'" '+(((lead.funil||'venda')===k)?'selected':'')+'>'+(c.icone||'')+' '+escapeHtml(c.label)+'</option>'; }).join('')
+          + '</select><div class="text-xs text-3" style="margin-top:4px">Mudar o funil leva o card inteiro pra lá</div></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Etapa do funil</div><select id="ldStage" class="login-input" style="background:var(--surface-2)">' + stages.map(s=>'<option value="'+s.k+'" '+(lead.stage===s.k?'selected':'')+'>'+s.l+'</option>').join('') + '</select></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Prioridade</div><select id="ldPrio" class="login-input" style="background:var(--surface-2)">' + prios.map(p=>'<option value="'+p.k+'" '+((lead.priority||'med')===p.k?'selected':'')+'>'+p.l+'</option>').join('') + '</select></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Valor estimado/mês (R$)</div><input id="ldValue" type="number" class="login-input" value="' + (parseFloat(lead.value)||0) + '" style="background:var(--surface-2)" /></div>' +
@@ -14735,11 +14738,23 @@ function abrirLeadDetalhe(leadId){
 }
 window.abrirLeadDetalhe = abrirLeadDetalhe;
 
+// Trocar o funil no card: as etapas do select passam a ser as do funil escolhido
+function _ldTrocarFunil(f){
+  const sel = document.getElementById('ldStage');
+  if(!sel) return;
+  const etapas = _funilEtapas(f);
+  sel.innerHTML = etapas.map(function(e){ return '<option value="'+e.key+'">'+escapeHtml(e.label)+'</option>'; }).join('');
+  if(etapas.length) sel.value = etapas[0].key;   // entra pela primeira etapa do funil novo
+}
+if(typeof window!=='undefined'){ window._ldTrocarFunil=_ldTrocarFunil; }
+
 async function salvarLeadDetalhe(leadId){
   const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
   if(!lead) return;
+  const _funilAntes = lead.funil || 'venda';
   const patch = {
     stage: document.getElementById('ldStage').value,
+    funil: (document.getElementById('ldFunil')||{}).value || lead.funil || 'venda',
     priority: document.getElementById('ldPrio').value,
     value: parseFloat(document.getElementById('ldValue').value)||0,
     responsible_id: document.getElementById('ldResp').value || null,
@@ -14777,7 +14792,13 @@ async function salvarLeadDetalhe(leadId){
     }
   }
   const m = document.getElementById('leadDetalheModal'); if(m) m.remove();
-  toast('✓ Lead atualizado','success');
+  const _funilDepois = lead.funil || 'venda';
+  if(_funilDepois !== _funilAntes){
+    comFunil = _funilDepois;   // mostra o funil de destino, senão o card "some" da tela
+    toast('✓ ' + (lead.name||'Card') + ' foi para ' + _funilLabel(_funilDepois),'success');
+  } else {
+    toast('✓ Lead atualizado','success');
+  }
   renderComercial(document.getElementById('content'));
 }
 window.salvarLeadDetalhe = salvarLeadDetalhe;
