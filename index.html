@@ -28933,7 +28933,30 @@ async function renderPublicAprovarCalendario(token){
     const marcar=()=>{ p.decidido_em=new Date().toISOString(); p.editado=_temHist(p.chamada,p.chamada_orig)||_temHist(p.legenda,p.legenda_orig)||_slMudou(); const q=document.getElementById('calDetQuando'); if(q) q.textContent='Última alteração: '+_calDataHora(p.decidido_em); };
     const chEl=document.getElementById('calDetCh'); chEl.oninput=()=>{ p.chamada=chEl.value; marcar(); const h=document.getElementById('calDetHistCh'); if(h) h.style.display=_temHist(p.chamada,p.chamada_orig)?'block':'none'; salvarDepois(i,'editou_chamada',chEl.value); };
     const lgEl=document.getElementById('calDetLg'); lgEl.oninput=()=>{ p.legenda=lgEl.value; marcar(); const h=document.getElementById('calDetHistLg'); if(h) h.style.display=_temHist(p.legenda,p.legenda_orig)?'block':'none'; salvarDepois(i,'editou_legenda',lgEl.value); };
-    const cmEl=document.getElementById('calDetCm'); if(cmEl) cmEl.oninput=()=>{ p.comentario=cmEl.value; p.decidido_em=new Date().toISOString(); salvarDepois(i,'comentario',cmEl.value); };
+    const cmEl=document.getElementById('calDetCm');
+    const _cmTexto = ()=> ((document.getElementById('calDetCm')||{}).value||'').trim();
+    // O botao muda de cara: com o pedido escrito, o proximo clique ENVIA (nao desfaz)
+    function _pintaAdj(){
+      const btn=document.getElementById('calDetAdj'); if(!btn) return;
+      const on = p.status==='ajustar';
+      btn.textContent = (on && _cmTexto()) ? '✓ Enviar pedido de alteração' : '✎ Pedir alteração';
+      btn.style.border = '1px solid ' + (on ? '#FF9100' : 'var(--border-strong)');
+      btn.style.background = on ? '#FF9100' : 'transparent';
+      btn.style.color = on ? '#2b1400' : 'var(--text)';
+      btn.style.boxShadow = on ? '0 6px 20px rgba(255,145,0,.35)' : 'none';
+    }
+    if(cmEl) cmEl.oninput=()=>{
+      p.comentario=cmEl.value;
+      p.decidido_em=new Date().toISOString();
+      // Escreveu algo? Entao e pedido de alteracao, mesmo sem clicar em nada.
+      if(_cmTexto() && p.status!=='ajustar'){
+        p.status='ajustar';
+        if(stEl){ stEl.textContent=_statTxt(p.status); stEl.style.color=_statCor(p.status); }
+      }
+      _pintaAdj();
+      salvarDepois(i,'comentario',cmEl.value);
+    };
+    setTimeout(_pintaAdj, 0);
     chEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; lgEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; if(cmEl) cmEl.onblur=()=>{ try{flushSalvar();}catch(e){} };
 
     // ---- Slides 100% editáveis: escrever, adicionar e remover (com histórico do original) ----
@@ -28976,7 +28999,26 @@ async function renderPublicAprovarCalendario(token){
     };
     const stEl=document.getElementById('calDetSt');
     document.getElementById('calDetOk').onclick=async ()=>{ p.status=(p.status==='aprovado')?'pendente':'aprovado'; p.decidido_em=new Date().toISOString(); await salvar(i,p.status==='aprovado'?'aprovado':null,''); ov.remove(); pintar(); };
-    document.getElementById('calDetAdj').onclick=async ()=>{ p.status=(p.status==='ajustar')?'pendente':'ajustar'; p.decidido_em=new Date().toISOString(); const w=document.getElementById('calDetCmWrap'); if(w) w.style.display=p.status==='ajustar'?'block':'none'; if(stEl){stEl.textContent=_statTxt(p.status);stEl.style.color=_statCor(p.status);} await salvar(i,p.status==='ajustar'?'ajuste':null,p.comentario||''); if(p.status!=='ajustar'){ ov.remove(); pintar(); } };
+    document.getElementById('calDetAdj').onclick=async ()=>{
+      // Ja pediu E ja escreveu: o clique ENVIA. Antes ele desfazia e levava o texto junto.
+      if(p.status==='ajustar' && _cmTexto()){
+        p.comentario=_cmTexto();
+        p.decidido_em=new Date().toISOString();
+        try{ flushSalvar(); }catch(e){}
+        await salvar(i,'ajuste',p.comentario);
+        ov.remove(); pintar();
+        try{ toast('✓ Pedido de alteração enviado','success'); }catch(e){}
+        return;
+      }
+      p.status=(p.status==='ajustar')?'pendente':'ajustar';
+      p.decidido_em=new Date().toISOString();
+      const w=document.getElementById('calDetCmWrap'); if(w) w.style.display=p.status==='ajustar'?'block':'none';
+      if(stEl){stEl.textContent=_statTxt(p.status);stEl.style.color=_statCor(p.status);}
+      _pintaAdj();
+      await salvar(i,p.status==='ajustar'?'ajuste':null,p.comentario||'');
+      if(p.status!=='ajustar'){ ov.remove(); pintar(); }
+      else { const c=document.getElementById('calDetCm'); if(c) c.focus(); }
+    };
   }
   window._calRepintar=()=>{ try{ pintar(); }catch(e){} };
   // Grade (desktop) x lista (celular) é decidido no render. Sem isso, quem gira o celular
