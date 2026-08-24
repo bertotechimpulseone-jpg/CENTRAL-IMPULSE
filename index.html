@@ -4525,12 +4525,14 @@ async function renderPublicChecklistBoss(token){
     const r = await _supa.rpc('check_pessoas');
     if(r.error) throw r.error;
     let todas = Array.isArray(r.data) ? r.data : [];
-    // Este link mostra: Ângelo (padrão), Ellen, Julia e Vinícius — nessa ordem.
+    // Este link mostra: Graci (padrão), Ângelo, Ellen, Julia e Vinícius — nessa ordem.
     const _norm = s => (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase().split(/\s+/)[0];
-    const ORDEM = ['angelo','ellen','julia','vinicius','vini'];
-    _CHECK_PESSOAS = ORDEM
-      .map(alvo => todas.find(p => _norm(p.nome) === alvo))
-      .filter(Boolean);
+    const ORDEM = ['graci','graciele','gracieli','angelo','ellen','julia','vinicius','vini'];
+    _CHECK_PESSOAS = [];
+    ORDEM.forEach(function(alvo){
+      const achou = todas.find(function(p){ return _norm(p.nome) === alvo; });
+      if(achou && !_CHECK_PESSOAS.some(function(x){ return x.id === achou.id; })) _CHECK_PESSOAS.push(achou);
+    });
     // fallback: se nenhum dos três existir, mostra a lista completa pra não travar o link
     if(!_CHECK_PESSOAS.length) _CHECK_PESSOAS = todas;
   } catch(e){ pub.innerHTML = '<div style="text-align:center;padding:60px;color:var(--danger)">Erro ao carregar colaboradores: '+escapeHtml(e.message||String(e))+'</div>'; return; }
@@ -4556,7 +4558,7 @@ async function _checkShell(){
         <button id="checkAddBtn" onclick="_checkAdd()" style="padding:0 20px;border:none;border-radius:12px;background:var(--accent);color:#fff;font-weight:800;font-size:20px;cursor:pointer;flex-shrink:0">＋</button>
       </div>
       <div id="checkList" style="flex:1;padding:4px 12px 50px"><div style="text-align:center;padding:50px"><div style="font-size:28px">⏳</div></div></div>
-      <div style="text-align:center;color:var(--text-4,#8a8f9a);font-size:11px;padding:12px">Impulse One · demandas de ${esc(pessoa.nome)} · ela marca como feita no sistema</div>
+      <div style="text-align:center;color:var(--text-4,#8a8f9a);font-size:11px;padding:12px">Impulse One · demandas de ${esc(pessoa.nome)} · toque no quadradinho pra marcar como cumprida</div>
     </div>`;
   const inp = document.getElementById('checkNova');
   if(inp){ inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); _checkAdd(); } }); }
@@ -4582,7 +4584,9 @@ function _checkRenderLista(){
       let rodape;
       if(t.done){ const dur=_checkDuracao(t.created_at,t.done_at); rodape=`<div style="font-size:12px;color:#16a34a;margin-top:5px;font-weight:600">✅ Concluída ${_checkFmtDataHora(t.done_at)}${dur?' · levou '+dur:''}</div>`; }
       else { rodape=`<div style="font-size:12px;color:#c2760a;margin-top:5px;font-weight:600">⏳ Aguardando conclusão</div>`; }
-      return `<div style="padding:14px 12px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start">
+      return `<div style="padding:14px 12px;border-bottom:1px solid var(--border);display:flex;gap:11px;align-items:flex-start">
+        <button onclick="_checkToggle('${t.id}',${t.done?'false':'true'})" title="${t.done?'Desmarcar':'Marcar como cumprida'}"
+          style="flex-shrink:0;width:30px;height:30px;margin-top:1px;border-radius:9px;border:2px solid ${t.done?'#16a34a':'var(--border-strong)'};background:${t.done?'#16a34a':'transparent'};color:#fff;font-size:15px;font-weight:800;line-height:1;cursor:pointer;display:grid;place-items:center;padding:0;transition:.15s">${t.done?'✓':''}</button>
         <div style="flex:1;min-width:0">
           <div style="font-size:15px;line-height:1.42;${t.done?'color:var(--text-3);text-decoration:line-through':'color:var(--text);font-weight:500'}">${esc(t.title)}${(t.priority==='high'||t.priority==='urgent')?' 🔴':''}</div>
           <div style="font-size:12px;color:var(--text-3);margin-top:4px">🕐 Solicitada ${_checkFmtDataHora(t.created_at)}</div>
@@ -4592,6 +4596,28 @@ function _checkRenderLista(){
       </div>`;
     }).join('')}`;
 }
+// Marcar/desmarcar pelo link, sem login (RPC security definer)
+async function _checkToggle(taskId, done){
+  const pessoa = _CHECK_PESSOAS[_checkPessoaIdx]; if(!pessoa) return;
+  const alvo = _checkTasks.find(function(x){ return String(x.id) === String(taskId); });
+  if(!alvo) return;
+  const antes = alvo.done, antesEm = alvo.done_at;
+  // pinta na hora; se o servidor recusar, volta atras
+  alvo.done = !!done;
+  alvo.done_at = done ? new Date().toISOString() : null;
+  _checkRenderLista();
+  try{
+    const r = await _supa.rpc('check_toggle', { p_id: pessoa.id, p_task: taskId, p_done: !!done });
+    if(r.error) throw r.error;
+  }catch(e){
+    alvo.done = antes; alvo.done_at = antesEm;
+    _checkRenderLista();
+    alert('Não consegui salvar agora. Tente de novo em instantes.');
+    console.warn('[check_toggle]', e);
+  }
+}
+if(typeof window!=='undefined'){ window._checkToggle=_checkToggle; }
+
 async function _checkTrocaPessoa(i){ if(i===_checkPessoaIdx) return; _checkPessoaIdx = i; await _checkShell(); }
 async function _checkAdd(){
   const inp = document.getElementById('checkNova'); if(!inp) return;
