@@ -2712,6 +2712,7 @@ async function loadDataFromSupabase(){
           journey_steps: Array.isArray(cl.journey_steps) ? cl.journey_steps : [],
           oculto: !!cl.oculto,
           conhecendo_url: cl.conhecendo_url || '',
+          aniversarios: Array.isArray(cl.aniversarios) ? cl.aniversarios : [],
           cnpj: cl.cnpj || '',
           modelo_atendimento: cl.modelo_atendimento || ''
         });
@@ -2959,12 +2960,19 @@ async function loadDataFromSupabase(){
         const firstName = tm.name.split(' ')[0];
         if(!dailyChecklists[firstName]) dailyChecklists[firstName] = [];
         if(t.is_daily){
+          // Tarefa agendada pra frente so entra no checklist no dia dela.
+          // Quem nao tem data continua como sempre foi.
+          if(t.due_date){
+            const hojeISO = new Date().toLocaleDateString('sv-SE');   // AAAA-MM-DD no fuso local
+            if(String(t.due_date) > hojeISO) return;
+          }
           const cli = clients.find(c=>c._dbId===t.client_id);
           dailyChecklists[firstName].push({
             _dbId: t.id,
             t: t.title, p: t.priority||'med',
             time: t.scheduled_time?t.scheduled_time.substring(0,5):'09:00',
             client: cli?cli.name:'Geral',
+            fixa: !!t.fixa_id,
             done: t.done||false
           });
         }
@@ -9541,6 +9549,8 @@ function paneFinanceiro(cli){
         <div class="text-xs text-3" style="margin-top:6px">Salva sozinho quando você clica fora do campo. 💾</div>
       </div>
 
+      ${blocoAniversarios(cli)}
+
       <!-- ===== Campos editáveis ===== -->
       <div class="info-grid mb-4">
         <div class="info-item info-editable" onclick="editClientField(${cli.id},'owner','Owner (Gerente)',\`${(cli.owner||'').replace(/`/g,'\\\\`')}\`)" title="Clique pra editar">
@@ -9648,6 +9658,61 @@ function paneArquivos(cli){
     </div>
   `;
 }
+
+// ===== Aniversários dos contatos do cliente (até 5) =====
+const _ANIV_MAX = 5;
+function blocoAniversarios(cli){
+  const lista = Array.isArray(cli.aniversarios) ? cli.aniversarios.slice(0,_ANIV_MAX) : [];
+  const linhas = [];
+  for(let i=0;i<_ANIV_MAX;i++){
+    const a = lista[i] || {};
+    linhas.push(`
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="anivNome_${cli.id}_${i}" class="login-input" placeholder="Nome do contato" value="${escapeHtml(a.nome||'')}" style="background:var(--surface-2);flex:1" />
+        <input id="anivData_${cli.id}_${i}" type="date" class="login-input" value="${escapeHtml(_anivISO(a.data))}" style="background:var(--surface-2);width:160px" />
+      </div>`);
+  }
+  const preenchidos = lista.filter(function(a){ return a && a.nome && a.data; }).length;
+  return `
+    <div class="card" style="margin-top:14px">
+      <div class="card-header" style="margin-bottom:10px">
+        <div class="card-title">🎂 Aniversários</div>
+        ${preenchidos?`<span class="badge b-default">${preenchidos}</span>`:''}
+      </div>
+      <div class="text-xs text-3" style="margin-bottom:11px;line-height:1.55">Até ${_ANIV_MAX} pessoas por cliente. Cada uma vira um lembrete na agenda, todo ano.</div>
+      <div style="display:flex;flex-direction:column;gap:7px">${linhas.join('')}</div>
+      <button class="btn btn-primary" type="button" onclick="salvarAniversarios(${cli.id})" style="margin-top:12px">💾 Salvar aniversários</button>
+    </div>`;
+}
+// Aceita 'AAAA-MM-DD' e 'DD/MM' (o campo date precisa do ISO)
+function _anivISO(v){
+  const txt = String(v||'').trim();
+  if(!txt) return '';
+  if(/^\d{4}-\d{2}-\d{2}$/.test(txt)) return txt;
+  const m = txt.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?$/);
+  if(!m) return '';
+  const ano = m[3] ? (m[3].length===2 ? '20'+m[3] : m[3]) : '1990';
+  return ano + '-' + String(m[2]).padStart(2,'0') + '-' + String(m[1]).padStart(2,'0');
+}
+async function salvarAniversarios(cliId){
+  const cli = (clients||[]).find(function(c){ return c.id === cliId; });
+  if(!cli){ toast('Cliente não encontrado','info'); return; }
+  const novos = [];
+  for(let i=0;i<_ANIV_MAX;i++){
+    const n = (document.getElementById('anivNome_'+cliId+'_'+i)||{}).value || '';
+    const d = (document.getElementById('anivData_'+cliId+'_'+i)||{}).value || '';
+    const nome = n.trim();
+    if(!nome && !d) continue;
+    if(!nome){ toast('Falta o nome de um dos aniversariantes','info'); return; }
+    if(!d){ toast('Falta a data de ' + nome,'info'); return; }
+    novos.push({ nome: nome, data: d });
+  }
+  const r = await gravarSeguro({ tabela:'clients', tipo:'update', id: cli._dbId, payload:{ aniversarios: novos }, descricao:'aniversários do cliente' });
+  if(!r.ok) return;
+  cli.aniversarios = novos;
+  toast(novos.length ? ('✓ ' + novos.length + ' aniversário(s) salvos · já aparecem na agenda') : '✓ Aniversários limpos','success');
+}
+if(typeof window!=='undefined'){ window.salvarAniversarios=salvarAniversarios; window.blocoAniversarios=blocoAniversarios; }
 
 // ===== Conhecendo o Cliente =====
 // Documento estrategico do cliente. Nao tem aba propria: aparece dentro da etapa
@@ -10136,8 +10201,147 @@ function renderOperacional(c){
   `;
 }
 
+// ===== Tarefas fixas do checklist =====
+// Diaria = todo dia util. Semanal = so nos dias da semana escolhidos.
+// Elas viram tarefa de verdade na tabela `tasks` no dia (com fixa_id), entao
+// contam no ranking e no historico igual a qualquer outra.
+let _fixas = [];
+let _fixasCarregado = false;
+const _DIAS_SEMANA = [['1','Seg'],['2','Ter'],['3','Qua'],['4','Qui'],['5','Sex'],['6','Sáb'],['0','Dom']];
+
+async function _loadFixas(){
+  if(!_supa){ _fixasCarregado = true; return _fixas; }
+  try{
+    const { data, error } = await _supa.from('checklist_fixas').select('*').eq('ativo', true).order('created_at');
+    if(error) throw error;
+    _fixas = data || [];
+  }catch(e){
+    console.warn('[fixas] nao consegui carregar', e);
+    if((e.message||'').indexOf('does not exist') !== -1) toast('⚠ Rode o SQL da tabela checklist_fixas','info');
+  }
+  _fixasCarregado = true;
+  return _fixas;
+}
+function _fixasDoDia(nome, quando){
+  const d = quando || new Date();
+  const dow = String(d.getDay());
+  return (_fixas||[]).filter(function(f){
+    if((f.nome||'').trim().toLowerCase() !== (nome||'').trim().toLowerCase()) return false;
+    if(f.tipo === 'semanal'){
+      const dias = Array.isArray(f.dias) ? f.dias.map(String) : [];
+      return dias.indexOf(dow) !== -1;
+    }
+    return dow !== '0' && dow !== '6';   // diaria = dia util
+  });
+}
+// Cria no banco a tarefa de hoje de cada fixa que ainda nao tem
+async function _garantirFixasDeHoje(nome){
+  if(!_supa || !nome) return;
+  const hoje = new Date().toLocaleDateString('sv-SE');
+  const doDia = _fixasDoDia(nome);
+  if(!doDia.length) return;
+  const tm = (team||[]).find(function(x){ return (x.name||'').split(' ')[0].toLowerCase() === (nome||'').toLowerCase(); });
+  if(!tm || !tm._dbId) return;
+  try{
+    const { data: jaTem } = await _supa.from('tasks').select('fixa_id').eq('due_date', hoje).not('fixa_id','is',null);
+    const feitas = new Set((jaTem||[]).map(function(x){ return x.fixa_id; }));
+    const criar = doDia.filter(function(f){ return !feitas.has(f.id); });
+    if(!criar.length) return;
+    await _supa.from('tasks').insert(criar.map(function(f){
+      return { title: f.titulo, assigned_to: tm._dbId, priority: f.prioridade || 'med',
+               scheduled_time: f.hora || '09:00', due_date: hoje, is_daily: true, done: false, fixa_id: f.id };
+    }));
+    await loadDataFromSupabase();
+  }catch(e){ console.warn('[fixas] nao consegui criar as de hoje', e); }
+}
+
+// ===== Tela de gerenciar as fixas =====
+function abrirFixasModal(nome){
+  const minhas = (_fixas||[]).filter(function(f){ return (f.nome||'').toLowerCase() === (nome||'').toLowerCase(); });
+  let ov = document.getElementById('fixasModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'fixasModal'; ov.className = 'modal-bg open'; ov.style.zIndex = '10000';
+  ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+  const linhaFixa = function(f){
+    const dias = Array.isArray(f.dias) ? f.dias.map(String) : [];
+    const quando = f.tipo === 'semanal'
+      ? _DIAS_SEMANA.filter(function(d){ return dias.indexOf(d[0]) !== -1; }).map(function(d){ return d[1]; }).join(', ')
+      : 'todo dia útil';
+    return '<div style="display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">'
+      + '<span style="font-size:14px">' + (f.tipo==='semanal'?'📆':'🔁') + '</span>'
+      + '<div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px">' + escapeHtml(f.titulo) + '</div>'
+      + '<div class="text-xs text-3" style="margin-top:1px">' + escapeHtml(quando) + ' · ' + escapeHtml(f.hora||'09:00') + '</div></div>'
+      + '<button class="icon-btn" type="button" onclick="excluirFixa(\'' + f.id + '\',\'' + escapeHtml(nome) + '\')" title="Remover" style="color:var(--danger)">✕</button>'
+      + '</div>';
+  };
+  ov.innerHTML = '<div class="modal" style="max-width:540px">'
+    + '<div class="modal-head"><div style="width:40px;height:40px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:17px">🔁</div>'
+    + '<div style="flex:1"><div style="font-size:16px;font-weight:700">Tarefas fixas de ' + escapeHtml(nome) + '</div>'
+    + '<div class="text-xs text-3" style="margin-top:2px">Entram sozinhas no checklist e ficam no topo</div></div>'
+    + '<button class="modal-close" type="button" onclick="document.getElementById(\'fixasModal\').remove()">✕</button></div>'
+    + '<div class="modal-body" style="padding:16px 20px;max-height:66dvh;overflow:auto">'
+      + '<div style="display:flex;flex-direction:column;gap:7px;margin-bottom:16px">'
+        + (minhas.length ? minhas.map(linhaFixa).join('') : '<div class="text-sm text-3" style="padding:14px 2px">Nenhuma tarefa fixa ainda.</div>')
+      + '</div>'
+      + '<div style="border-top:1px solid var(--border);padding-top:14px">'
+        + '<div class="info-label" style="margin-bottom:7px">Nova tarefa fixa</div>'
+        + '<input id="fxTitulo" class="login-input" placeholder="O que precisa ser feito" style="background:var(--surface-2);width:100%" />'
+        + '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">'
+          + '<select id="fxTipo" class="login-input" style="background:var(--surface-2);flex:1;min-width:150px" onchange="_fxTipoMudou(this.value)">'
+            + '<option value="diaria">🔁 Todo dia útil</option><option value="semanal">📆 Dias da semana</option></select>'
+          + '<input id="fxHora" type="time" value="09:00" class="login-input" style="background:var(--surface-2);width:120px" />'
+        + '</div>'
+        + '<div id="fxDias" style="display:none;margin-top:9px">'
+          + '<div class="text-xs text-3" style="margin-bottom:6px">Em quais dias?</div>'
+          + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+            + _DIAS_SEMANA.map(function(d){ return '<label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:6px 12px;cursor:pointer;font-size:12.5px"><input type="checkbox" class="fx-dia" value="' + d[0] + '" /> ' + d[1] + '</label>'; }).join('')
+          + '</div>'
+        + '</div>'
+        + '<button class="btn btn-primary" type="button" onclick="salvarFixa(\'' + escapeHtml(nome) + '\')" style="margin-top:12px">+ Adicionar tarefa fixa</button>'
+      + '</div>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+}
+function _fxTipoMudou(v){ const el=document.getElementById('fxDias'); if(el) el.style.display = (v==='semanal') ? 'block' : 'none'; }
+async function salvarFixa(nome){
+  const tit = (document.getElementById('fxTitulo').value||'').trim();
+  if(!tit){ toast('Escreva o que precisa ser feito','info'); return; }
+  const tipo = document.getElementById('fxTipo').value;
+  const hora = document.getElementById('fxHora').value || '09:00';
+  const dias = Array.from(document.querySelectorAll('.fx-dia:checked')).map(function(x){ return x.value; });
+  if(tipo === 'semanal' && !dias.length){ toast('Escolha pelo menos um dia da semana','info'); return; }
+  try{
+    const { data, error } = await _supa.from('checklist_fixas')
+      .insert({ nome: nome, titulo: tit, tipo: tipo, dias: dias, hora: hora, prioridade: 'med', ativo: true })
+      .select().single();
+    if(error) throw error;
+    _fixas.push(data);
+    toast('✓ Tarefa fixa criada','success');
+    abrirFixasModal(nome);
+    await _garantirFixasDeHoje(nome);
+    renderOperacional(document.getElementById('content'));
+  }catch(e){ console.warn(e); toast('Não consegui salvar a tarefa fixa','info'); }
+}
+async function excluirFixa(id, nome){
+  if(!confirm('Remover essa tarefa fixa?\n\nAs que já entraram no checklist continuam lá.')) return;
+  try{
+    await _supa.from('checklist_fixas').update({ativo:false}).eq('id', id);
+    _fixas = _fixas.filter(function(f){ return f.id !== id; });
+    toast('Tarefa fixa removida','success');
+    abrirFixasModal(nome);
+  }catch(e){ console.warn(e); toast('Não consegui remover','info'); }
+}
+if(typeof window!=='undefined'){
+  window.abrirFixasModal=abrirFixasModal; window.salvarFixa=salvarFixa; window.excluirFixa=excluirFixa;
+  window._fxTipoMudou=_fxTipoMudou; window._loadFixas=_loadFixas; window._garantirFixasDeHoje=_garantirFixasDeHoje;
+}
+
 function renderChecklistView(){
   if(!_checklistOcultosCarregado) _loadChecklistOcultos();
+  if(!_fixasCarregado){ _fixasCarregado = true; _loadFixas().then(function(){
+    const meu = (typeof getMeuChecklistNome==='function') ? getMeuChecklistNome() : '';
+    if(meu) _garantirFixasDeHoje(meu).then(function(){ try{ renderOperacional(document.getElementById('content')); }catch(e){} });
+  }); }
   const today = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
   const collabList = (function(){
     const set = {};
@@ -10183,6 +10387,9 @@ function renderChecklistView(){
               👥 ${_showColleagueTabs ? 'Esconder colegas' : 'Ver checklists dos colegas'}
               <span style="background:var(--surface-2);padding:1px 7px;border-radius:5px;font-size:11px;opacity:.85">${outros.length}</span>
             </button>` : ''}
+          <button onclick="abrirFixasModal('${currentCollab.replace(/'/g,"\'")}')" title="Tarefas que entram sozinhas no checklist: todo dia útil ou nos dias da semana que você escolher" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);background:var(--surface);color:var(--text-2);border-radius:9px;cursor:pointer;font-weight:500;font-size:13px;transition:.15s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--text)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-2)'">
+            🔁 Tarefas fixas${(function(){ const n=(_fixas||[]).filter(f=>(f.nome||'').toLowerCase()===(currentCollab||'').toLowerCase()).length; return n?`<span style="background:var(--surface-2);padding:1px 7px;border-radius:5px;font-size:11px">${n}</span>`:''; })()}
+          </button>
           ${!ehMeuChecklist && meuNome ? `
             <span class="badge b-info" style="margin-left:auto">👀 Vendo: ${currentCollab}</span>` : ''}
         </div>
@@ -10256,6 +10463,8 @@ function renderChecklistView(){
                 // Ambas concluídas: mais recente embaixo
                 return (a.done_at||'').localeCompare(b.done_at||'');
               }
+              // Fixa em cima: e a rotina do dia, vem antes do resto
+              if(!!a.fixa !== !!b.fixa) return a.fixa ? -1 : 1;
               // Ambas pendentes: ordena por horário
               return (a.time||'').localeCompare(b.time||'');
             });
@@ -10271,7 +10480,7 @@ function renderChecklistView(){
             <div class="check-item ${t.done?'done':''}" onclick="openEditarTarefaModal('${currentCollab}',${t._origIdx})" title="Clique pra editar" style="cursor:pointer">
               <div class="check-box ${t.done?'checked':''}" onclick="event.stopPropagation();toggleCheck('${currentCollab}',${t._origIdx})"></div>
               <div class="check-body">
-                <div class="check-title">${escapeHtml(t.t||'')}</div>
+                <div class="check-title">${t.fixa?'<span title="Tarefa fixa" style="color:var(--accent);font-weight:800;margin-right:5px">🔁</span>':''}${escapeHtml(t.t||'')}</div>
                 <div class="check-meta">
                   ${prioBadge(t.p)}
                   <span>🕐 ${t.time||'—'}</span>
@@ -10577,6 +10786,24 @@ function getEventosDoMes(){
       }
     }
   });
+
+    // Aniversários dos contatos dos clientes (até 5 por cliente)
+    // Guardados em clients.aniversarios: [{nome, data:'AAAA-MM-DD' ou 'DD/MM'}]
+    (typeof clients!=='undefined'?clients:[]).forEach(function(cl){
+      if(!cl || cl.oculto) return;
+      (Array.isArray(cl.aniversarios)?cl.aniversarios:[]).forEach(function(a){
+        if(!a || !a.data) return;
+        const txt = String(a.data);
+        let d = 0, mm = 0;
+        let m1 = txt.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if(m1){ mm = parseInt(m1[2],10); d = parseInt(m1[3],10); }
+        else { const m2 = txt.match(/^(\d{1,2})[\/\-.](\d{1,2})/); if(m2){ d = parseInt(m2[1],10); mm = parseInt(m2[2],10); } }
+        if(!d || mm !== (mes+1)) return;
+        const nomeCli = (typeof _nomeCli==='function') ? _nomeCli(cl) : (cl.name||'');
+        push(d, {tipo:'aniversario', titulo:'🎂 ' + (a.nome||'contato') + ' · ' + nomeCli, cor:'#f59e0b', clienteId:cl.id});
+      });
+    });
+
 
   // 3) Férias programadas que tocam este mes
   (_ferias||[]).forEach(f => {
@@ -14448,10 +14675,7 @@ window.comKanbanDrop = comKanbanDrop;
 function abrirLeadDetalhe(leadId){
   const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
   if(!lead){ toast('Lead não encontrado','info'); return; }
-  const stages = [
-    {k:'lead',l:'Lead'},{k:'contato',l:'Contato inicial'},{k:'diagnostico',l:'Diagnóstico'},
-    {k:'proposta',l:'Proposta enviada'},{k:'fechamento',l:'Fechamento'},{k:'fechado',l:'Fechado'}
-  ];
+  const stages = _funilEtapas(lead.funil || 'venda').map(e=>({k:e.key, l:e.label}));
   const prios = [{k:'urgent',l:'Urgente'},{k:'high',l:'Alta'},{k:'med',l:'Média'},{k:'low',l:'Baixa'}];
   let modal = document.getElementById('leadDetalheModal');
   if(modal) modal.remove();
@@ -14483,6 +14707,21 @@ function abrirLeadDetalhe(leadId){
       '</div>' +
       '<div><div class="info-label" style="margin-bottom:5px">Observações</div><textarea id="ldObs" class="login-input" rows="3" placeholder="Anotações livres..." style="background:var(--surface-2);resize:vertical;min-height:64px;font-family:inherit">' + escapeHtml(lead.observacoes||'') + '</textarea></div>' +
       (zap ? '<a href="https://wa.me/55'+zap+'" target="_blank" class="btn btn-sm" style="align-self:flex-start;text-decoration:none">💬 Abrir WhatsApp</a>' : '') +
+      // Tarefa com dia: no dia marcado ela aparece sozinha no checklist de quem ficou responsavel
+      '<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">' +
+        '<div class="info-label" style="margin-bottom:7px">✅ Agendar tarefa deste card</div>' +
+        '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+          '<input id="ldTarefa" class="login-input" placeholder="O que precisa ser feito" style="background:var(--surface-2);flex:1;min-width:180px" />' +
+          '<input id="ldTarefaData" type="date" class="login-input mask-data" value="' + new Date().toISOString().slice(0,10) + '" style="background:var(--surface-2);width:150px" />' +
+          '<select id="ldTarefaQuem" class="login-input" style="background:var(--surface-2);width:150px">' +
+            '<option value="">— quem faz —</option>' +
+            (team||[]).filter(t=>t._dbId).map(t=>'<option value="'+t._dbId+'" '+(lead.responsible_id===t._dbId?'selected':'')+'>'+escapeHtml((t.name||'').split(' ')[0])+'</option>').join('') +
+          '</select>' +
+          '<button class="btn btn-sm btn-primary" type="button" onclick="agendarTarefaDoLead(\'' + lead.id + '\')">+ Agendar</button>' +
+        '</div>' +
+        '<div class="text-xs text-3" style="margin-top:7px">No dia escolhido ela entra direto no checklist dessa pessoa.</div>' +
+        '<div id="ldTarefasLista" style="margin-top:10px;display:flex;flex-direction:column;gap:6px"></div>' +
+      '</div>' +
       '<div style="display:flex;gap:8px;justify-content:space-between;margin-top:6px;border-top:1px solid var(--border);padding-top:14px">' +
         '<button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="excluirLead(\'' + lead.id + '\')">🗑 Excluir</button>' +
         '<div style="display:flex;gap:8px">' +
@@ -14492,6 +14731,7 @@ function abrirLeadDetalhe(leadId){
       '</div>' +
     '</div></div>';
   document.body.appendChild(modal);
+  setTimeout(function(){ try{ _leadTarefasRender(lead.id); }catch(e){} }, 60);
 }
 window.abrirLeadDetalhe = abrirLeadDetalhe;
 
@@ -14541,6 +14781,61 @@ async function salvarLeadDetalhe(leadId){
   renderComercial(document.getElementById('content'));
 }
 window.salvarLeadDetalhe = salvarLeadDetalhe;
+
+// Tarefa agendada a partir de um card do pipeline
+async function agendarTarefaDoLead(leadId){
+  const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
+  if(!lead){ toast('Card não encontrado','info'); return; }
+  const titEl = document.getElementById('ldTarefa');
+  const dtEl  = document.getElementById('ldTarefaData');
+  const qmEl  = document.getElementById('ldTarefaQuem');
+  const titulo = (titEl && titEl.value || '').trim();
+  const dia    = (dtEl && dtEl.value || '').trim();
+  const quem   = (qmEl && qmEl.value || '').trim();
+  if(!titulo){ toast('Escreva o que precisa ser feito','info'); if(titEl) titEl.focus(); return; }
+  if(!dia){ toast('Escolha o dia da tarefa','info'); return; }
+  if(!quem){ toast('Escolha quem vai fazer','info'); return; }
+  const cli = (clients||[]).find(c => (c.name||'').toLowerCase() === (lead.name||'').toLowerCase());
+  const r = await dbCreate('tasks', {
+    title: titulo + ' · ' + (lead.name||'card'),
+    assigned_to: quem,
+    client_id: cli ? cli._dbId : null,
+    priority: lead.priority || 'med',
+    scheduled_time: '09:00',
+    due_date: dia,
+    is_daily: true,
+    done: false
+  });
+  if(!r){ toast('Não consegui agendar a tarefa','info'); return; }
+  if(titEl) titEl.value = '';
+  const tm = (team||[]).find(x => x._dbId === quem);
+  const primeiro = tm ? (tm.name||'').split(' ')[0] : 'a pessoa';
+  const [a,m,d] = dia.split('-');
+  toast('✓ Tarefa no checklist de ' + primeiro + ' em ' + d + '/' + m, 'success');
+  _leadTarefasRender(leadId);
+}
+// Lista as tarefas ja agendadas deste card
+async function _leadTarefasRender(leadId){
+  const box = document.getElementById('ldTarefasLista');
+  const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
+  if(!box || !lead || !_supa) return;
+  try{
+    const { data } = await _supa.from('tasks').select('id,title,due_date,done,assigned_to')
+      .ilike('title', '%· ' + (lead.name||'') ).order('due_date',{ascending:true});
+    const itens = (data||[]).filter(x=>x.due_date);
+    if(!itens.length){ box.innerHTML = ''; return; }
+    box.innerHTML = itens.map(function(x){
+      const tm = (team||[]).find(t=>t._dbId===x.assigned_to);
+      const [a,m,d] = String(x.due_date).split('-');
+      return '<div style="display:flex;align-items:center;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:8px 11px;font-size:12.5px">'
+        + '<span>' + (x.done ? '✓' : '○') + '</span>'
+        + '<span style="flex:1;min-width:0;' + (x.done?'color:var(--text-3);text-decoration:line-through':'') + '">' + escapeHtml(x.title) + '</span>'
+        + '<span class="text-xs text-3">' + d + '/' + m + (tm ? ' · ' + escapeHtml((tm.name||'').split(' ')[0]) : '') + '</span>'
+        + '</div>';
+    }).join('');
+  }catch(e){ console.warn('[tarefas do lead]', e); }
+}
+if(typeof window!=='undefined'){ window.agendarTarefaDoLead=agendarTarefaDoLead; window._leadTarefasRender=_leadTarefasRender; }
 
 async function excluirLead(leadId){
   if(!(await confirmDelete('lead'))) return;
