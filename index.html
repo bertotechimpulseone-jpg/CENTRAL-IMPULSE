@@ -2794,6 +2794,7 @@ async function loadDataFromSupabase(){
     // Carrega lista de excluidos ANTES dos profiles, pra filtrar corretamente
     try { await _loadColabExcluidos(); } catch(e){ console.warn('[excluidos] load falhou', e); }
     try { await _loadColabOcultos(); } catch(e){ console.warn('[ocultos] load falhou', e); }
+    try { await _funisCarregar(); } catch(e){ console.warn('[funis] load falhou', e); }
     // Normalizador: tira acentos e lowercase pra match de nomes (leticia ↔ Letícia)
     const _normNome = s => (s||'').normalize('NFD').replace(/[\u0300-\u036F]/g,'').toLowerCase().trim();
     const { data: profData } = profRes;
@@ -14083,6 +14084,172 @@ async function updateCapStatus(id,status){
 
 // ============ COMERCIAL ============
 let comTab = 'pipeline';
+let comFunil = 'venda';   // prevenda | venda | carteira
+
+// Os tres funis e suas etapas. Fica em app_settings.funis_comercial, entao o Vini
+// edita as etapas pela tela e vale pra todo mundo.
+const FUNIS_PADRAO = {
+  prevenda: { label:'Pré-venda', icone:'🎯', etapas:[
+    {key:'prospec',   label:'Prospecção'},
+    {key:'abordagem', label:'Abordagem'},
+    {key:'interesse', label:'Demonstrou interesse'},
+    {key:'qualificado',label:'Qualificado'}
+  ]},
+  venda: { label:'Venda', icone:'💼', etapas:[
+    {key:'lead',        label:'Lead'},
+    {key:'contato',     label:'Contato inicial'},
+    {key:'diagnostico', label:'Diagnóstico'},
+    {key:'proposta',    label:'Proposta enviada'},
+    {key:'fechamento',  label:'Fechamento'},
+    {key:'fechado',     label:'Fechado'}
+  ]},
+  carteira: { label:'Carteira', icone:'🤝', etapas:[
+    {key:'ativo',     label:'Ativo'},
+    {key:'upsell',    label:'Oportunidade de upsell'},
+    {key:'renovacao', label:'Renovação'},
+    {key:'risco',     label:'Risco de saída'}
+  ]}
+};
+let _funisCfg = null;
+
+function _funis(){
+  if(_funisCfg) return _funisCfg;
+  try{
+    const raw = localStorage.getItem('funis_comercial');
+    if(raw){ _funisCfg = JSON.parse(raw); return _funisCfg; }
+  }catch(e){}
+  _funisCfg = JSON.parse(JSON.stringify(FUNIS_PADRAO));
+  return _funisCfg;
+}
+async function _funisCarregar(){
+  if(!_supa) return _funis();
+  try{
+    const { data } = await _supa.from('app_settings').select('value').eq('key','funis_comercial').maybeSingle();
+    if(data && data.value){
+      _funisCfg = JSON.parse(data.value);
+      try{ localStorage.setItem('funis_comercial', data.value); }catch(e){}
+    }
+  }catch(e){ console.warn('[funis] nao consegui carregar', e); }
+  return _funis();
+}
+async function _funisSalvar(cfg){
+  _funisCfg = cfg;
+  const txt = JSON.stringify(cfg);
+  try{ localStorage.setItem('funis_comercial', txt); }catch(e){}
+  if(_supa){
+    try{ await _supa.from('app_settings').upsert({key:'funis_comercial', value:txt, updated_at:new Date().toISOString()}, {onConflict:'key'}); }
+    catch(e){ console.warn('[funis] nao salvou no banco', e); toast('Salvei aqui, mas não consegui gravar no servidor','info'); }
+  }
+}
+function _funilEtapas(f){ const c=_funis()[f]; return (c && c.etapas) || []; }
+function _funilLabel(f){ const c=_funis()[f]; return (c && c.label) || f; }
+
+// ===== Editor de etapas: o Vini muda os passos de qualquer funil =====
+function abrirEditorEtapas(){
+  const cfg = JSON.parse(JSON.stringify(_funis()));
+  const f = comFunil;
+  let ov = document.getElementById('etapasModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'etapasModal';
+  ov.className = 'modal-bg open';
+  ov.style.zIndex = '10000';
+  ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+  const linha = (et, i, total)=>`
+    <div class="etapa-linha" data-key="${escapeHtml(et.key)}" style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px">
+      <span style="font:700 11px 'Sora',sans-serif;color:var(--text-3);min-width:18px">${i+1}</span>
+      <input class="etapa-nome" value="${escapeHtml(et.label)}" placeholder="Nome da etapa" style="flex:1;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);padding:3px 0;outline:none" />
+      <button class="icon-btn" type="button" onclick="_etapaMover(this,-1)" title="Subir" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
+      <button class="icon-btn" type="button" onclick="_etapaMover(this,1)" title="Descer" ${i===total-1?'disabled style="opacity:.3"':''}>↓</button>
+      <button class="icon-btn" type="button" onclick="_etapaRemover(this)" title="Remover etapa" style="color:var(--danger)">✕</button>
+    </div>`;
+  ov.innerHTML = `
+    <div class="modal" style="max-width:520px">
+      <div class="modal-head">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:17px">⚙</div>
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700">Etapas de ${escapeHtml(_funilLabel(f))}</div>
+          <div class="text-xs text-3" style="margin-top:2px">Renomeie, reordene, adicione ou remova. Vale para toda a equipe.</div>
+        </div>
+        <button class="modal-close" type="button" onclick="document.getElementById('etapasModal').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:16px 20px">
+        <div id="etapasLista" style="display:flex;flex-direction:column;gap:7px">
+          ${(cfg[f].etapas||[]).map((et,i,arr)=>linha(et,i,arr.length)).join('')}
+        </div>
+        <button class="btn" type="button" onclick="_etapaAdicionar()" style="margin-top:10px">+ Nova etapa</button>
+        <div class="text-xs text-3" style="margin-top:14px;line-height:1.55">Se você apagar uma etapa que tem cards, eles vão para a primeira etapa do funil — nada é perdido.</div>
+      </div>
+      <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn" type="button" onclick="document.getElementById('etapasModal').remove()">Cancelar</button>
+        <button class="btn btn-primary" type="button" onclick="_etapasSalvar()">Salvar etapas</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+function _etapaMover(btn, dir){
+  const linha = btn.closest('.etapa-linha');
+  const lista = document.getElementById('etapasLista');
+  if(!linha || !lista) return;
+  if(dir < 0 && linha.previousElementSibling) lista.insertBefore(linha, linha.previousElementSibling);
+  if(dir > 0 && linha.nextElementSibling) lista.insertBefore(linha.nextElementSibling, linha);
+}
+function _etapaRemover(btn){
+  const lista = document.getElementById('etapasLista');
+  if(lista && lista.children.length <= 1){ toast('O funil precisa de pelo menos uma etapa','info'); return; }
+  const linha = btn.closest('.etapa-linha'); if(linha) linha.remove();
+}
+function _etapaAdicionar(){
+  const lista = document.getElementById('etapasLista'); if(!lista) return;
+  const div = document.createElement('div');
+  div.className = 'etapa-linha';
+  div.dataset.key = '';   // chave nova é gerada ao salvar
+  div.style.cssText = 'display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px';
+  div.innerHTML = `<span style="font:700 11px 'Sora',sans-serif;color:var(--text-3);min-width:18px">${lista.children.length+1}</span>
+    <input class="etapa-nome" value="" placeholder="Nome da etapa" style="flex:1;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);padding:3px 0;outline:none" />
+    <button class="icon-btn" type="button" onclick="_etapaMover(this,-1)" title="Subir">↑</button>
+    <button class="icon-btn" type="button" onclick="_etapaMover(this,1)" title="Descer">↓</button>
+    <button class="icon-btn" type="button" onclick="_etapaRemover(this)" title="Remover etapa" style="color:var(--danger)">✕</button>`;
+  lista.appendChild(div);
+  const inp = div.querySelector('.etapa-nome'); if(inp) inp.focus();
+}
+function _etapaChave(label, usadas){
+  let base = (label||'etapa').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,24) || 'etapa';
+  let k = base, n = 2;
+  while(usadas.indexOf(k) !== -1){ k = base + '-' + (n++); }
+  return k;
+}
+async function _etapasSalvar(){
+  const cfg = JSON.parse(JSON.stringify(_funis()));
+  const f = comFunil;
+  const antigas = (cfg[f].etapas||[]).map(e=>e.key);
+  const usadas = [];
+  const novas = Array.from(document.querySelectorAll('#etapasLista .etapa-linha')).map(linha=>{
+    const label = (linha.querySelector('.etapa-nome').value || '').trim();
+    if(!label) return null;
+    let key = linha.dataset.key || '';
+    if(!key) key = _etapaChave(label, usadas);
+    usadas.push(key);
+    return { key, label };
+  }).filter(Boolean);
+  if(!novas.length){ toast('Dê nome a pelo menos uma etapa','info'); return; }
+  cfg[f].etapas = novas;
+  // Card que estava numa etapa apagada vai pra primeira — nada some
+  const sumiram = antigas.filter(k => !novas.some(e=>e.key===k));
+  if(sumiram.length && _supa){
+    try{
+      await _supa.from('leads').update({stage: novas[0].key}).eq('funil', f).in('stage', sumiram);
+      if(Array.isArray(_leadsCache)) _leadsCache.forEach(l=>{ if(l.funil===f && sumiram.indexOf(l.stage)!==-1) l.stage = novas[0].key; });
+    }catch(e){ console.warn('[etapas] nao consegui mover os cards', e); }
+  }
+  await _funisSalvar(cfg);
+  const ov = document.getElementById('etapasModal'); if(ov) ov.remove();
+  toast('✓ Etapas de ' + _funilLabel(f) + ' atualizadas','success');
+  renderComercial(document.getElementById('content'));
+}
+if(typeof window!=='undefined'){
+  window.abrirEditorEtapas=abrirEditorEtapas; window._etapaMover=_etapaMover; window._etapaRemover=_etapaRemover;
+  window._etapaAdicionar=_etapaAdicionar; window._etapasSalvar=_etapasSalvar; window._funisCarregar=_funisCarregar;
+}
 let orcamento = {
   id: null,
   numero: 'ORC-' + String(Date.now()).slice(-6),
@@ -14128,34 +14295,109 @@ function renderPipelineCom(){
     }
   }
   // Etapas do funil: chave no banco + rótulo exibido
-  const STAGES = [
-    {key:'lead', label:'Lead'},
-    {key:'contato', label:'Contato inicial'},
-    {key:'diagnostico', label:'Diagnóstico'},
-    {key:'proposta', label:'Proposta enviada'},
-    {key:'fechamento', label:'Fechamento'},
-    {key:'fechado', label:'Fechado'}
-  ];
-  const leads = (_leadsCache||[]).map(l=>{
+  const STAGES = _funilEtapas(comFunil);
+  const _todos = (_leadsCache||[]).map(l=>{
     const rm = l.responsible_id ? (team||[]).find(t=>t._dbId===l.responsible_id) : null;
     return {
-      id: l.id,
-      n: l.name,
-      v: parseFloat(l.value)||0,
-      stageKey: l.stage||'lead',
+      id: l.id, n: l.name, v: parseFloat(l.value)||0,
+      stageKey: l.stage||(STAGES[0]&&STAGES[0].key)||'lead',
+      funil: l.funil || 'venda',
       resp: rm ? (rm.name||'').split(' ')[0] : 'Equipe',
-      p: l.priority||'med',
-      ap: !!l.aprovado
+      p: l.priority||'med', ap: !!l.aprovado
     };
   });
-  const propostas = leads.filter(l=>l.stageKey==='proposta').length;
-  const projecao = leads.filter(l=>l.stageKey!=='fechado').reduce((s,l)=>s+l.v,0);
-  const totalFechado = leads.filter(l=>l.stageKey==='fechado').reduce((s,l)=>s+l.v,0);
-  const totalAprovado = leads.filter(l=>l.ap).reduce((s,l)=>s+l.v,0);
-  return `<div class="stat-grid">${statCard('Leads ativos',leads.filter(l=>l.stageKey!=='fechado').length,'no funil','M16 21v-2')}${statCard('Propostas',propostas,'enviadas','M22 12h-4l-3 9L9 3l-3 9H2')}${statCard('Projeção mês','R$ '+projecao.toLocaleString('pt-BR'),'em aberto','M12 1v22')}${statCard('Fechado','R$ '+totalFechado.toLocaleString('pt-BR'),'valor fechado','M5 13l4 4L19 7')}${statCard('Aprovado','R$ '+totalAprovado.toLocaleString('pt-BR'),'orçamentos aprovados','M20 6L9 17l-5-5')}</div>
-  <div class="text-xs text-3" style="margin:6px 2px 10px">💡 Arraste os cards entre as colunas pra mover de etapa. Clique no card pra ver/editar. Orçamentos salvos entram aqui como leads automaticamente.</div>
-  <div class="kanban">${STAGES.map(st=>{const list=leads.filter(l=>l.stageKey===st.key);const colSum=list.reduce((s,l)=>s+l.v,0);return `<div class="kanban-col" ondragover="comKanbanOver(event,this)" ondragleave="comKanbanLeave(this)" ondrop="comKanbanDrop(event,'${st.key}',this)"><div class="kanban-head"><div class="kanban-title">${st.label} <span class="kanban-count">${list.length}</span></div></div>${st.key==='fechado'?`<div style="font-size:11.5px;margin:-2px 2px 9px;line-height:1.55;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px 9px">💰 Fechado: <strong style="color:var(--success)">R$ ${colSum.toLocaleString('pt-BR')}</strong><br>✓ Aprovado: <strong style="color:var(--accent-2)">R$ ${totalAprovado.toLocaleString('pt-BR')}</strong></div>`:''}<div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div><div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}<div class="kanban-add" onclick="openNovoLeadModal('${st.key}')">+ Adicionar lead</div></div></div>`}).join('')}</div>`;
+  const leads = _todos.filter(l=>l.funil===comFunil);
+  // Card que ficou numa etapa que nao existe mais aparece na primeira, pra nunca sumir
+  const _chaves = STAGES.map(x=>x.key);
+  leads.forEach(l=>{ if(_chaves.indexOf(l.stageKey)===-1) l.stageKey = _chaves[0]; });
+
+  const ultKey = _chaves[_chaves.length-1];
+  const emAberto  = leads.filter(l=>l.stageKey!==ultKey);
+  const naUltima  = leads.filter(l=>l.stageKey===ultKey);
+  const aprovados = leads.filter(l=>l.ap);
+  const propostaEt = STAGES.find(x=>/proposta/i.test(x.label));
+  const propostas = propostaEt ? leads.filter(l=>l.stageKey===propostaEt.key) : [];
+  const soma = (arr)=> arr.reduce((t,l)=>t+l.v,0);
+  // guarda os grupos pra explicar o numero quando clicar
+  window._comStats = {
+    ativos:   {titulo:'Cards em aberto',            itens:emAberto,  tipo:'qtd'},
+    proposta: {titulo:propostaEt?propostaEt.label:'Propostas', itens:propostas, tipo:'qtd'},
+    projecao: {titulo:'Projeção em aberto',         itens:emAberto,  tipo:'valor'},
+    fechado:  {titulo:_funilLabel(comFunil)+' · '+((STAGES[STAGES.length-1]||{}).label||'última etapa'), itens:naUltima, tipo:'valor'},
+    aprovado: {titulo:'Orçamentos aprovados',       itens:aprovados, tipo:'valor'}
+  };
+  const cartao = (id, rotulo, valor, sub, path)=>
+    `<div onclick="abrirDetalheStat('${id}')" title="Ver de onde vem esse número" style="cursor:pointer">${statCard(rotulo, valor, sub, path)}</div>`;
+
+  const chipsFunil = Object.keys(_funis()).map(k=>{
+    const cfg = _funis()[k];
+    const n = _todos.filter(l=>l.funil===k).length;
+    const on = comFunil===k;
+    return `<button type="button" onclick="comFunil='${k}';renderComercial(document.getElementById('content'))"
+      style="display:inline-flex;align-items:center;gap:7px;border:1px solid ${on?'var(--accent)':'var(--border)'};background:${on?'var(--accent-soft)':'var(--surface)'};color:${on?'var(--text)':'var(--text-2)'};border-radius:99px;padding:7px 15px;font:700 13px inherit;cursor:pointer;transition:.15s">
+      <span>${cfg.icone||''}</span>${escapeHtml(cfg.label)}<span style="font-size:11px;color:var(--text-3);font-weight:600">${n}</span></button>`;
+  }).join('');
+
+  return `
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 14px">
+    ${chipsFunil}
+    <button class="btn" type="button" onclick="abrirEditorEtapas()" title="Renomear, reordenar, adicionar ou remover etapas deste funil" style="margin-left:auto;font-size:12.5px">⚙ Etapas de ${escapeHtml(_funilLabel(comFunil))}</button>
+  </div>
+  <div class="stat-grid">
+    ${cartao('ativos','Em aberto', String(emAberto.length), 'cards no funil','M16 21v-2')}
+    ${cartao('proposta', propostaEt?propostaEt.label:'Aprovados', String(propostaEt?propostas.length:aprovados.length), propostaEt?'nesta etapa':'orçamentos','M22 12h-4l-3 9L9 3l-3 9H2')}
+    ${cartao('projecao','Projeção','R$ '+soma(emAberto).toLocaleString('pt-BR'),'em aberto','M12 1v22')}
+    ${cartao('fechado',(STAGES[STAGES.length-1]||{}).label||'Última etapa','R$ '+soma(naUltima).toLocaleString('pt-BR'),String(naUltima.length)+' card(s)','M5 13l4 4L19 7')}
+    ${cartao('aprovado','Aprovado','R$ '+soma(aprovados).toLocaleString('pt-BR'),'orçamentos aprovados','M20 6L9 17l-5-5')}
+  </div>
+  <div class="text-xs text-3" style="margin:6px 2px 10px">💡 Arraste os cards entre as colunas pra mover de etapa. Clique num número acima pra ver de onde ele vem.</div>
+  <div class="kanban">${STAGES.map(st=>{
+    const list=leads.filter(l=>l.stageKey===st.key);
+    const colSum=list.reduce((t,l)=>t+l.v,0);
+    return `<div class="kanban-col" ondragover="comKanbanOver(event,this)" ondragleave="comKanbanLeave(this)" ondrop="comKanbanDrop(event,'${st.key}',this)">
+      <div class="kanban-head"><div class="kanban-title">${escapeHtml(st.label)} <span class="kanban-count">${list.length}</span></div></div>
+      ${colSum>0?`<div style="font-size:11.5px;margin:-2px 2px 9px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 9px">R$ <strong>${colSum.toLocaleString('pt-BR')}</strong></div>`:''}
+      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div><div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
+      <div class="kanban-add" onclick="openNovoLeadModal('${st.key}')">+ Adicionar card</div></div></div>`;
+  }).join('')}</div>`;
 }
+
+// Clique no indicador: mostra exatamente quais cards formam aquele número
+function abrirDetalheStat(id){
+  const g = (window._comStats||{})[id];
+  if(!g){ return; }
+  const itens = g.itens || [];
+  const total = itens.reduce((t,l)=>t+(l.v||0),0);
+  let ov = document.getElementById('statDetModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'statDetModal';
+  ov.className = 'modal-bg open';
+  ov.style.zIndex = '10000';
+  ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML = `
+    <div class="modal" style="max-width:520px">
+      <div class="modal-head">
+        <div style="flex:1">
+          <div style="font-size:16px;font-weight:700">${escapeHtml(g.titulo)}</div>
+          <div class="text-xs text-3" style="margin-top:2px">${itens.length} card(s)${g.tipo==='valor'?' · R$ '+total.toLocaleString('pt-BR'):''} · funil ${escapeHtml(_funilLabel(comFunil))}</div>
+        </div>
+        <button class="modal-close" type="button" onclick="document.getElementById('statDetModal').remove()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:14px 20px;max-height:60dvh;overflow:auto">
+        ${itens.length ? itens.map(l=>`
+          <div onclick="document.getElementById('statDetModal').remove();abrirLeadDetalhe('${l.id}')" style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13.5px">${escapeHtml(l.n)}</div>
+              <div class="text-xs text-3" style="margin-top:2px">${escapeHtml((_funilEtapas(comFunil).find(e=>e.key===l.stageKey)||{}).label||l.stageKey)} · 👤 ${escapeHtml(l.resp)}</div>
+            </div>
+            <div style="font:700 13px 'Sora',sans-serif;white-space:nowrap">R$ ${(l.v||0).toLocaleString('pt-BR')}</div>
+          </div>`).join('')
+        : `<div class="text-sm text-3" style="padding:22px 2px">Nenhum card entra nesse número agora.</div>`}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+if(typeof window!=='undefined'){ window.abrirDetalheStat=abrirDetalheStat; }
 
 // ===== Drag & drop do pipeline comercial =====
 let _comDragLeadId = null;
@@ -21306,11 +21548,9 @@ function nlClientePick(id){
 if(typeof window!=='undefined'){ window.nlClienteAutocomplete=nlClienteAutocomplete; window.nlClientePick=nlClientePick; }
 
 function openNovoLeadModal(presetStage){
-  const stages = [
-    {k:'lead',l:'Lead'},{k:'contato',l:'Contato inicial'},{k:'diagnostico',l:'Diagnóstico'},
-    {k:'proposta',l:'Proposta enviada'},{k:'fechamento',l:'Fechamento'},{k:'fechado',l:'Fechado'}
-  ];
-  const stageSel = typeof presetStage === 'string' ? presetStage : 'lead';
+  // etapas do funil que está aberto (Pré-venda, Venda ou Carteira)
+  const stages = _funilEtapas(comFunil).map(e=>({k:e.key, l:e.label}));
+  const stageSel = (typeof presetStage === 'string' && stages.some(x=>x.k===presetStage)) ? presetStage : (stages[0]||{}).k;
   const mod = document.getElementById('clientModal');
   mod.innerHTML = `
     <div class="modal-head">
@@ -21351,6 +21591,7 @@ async function salvarNovoLead(){
     segment: document.getElementById('nlSeg').value.trim(),
     value: parseFloat(document.getElementById('nlValue').value)||0,
     stage: document.getElementById('nlStage').value,
+    funil: comFunil,
     priority: document.getElementById('nlPrio').value,
     responsible_id: respEl ? (respEl.value || null) : null
   };
