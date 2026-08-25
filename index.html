@@ -10190,15 +10190,27 @@ function priorizarMeuChecklist(){
   const meu = getMeuChecklistNome();
   if(meu) currentCollab = meu;
 }
+// Checklist do colega é privado: só a administração enxerga.
+// Qualquer um continua podendo CRIAR tarefa pra outra pessoa.
+function podeVerChecklistDosOutros(){
+  try{ return (typeof isGestor==='function') && isGestor(); }catch(e){ return false; }
+}
 function toggleVerColegas(){
+  if(!podeVerChecklistDosOutros()){ toast('O checklist de cada pessoa é privado. Você pode criar tarefa pra ela em + Nova tarefa.','info'); return; }
   _showColleagueTabs = !_showColleagueTabs;
   renderOperacional(document.getElementById('content'));
 }
 function abrirChecklistDe(nome){
+  const meu = (typeof getMeuChecklistNome==='function') ? getMeuChecklistNome() : '';
+  if(nome !== meu && !podeVerChecklistDosOutros()){
+    toast('O checklist de ' + nome + ' é privado.','info');
+    return;
+  }
   currentCollab = nome;
   _showColleagueTabs = false;
   renderOperacional(document.getElementById('content'));
 }
+if(typeof window!=='undefined'){ window.podeVerChecklistDosOutros=podeVerChecklistDosOutros; }
 
 function renderOperacional(c){
   // Na primeira vez na aba, prioriza o checklist do proprio usuario
@@ -10408,8 +10420,8 @@ function renderChecklistView(){
               <span>Meu checklist</span>
               ${(() => { const list = dailyChecklists[meuNome]||[]; const done = list.filter(t=>t.done).length; return `<span style="font-size:11px;opacity:.85;background:${ehMeuChecklist?'rgba(255,255,255,.2)':'var(--surface-2)'};padding:1px 7px;border-radius:5px">${done}/${list.length}</span>`; })()}
             </button>` : ''}
-          ${outrosAll.length ? `
-            <button onclick="toggleVerColegas()" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:9px;cursor:pointer;font-weight:500;font-size:13px;transition:.15s">
+          ${(outrosAll.length && podeVerChecklistDosOutros()) ? `
+            <button onclick="toggleVerColegas()" title="Só a administração vê o checklist dos outros" style="display:flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:9px;cursor:pointer;font-weight:500;font-size:13px;transition:.15s">
               👥 ${_showColleagueTabs ? 'Esconder colegas' : 'Ver checklists dos colegas'}
               <span style="background:var(--surface-2);padding:1px 7px;border-radius:5px;font-size:11px;opacity:.85">${outros.length}</span>
             </button>` : ''}
@@ -10419,7 +10431,7 @@ function renderChecklistView(){
           ${!ehMeuChecklist && meuNome ? `
             <span class="badge b-info" style="margin-left:auto">👀 Vendo: ${currentCollab}</span>` : ''}
         </div>
-        ${(_showColleagueTabs && outrosAll.length) ? `
+        ${(_showColleagueTabs && outrosAll.length && podeVerChecklistDosOutros()) ? `
           <div class="collab-tabs" style="margin-bottom:14px">
             ${outros.map(name => {
               const m = _membroPorPrimeiroNome(name)||{init:name[0],color:'#999'};
@@ -28662,7 +28674,7 @@ function _calNovoPintar(){
     const cor = p ? _calCorFormato(p.formato) : '';
     html += `<div class="cn-cell${p?' tem':''}" data-d="${d}" onclick="_calNovoDia(${d})">
       <span class="cn-daynum">${d}</span>
-      ${p ? `<div class="cn-post" onpointerdown="_cnPointerDown(event,${d})" title="Arraste pra outro dia pra mudar a data" style="touch-action:none;--fmt:${cor};background:${cor}1c;border-color:${cor}40"><span class="cn-fmt">${escapeHtml(p.formato||'Post')}</span><span class="cn-tit">${escapeHtml(p.chamada||'')}</span></div>`
+      ${p ? `<div class="cn-post" onpointerdown="_cnPointerDown(event,${d})" title="Arraste pra outro dia pra mudar a data" style="touch-action:none;--fmt:${cor};background:${cor}1c;border-color:${cor}40"><span class="cn-fmt">${escapeHtml(p.formato||'Post')}${p.midia?' 🎥':''}</span><span class="cn-tit">${escapeHtml(p.chamada||'')}</span></div>`
              : '<div class="cn-add">+</div>'}
     </div>`;
   }
@@ -28675,7 +28687,7 @@ function _calNovoPintar(){
 function _calNovoDia(dia){
   if(window._cnJustDropped){ window._cnJustDropped=false; return; }   // não abrir modal logo depois de soltar
   const s = window._calNovo; if(!s) return;
-  const p = s.dias[s.mes+'-'+dia] || { chamada:'', formato:'Carrossel', legenda:'', slides:[] };
+  const p = s.dias[s.mes+'-'+dia] || { chamada:'', formato:'Carrossel', legenda:'', slides:[], midia:'' };
   const dd = String(dia).padStart(2,'0') + '/' + String(s.mes+1).padStart(2,'0');
   const ex = document.getElementById('cnDiaModal'); if(ex) ex.remove();
   const m = document.createElement('div');
@@ -28698,6 +28710,11 @@ function _calNovoDia(dia){
       <textarea id="cnChamada" rows="2" placeholder="Ex: Tesoura, lança ou mastro? O guia rápido pra escolher a certa." style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:var(--text);margin:5px 0 14px;resize:vertical">${escapeHtml(p.chamada||'')}</textarea>
       <label class="text-xs text-3">Legenda</label>
       <textarea id="cnLegenda" rows="5" placeholder="O texto que vai na legenda do post…" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:13.5px;color:var(--text);margin:5px 0 14px;resize:vertical">${escapeHtml(p.legenda||'')}</textarea>
+      <label class="text-xs text-3">Link do vídeo / mídia <span style="color:var(--text-3);font-weight:400">(Drive, YouTube, arte…)</span></label>
+      <div style="display:flex;gap:8px;align-items:center;margin:5px 0 14px">
+        <input id="cnMidia" type="url" placeholder="Cole aqui o link do vídeo ou da mídia sugerida" value="${escapeHtml(p.midia||'')}" oninput="_cnMidiaSync()" style="flex:1;min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:13px;color:var(--text);font-family:inherit" />
+        <a id="cnMidiaOpen" href="${escapeHtml(p.midia||'#')}" target="_blank" rel="noopener noreferrer" class="btn" style="text-decoration:none;flex-shrink:0;${(p.midia)?'':'display:none'}">🎥 Abrir</a>
+      </div>
       <label class="text-xs text-3">Data do post <span style="color:var(--text-3);font-weight:400">(pode mudar aqui)</span></label>
       <div style="display:flex;gap:8px;margin:5px 0 14px">
         <select id="cnDataDia" style="flex:0 0 92px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;color:var(--text);font-family:inherit">${Array.from({length:31},(_,z)=>z+1).map(n=>`<option value="${n}" ${n===dia?'selected':''}>${n}</option>`).join('')}</select>
@@ -28725,6 +28742,15 @@ function _calNovoFmt(f){
   });
 }
 
+function _cnMidiaSync(){
+  const inp = document.getElementById('cnMidia');
+  const a = document.getElementById('cnMidiaOpen');
+  if(!inp || !a) return;
+  const v = (inp.value||'').trim();
+  if(v){ a.href = v; a.style.display = ''; }
+  else { a.href = '#'; a.style.display = 'none'; }
+}
+
 function _calNovoSalvarDia(dia){
   const s = window._calNovo; if(!s) return;
   const chamada = (document.getElementById('cnChamada').value||'').trim();
@@ -28739,7 +28765,8 @@ function _calNovoSalvarDia(dia){
   const conteudo = Object.assign({}, anterior, {
     chamada,
     formato: window._calNovoFmtSel || 'Carrossel',
-    legenda: (document.getElementById('cnLegenda').value||'').trim()
+    legenda: (document.getElementById('cnLegenda').value||'').trim(),
+    midia: (document.getElementById('cnMidia')?.value||'').trim()
     // slides removidos da criação — preserva os que já existirem (via anterior)
   });
   if(keyNova !== keyAntiga){
@@ -28868,6 +28895,7 @@ async function salvarNovoCalendario(cliId){
       formato: p.formato || 'Post',
       chamada: p.chamada || '',
       legenda: p.legenda || '',
+      midia: p.midia || '',
       slides: p.slides || [],
       // preserva o "original" e a decisão do cliente quando é edição de um calendário existente
       chamada_orig: p.chamada_orig !== undefined ? p.chamada_orig : (p.chamada || ''),
@@ -29556,6 +29584,7 @@ async function renderPublicAprovarCalendario(token){
           <label class="cal-lab" style="margin-top:14px">Legenda <span class="cal-edit-hint">✏️ pode editar</span></label>
           <textarea id="calDetLg" rows="6" class="cal-in" style="font-size:13.5px">${esc(p.legenda||'')}</textarea>
           <div id="calDetHistLg" class="cal-hist" style="display:${edLg?'block':'none'}">📝 Original: <span>${esc(p.legenda_orig||'')}</span></div>
+          ${p.midia?`<a href="${esc(p.midia)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:13px;border-radius:13px;background:${cor}1a;border:1px solid ${cor}55;color:${cor};font-weight:700;font-size:14px;text-decoration:none;font-family:'Sora',sans-serif">🎥 Ver mídia sugerida</a>`:''}
           <div id="calDetCmWrap" style="display:${p.status==='ajustar'?'block':'none'};margin-top:14px">
             <label class="cal-lab" style="color:#c77800">O que você quer mudar?</label>
             <textarea id="calDetCm" rows="2" class="cal-in" placeholder="Ex.: trocar a chamada, encurtar a legenda, mudar o dia…" style="border-color:#f5a623">${esc(p.comentario||'')}</textarea>
