@@ -24051,6 +24051,78 @@ if(typeof _parcerias === 'undefined') var _parcerias = [];
 if(typeof _parceriasResultados === 'undefined') var _parceriasResultados = [];
 if(typeof _parcFin === 'undefined') var _parcFin = [];         // lançamentos a receber / a pagar
 if(typeof _parcAnexos === 'undefined') var _parcAnexos = [];   // contratos e documentos
+if(typeof _parcIndicacoes === 'undefined') var _parcIndicacoes = [];   // quem indicou quem
+
+// ===== Indicações da parceria (nas duas direções) =====
+// enviada  = NÓS indicamos alguém pro parceiro → quando fecha, temos comissão A HAVER
+// recebida = o parceiro indicou alguém pra nós → quando fecha, comissão em DÉBITO
+const PARC_IND_STATUS = { aberta:'⏳ Em andamento', fechou:'✓ Fechou', 'nao-fechou':'✕ Não fechou' };
+async function parcAddIndicacao(parceriaId){
+  const dir  = (document.getElementById('piDir')||{}).value || 'enviada';
+  const nome = ((document.getElementById('piNome')||{}).value || '').trim();
+  const emp  = ((document.getElementById('piEmpresa')||{}).value || '').trim();
+  const dia  = (document.getElementById('piData')||{}).value || new Date().toLocaleDateString('sv-SE');
+  if(!nome){ toast('Diga quem foi indicado','info'); return; }
+  try{
+    const { data, error } = await _supa.from('parceria_indicacoes')
+      .insert({ parceria_id: parceriaId, direcao: dir, indicado: nome, empresa: emp || null, data: dia, status: 'aberta' })
+      .select().single();
+    if(error) throw error;
+    _parcIndicacoes.unshift(data);
+    toast('✓ Indicação registrada','success');
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui registrar','info'); }
+}
+// alterna aberta → fechou → não fechou → aberta
+async function parcIndicacaoStatus(id, parceriaId){
+  const ind = (_parcIndicacoes||[]).find(function(x){ return x.id === id; });
+  if(!ind) return;
+  const ordem = ['aberta','fechou','nao-fechou'];
+  const novo = ordem[(ordem.indexOf(ind.status)+1) % ordem.length];
+  try{
+    const { error } = await _supa.from('parceria_indicacoes').update({status: novo}).eq('id', id);
+    if(error) throw error;
+    ind.status = novo;
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui atualizar','info'); }
+}
+// indicação que fechou vira lançamento financeiro com um clique
+async function parcIndicacaoGerarLancamento(id, parceriaId){
+  const ind = (_parcIndicacoes||[]).find(function(x){ return x.id === id; });
+  if(!ind) return;
+  if(ind.lancamento_id){ toast('Essa indicação já tem lançamento','info'); return; }
+  const bruto = prompt('Valor da comissão dessa indicação (R$):', ind.comissao || '');
+  if(bruto === null) return;
+  const valor = parseFloat(String(bruto).replace(/\./g,'').replace(',','.')) || parseFloat(bruto) || 0;
+  if(!valor){ toast('Informe um valor','info'); return; }
+  const tipo = ind.direcao === 'enviada' ? 'receber' : 'pagar';
+  try{
+    const { data, error } = await _supa.from('parceria_financeiro')
+      .insert({ parceria_id: parceriaId, tipo: tipo,
+                descricao: 'Comissão · indicação ' + ind.indicado + (ind.empresa ? ' ('+ind.empresa+')' : ''),
+                valor: valor, vencimento: null, pago: false,
+                observacao: 'Gerado da indicação de ' + (ind.data||'') })
+      .select().single();
+    if(error) throw error;
+    _parcFin.push(data);
+    await _supa.from('parceria_indicacoes').update({ lancamento_id: data.id, comissao: valor, status: 'fechou' }).eq('id', id);
+    ind.lancamento_id = data.id; ind.comissao = valor; ind.status = 'fechou';
+    toast('✓ ' + (tipo==='receber' ? 'A haver' : 'Débito') + ' de ' + _parcMoeda(valor) + ' lançado','success');
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui gerar o lançamento','info'); }
+}
+async function parcDelIndicacao(id, parceriaId){
+  if(!confirm('Remover essa indicação?\n\nO lançamento financeiro dela (se houver) continua.')) return;
+  try{
+    await _supa.from('parceria_indicacoes').delete().eq('id', id);
+    _parcIndicacoes = _parcIndicacoes.filter(function(x){ return x.id !== id; });
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui remover','info'); }
+}
+if(typeof window!=='undefined'){
+  window.parcAddIndicacao=parcAddIndicacao; window.parcIndicacaoStatus=parcIndicacaoStatus;
+  window.parcIndicacaoGerarLancamento=parcIndicacaoGerarLancamento; window.parcDelIndicacao=parcDelIndicacao;
+}
 
 // Situação financeira de uma parceria: o que temos a receber, o que devemos e o saldo
 function _parcSaldo(parceriaId){
@@ -24143,14 +24215,16 @@ if(typeof _parcFiltroStatus === 'undefined') var _parcFiltroStatus = 'todas';
 async function loadParcerias(){
   if(!_supa){ _parcerias = []; _parceriasResultados = []; return; }
   try {
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5] = await Promise.all([
       _supa.from('parcerias').select('*').order('created_at',{ascending:false}),
       _supa.from('parcerias_resultados').select('*').order('data',{ascending:false}),
       _supa.from('parceria_financeiro').select('*').order('vencimento',{ascending:true}),
-      _supa.from('parceria_anexos').select('*').order('created_at',{ascending:false})
+      _supa.from('parceria_anexos').select('*').order('created_at',{ascending:false}),
+      _supa.from('parceria_indicacoes').select('*').order('data',{ascending:false})
     ]);
     _parcFin = (r3 && !r3.error) ? (r3.data||[]) : [];
     _parcAnexos = (r4 && !r4.error) ? (r4.data||[]) : [];
+    _parcIndicacoes = (r5 && !r5.error) ? (r5.data||[]) : [];
     if(r1.error){
       if(r1.error.code === '42P01' || (r1.error.message||'').includes('does not exist')){
         toast('⚠ Rode o SQL 46-parcerias.sql no Supabase pra ativar essa aba','info');
@@ -24524,6 +24598,39 @@ function abrirParceriaDetalhe(parceriaId){
 
         (p.combinados ? '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📋 Combinados</div><div style="font-size:13px;white-space:pre-wrap">' + escapeHtml(p.combinados) + '</div></div>' : '') +
         (p.observacoes ? '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📝 Observações</div><div style="font-size:13px;white-space:pre-wrap">' + escapeHtml(p.observacoes) + '</div></div>' : '') +
+
+        // ===== INDICAÇÕES (nas duas direções) =====
+        (function(){
+          const inds = (_parcIndicacoes||[]).filter(function(x){ return x.parceria_id === p.id; });
+          const linha = function(x){
+            const st = PARC_IND_STATUS[x.status] || x.status;
+            const corSt = x.status==='fechou' ? 'var(--success-text)' : x.status==='nao-fechou' ? 'var(--text-3)' : 'var(--warning-text)';
+            const dirTxt = x.direcao==='enviada' ? '📤 nós indicamos' : '📥 ele indicou';
+            return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--surface-2)">'
+              + '<span style="font-size:13px;flex-shrink:0" title="' + dirTxt + '">' + (x.direcao==='enviada'?'📤':'📥') + '</span>'
+              + '<div style="flex:1;min-width:0">'
+                + '<div style="font-size:13px;font-weight:600">' + escapeHtml(x.indicado) + (x.empresa ? ' <span class="text-3" style="font-weight:400">· ' + escapeHtml(x.empresa) + '</span>' : '') + '</div>'
+                + '<div class="text-xs text-3" style="margin-top:1px">' + dirTxt + (x.data ? ' · ' + _parcDataBR(x.data) : '') + (x.comissao ? ' · comissão ' + _parcMoeda(x.comissao) : '') + '</div>'
+              + '</div>'
+              + '<button class="btn btn-sm" onclick="parcIndicacaoStatus(\'' + x.id + '\',\'' + p.id + '\')" title="Clique pra mudar a situação" style="color:' + corSt + ';flex-shrink:0;font-size:11.5px">' + st + '</button>'
+              + (x.status==='fechou' && !x.lancamento_id ? '<button class="btn btn-sm btn-primary" onclick="parcIndicacaoGerarLancamento(\'' + x.id + '\',\'' + p.id + '\')" title="Gera o valor no financeiro desta parceria" style="flex-shrink:0;font-size:11.5px">' + (x.direcao==='enviada'?'💚 Gerar a haver':'💸 Gerar débito') + '</button>' : '')
+              + (x.lancamento_id ? '<span class="text-xs" style="color:var(--success-text);flex-shrink:0" title="Já está no financeiro desta parceria">✓ no financeiro</span>' : '')
+              + '<button class="icon-btn" onclick="parcDelIndicacao(\'' + x.id + '\',\'' + p.id + '\')" title="Remover" style="width:24px;height:24px;color:var(--text-3);flex-shrink:0">✕</button>'
+              + '</div>';
+          };
+          return '<div class="card-header" style="margin-top:16px"><div class="card-title">🔗 Indicações</div>'
+            + (inds.length ? '<span class="badge b-default">' + inds.length + '</span>' : '') + '</div>'
+            + (inds.length ? inds.map(linha).join('')
+               : '<div class="text-sm text-3" style="padding:10px 2px">Nenhuma indicação registrada. Anote aqui tanto quem NÓS indicamos pra esse parceiro quanto quem ele trouxe.</div>')
+            + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:12px;border-top:1px solid var(--border)">'
+              + '<select id="piDir" class="login-input" style="background:var(--surface-2);width:170px"><option value="enviada">📤 Nós indicamos</option><option value="recebida">📥 Ele nos indicou</option></select>'
+              + '<input id="piNome" class="login-input" placeholder="Quem foi indicado" style="background:var(--surface-2);flex:1;min-width:140px" />'
+              + '<input id="piEmpresa" class="login-input" placeholder="Empresa (opcional)" style="background:var(--surface-2);width:150px" />'
+              + '<input id="piData" type="date" class="login-input" value="' + new Date().toLocaleDateString('sv-SE') + '" style="background:var(--surface-2);width:145px" />'
+              + '<button class="btn btn-primary btn-sm" onclick="parcAddIndicacao(\'' + p.id + '\')">+ Registrar</button>'
+            + '</div>'
+            + '<div class="text-xs text-3" style="margin-top:8px">Quando fechar, clique na situação e use "Gerar a haver / débito" — o valor entra direto no financeiro aqui de baixo.</div>';
+        })() +
 
         // ===== SITUAÇÃO FINANCEIRA =====
         (function(){
