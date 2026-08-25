@@ -29189,7 +29189,24 @@ async function renderPublicAprovarCalendario(token){
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   // ===== helpers da grade (visão ampla) =====
-  const _corFmt = (f)=>{ const s=(f||'').toString().toLowerCase(); if(s.includes('carros'))return '#7C5CFF'; if(s.includes('reel')||s.includes('vídeo')||s.includes('video')||s.includes('motion'))return '#EC1E79'; if(s.includes('story'))return '#f59e0b'; if(s.includes('foto'))return '#14b8a6'; if(s.includes('está')||s.includes('esta')||s.includes('post'))return '#0ea5e9'; return '#8a8497'; };
+  // PADRAO DE CORES DO CALENDARIO (vale pra todo cliente)
+  // Reels/Vídeo vermelho · Carrossel roxo · Estático azul · Data comemorativa amarelo
+  const _corFmt = (f)=>{
+    const s=(f||'').toString().toLowerCase();
+    if(s.includes('reel')||s.includes('vídeo')||s.includes('video')||s.includes('motion')) return '#FF3B30';
+    if(s.includes('carros')) return '#7C5CFF';
+    if(s.includes('está')||s.includes('esta')||s.includes('post')||s.includes('feed')) return '#0EA5E9';
+    if(s.includes('comemora')||s.includes('data')||s.includes('sazonal')) return '#FFC300';
+    if(s.includes('story')) return '#F59E0B';
+    if(s.includes('foto')) return '#14B8A6';
+    return '#8A8497';
+  };
+  const CAL_LEGENDA_FMT = [
+    ['#FF3B30','Reels e vídeo'],
+    ['#7C5CFF','Carrossel'],
+    ['#0EA5E9','Estático'],
+    ['#FFC300','Data comemorativa']
+  ];
   const _mesN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const _statCor = (st)=> st==='aprovado'?'#22c55e': st==='ajustar'?'#FF9100':'#c9c6d6';
   const _statTxt = (st)=> st==='aprovado'?'✓ Aprovado': st==='ajustar'?'✎ Ajuste pedido':'• Pendente';
@@ -29221,6 +29238,9 @@ async function renderPublicAprovarCalendario(token){
       .cal-chip.cal-aprov .cal-fmt{color:#0a6b34!important}
       .cal-chip.cal-aprov .cal-fmt::before{background:#00c853!important}
       .cal-row.cal-aprov{border-color:#00c853!important;background:rgba(0,200,83,.14);box-shadow:0 0 0 1.5px #00c853,0 0 18px rgba(0,230,118,.4)}
+      /* Conteúdo ainda não decidido = LARANJA NEON (o cliente precisa olhar) */
+      .cal-chip.cal-pend{border-left:4px solid #FF9100;background:rgba(255,145,0,.26)!important;box-shadow:0 0 0 1.5px rgba(255,145,0,.75)}
+      .cal-row.cal-pend{border-color:rgba(255,145,0,.55)!important;background:rgba(255,145,0,.08)}
       /* Cliente PEDIU ALTERAÇÃO = LARANJA NEON + lápis (mesmo peso visual do aprovado) */
       .cal-chip.cal-ajuste{border-left:4px solid #FF9100;background:rgba(255,145,0,.42)!important;box-shadow:0 0 0 2px #FF9100,0 0 20px rgba(255,145,0,.65)}
       .cal-chip.cal-ajuste .cal-tit{color:#3a1d00;font-weight:700}
@@ -29241,6 +29261,17 @@ async function renderPublicAprovarCalendario(token){
         .cal-chip.cal-aprov .cal-tit{color:#eafff4}
         .cal-chip.cal-aprov .cal-fmt{color:#5cffa6!important}
       }
+      /* Legenda de cores: mesma leitura em todo calendário */
+      .cal-legenda{display:flex;flex-wrap:wrap;gap:7px 16px;align-items:center;margin:0 0 12px;padding:11px 14px;
+        background:var(--surface);border:1px solid var(--border);border-radius:12px}
+      .cal-legenda .grupo{display:flex;flex-wrap:wrap;gap:7px 13px;align-items:center}
+      .cal-legenda .rot{font:700 9.5px 'Sora',sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);margin-right:2px}
+      .cal-legenda .item{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-2);white-space:nowrap}
+      .cal-legenda .pt{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+      .cal-legenda .pt.neon-v{background:#00e676;box-shadow:0 0 7px rgba(0,230,118,.8)}
+      .cal-legenda .pt.neon-l{background:#FF9100;box-shadow:0 0 7px rgba(255,145,0,.8)}
+      .cal-legenda .sep{width:1px;height:15px;background:var(--border);margin:0 2px}
+      @media(max-width:620px){ .cal-legenda{gap:6px 11px;padding:10px 12px} .cal-legenda .item{font-size:11px} }
       /* Navegação de mês (um calendário por página) */
       .cal-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin:26px 0 16px}
       .cal-seta{width:44px;height:44px;border-radius:14px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:24px;line-height:1;cursor:pointer;transition:.15s;display:grid;place-items:center;font-family:'Sora',sans-serif}
@@ -29250,8 +29281,8 @@ async function renderPublicAprovarCalendario(token){
       .cal-nav-lbl small{display:block;font-size:11.5px;font-weight:600;color:var(--text-3);letter-spacing:.04em;margin-top:2px}
       /* Depois da 1ª entrada, desliga as animações de entrada — repinturas viram instantâneas (fluidez no celular) */
       #aprovarCalPage.no-anim .cal-cell,#aprovarCalPage.no-anim .cal-row,#aprovarCalPage.no-anim .cal-mes-tit{animation:none!important}
-      .cal-fmt{display:inline-flex;align-items:center;gap:4px;font-size:8.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--fmt)}
-      .cal-fmt::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--fmt)}
+      .cal-fmt{display:inline-flex;align-items:center;gap:5px;font-size:9.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--fmt);text-shadow:0 1px 2px rgba(0,0,0,.5)}
+      .cal-fmt::before{content:'';width:7px;height:7px;border-radius:2px;background:var(--fmt);box-shadow:0 0 5px var(--fmt)}
       .cal-chip .cal-tit{display:block;font-size:10.5px;font-weight:600;color:var(--text);line-height:1.3;margin-top:2px;max-height:40px;overflow:hidden}
       .cal-badge{position:absolute;top:4px;right:5px;font-size:10px;line-height:1}
       /* Slides: visão completa no detalhe (tudo de uma vez) */
@@ -29325,8 +29356,19 @@ async function renderPublicAprovarCalendario(token){
         + '<div class="cal-nav-lbl">'+_lbl(kAtivo)+'<small>'+(pos+1)+' de '+chaves.length+'</small></div>'
         + '<button type="button" class="cal-seta" id="calMesProx" '+(temProx?'':'disabled')+' title="'+(temProx?_lbl(chaves[pos+1]):'Não há próximo mês')+'">›</button>'
         + '</div>';
+      // Legenda de cores: mesma leitura em todo calendário de cliente
+      const legendaHTML = '<div class="cal-legenda">'
+        + '<div class="grupo"><span class="rot">Formato</span>'
+        + CAL_LEGENDA_FMT.map(function(f){ return '<span class="item"><span class="pt" style="background:'+f[0]+'"></span>'+f[1]+'</span>'; }).join('')
+        + '</div>'
+        + '<span class="sep"></span>'
+        + '<div class="grupo"><span class="rot">Situação</span>'
+        + '<span class="item"><span class="pt neon-v"></span>Aprovado</span>'
+        + '<span class="item"><span class="pt neon-l"></span>Aguardando você</span>'
+        + '<span class="item">✎ Alteração pedida</span>'
+        + '</div></div>';
       chaves = [kAtivo];   // renderiza SÓ o mês ativo
-      let out = navHTML;
+      let out = navHTML + legendaHTML;
       chaves.forEach(k=>{
         const info = grupos[k] || { items:[] };                          // mês ainda sem conteúdo
         const d0 = k ? { ano: Math.floor(k/100), mes: k%100 } : null;    // sempre monta o mês, mesmo vazio
@@ -29340,9 +29382,10 @@ async function renderPublicAprovarCalendario(token){
           out += tituloHTML + its.map((x,idx)=>{
             const ap=x.p.status==='aprovado';
             const aj=x.p.status==='ajustar';
-            const cor=ap?'#00e676':aj?'#FF9100':_corFmt(x.p.formato);
+            const cor=_corFmt(x.p.formato);          // o dia e a etiqueta usam a cor do formato
+            const corSt=ap?'#00e676':'#FF9100';      // o status pinta a moldura
             const wd = x.d ? ['dom','seg','ter','qua','qui','sex','sáb'][new Date(x.d.ano,x.d.mes-1,x.d.dia).getDay()] : '';
-            return '<button class="cal-row cal-clic'+(ap?' cal-aprov':aj?' cal-ajuste':'')+'" data-i="'+x.i+'" style="animation-delay:'+Math.min(idx*45,400)+'ms">'
+            return '<button class="cal-row cal-clic'+(ap?' cal-aprov':aj?' cal-ajuste':' cal-pend')+'" data-i="'+x.i+'" style="animation-delay:'+Math.min(idx*45,400)+'ms">'
               +'<div class="cal-row-dia" style="color:'+cor+'">'+(x.d?String(x.d.dia).padStart(2,'0'):'–')+'<small>'+wd+'</small></div>'
               +'<div style="flex:1;min-width:0"><span class="cal-fmt" style="--fmt:'+cor+'">'+esc(x.p.formato||'Post')+'</span><div class="cal-tit2">'+esc((x.p.chamada||'').slice(0,120))+'</div></div>'
               +'<span class="cal-st2">'+_emoji(x.p.status)+'</span></button>';
@@ -29358,7 +29401,13 @@ async function renderPublicAprovarCalendario(token){
             const dow = new Date(d0.ano, d0.mes-1, dia).getDay();
             const ehFds = (dow===0 || dow===6);
             cel+='<div class="cal-cell'+(its.length?' temposts':'')+(ehFds?' fds':'')+(ehHoje?' hoje':'')+'" data-dia="'+dia+'" data-mes="'+d0.mes+'" data-ano="'+d0.ano+'" style="animation-delay:'+Math.min(dia*13,360)+'ms"><span class="cal-daynum">'+dia+'</span>'
-              +its.map(x=>{ const ap=x.p.status==='aprovado'; const aj=x.p.status==='ajustar'; const cor=ap?'#00e676':aj?'#FF9100':_corFmt(x.p.formato); return '<button class="cal-chip cal-clic'+(ap?' cal-aprov':aj?' cal-ajuste':'')+'" data-i="'+x.i+'" style="--fmt:'+cor+';background:'+cor+((ap||aj)?'2b':'22')+'">'+_badge(x.p.status)+'<span class="cal-fmt">'+esc(x.p.formato||'Post')+'</span><span class="cal-tit">'+esc((x.p.chamada||'').slice(0,70))+'</span></button>'; }).join('')
+              +its.map(x=>{
+                  const ap=x.p.status==='aprovado', aj=x.p.status==='ajustar';
+                  const cls = ap?' cal-aprov' : aj?' cal-ajuste' : ' cal-pend';
+                  const fundo = ap?'#00e676' : aj?'#FF9100' : '#FF9100';
+                  // --fmt continua sendo a cor do FORMATO: a etiqueta dentro do chip nao perde a leitura
+                  return '<button class="cal-chip cal-clic'+cls+'" data-i="'+x.i+'" style="--fmt:'+_corFmt(x.p.formato)+';background:'+fundo+(ap?'2b':aj?'2b':'20')+'">'+_badge(x.p.status)+'<span class="cal-fmt">'+esc(x.p.formato||'Post')+'</span><span class="cal-tit">'+esc((x.p.chamada||'').slice(0,70))+'</span></button>';
+                }).join('')
               +'</div>';
           }
           out += tituloHTML+'<div class="cal-grid-head">'+['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(x=>'<div>'+x+'</div>').join('')+'</div><div class="cal-grid">'+cel+'</div>';
