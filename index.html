@@ -24124,6 +24124,69 @@ if(typeof window!=='undefined'){
   window.parcIndicacaoGerarLancamento=parcIndicacaoGerarLancamento; window.parcDelIndicacao=parcDelIndicacao;
 }
 
+// ===== Edição inline no detalhe: salva campo a campo, no blur =====
+function _parcNum(v){ const n = parseFloat(String(v||'').replace(/\s|R\$/g,'').replace(/\.(?=\d{3})/g,'').replace(',','.')); return isNaN(n) ? 0 : n; }
+async function parcEditCampo(parceriaId, campo, valor){
+  const par = (_parcerias||[]).find(function(x){ return x.id === parceriaId; });
+  if(!par) return;
+  const v = (valor||'').trim() || null;
+  if((par[campo]||null) === v) return;   // nada mudou, nao grava
+  try{
+    const { error } = await _supa.from('parcerias').update({ [campo]: v, updated_at: new Date().toISOString() }).eq('id', parceriaId);
+    if(error) throw error;
+    par[campo] = v;
+    toast('✓ Salvo','success');
+  }catch(e){ console.warn('[parcEditCampo]', e); toast('Não consegui salvar — tente de novo','info'); }
+}
+async function parcFinEdit(id, campo, valor){
+  const item = (_parcFin||[]).find(function(x){ return x.id === id; });
+  if(!item) return;
+  let v = valor;
+  if(campo === 'valor'){ v = _parcNum(valor); if(!v){ toast('Valor inválido','info'); return; } }
+  if(campo === 'vencimento'){ v = valor || null; }
+  if(campo === 'descricao'){ v = (valor||'').trim(); if(!v){ toast('A descrição não pode ficar vazia','info'); return; } }
+  if(item[campo] === v) return;
+  try{
+    const { error } = await _supa.from('parceria_financeiro').update({ [campo]: v }).eq('id', id);
+    if(error) throw error;
+    item[campo] = v;
+    toast('✓ Salvo','success');
+    abrirParceriaDetalhe(item.parceria_id);
+  }catch(e){ console.warn('[parcFinEdit]', e); toast('Não consegui salvar','info'); }
+}
+async function parcIndEdit(id, campo, valor){
+  const item = (_parcIndicacoes||[]).find(function(x){ return x.id === id; });
+  if(!item) return;
+  let v = (valor||'').trim();
+  if(campo === 'indicado' && !v){ toast('O nome não pode ficar vazio','info'); return; }
+  if(campo === 'empresa') v = v || null;
+  if(campo === 'comissao'){ v = _parcNum(valor) || null; }
+  if(item[campo] === v) return;
+  try{
+    const { error } = await _supa.from('parceria_indicacoes').update({ [campo]: v }).eq('id', id);
+    if(error) throw error;
+    item[campo] = v;
+    toast('✓ Salvo','success');
+  }catch(e){ console.warn('[parcIndEdit]', e); toast('Não consegui salvar','info'); }
+}
+async function parcAnexoEdit(id, valor){
+  const item = (_parcAnexos||[]).find(function(x){ return x.id === id; });
+  if(!item) return;
+  const v = (valor||'').trim();
+  if(!v){ toast('O nome não pode ficar vazio','info'); return; }
+  if(item.nome === v) return;
+  try{
+    const { error } = await _supa.from('parceria_anexos').update({ nome: v }).eq('id', id);
+    if(error) throw error;
+    item.nome = v;
+    toast('✓ Salvo','success');
+  }catch(e){ console.warn('[parcAnexoEdit]', e); toast('Não consegui salvar','info'); }
+}
+if(typeof window!=='undefined'){
+  window.parcEditCampo=parcEditCampo; window.parcFinEdit=parcFinEdit;
+  window.parcIndEdit=parcIndEdit; window.parcAnexoEdit=parcAnexoEdit;
+}
+
 // Situação financeira de uma parceria: o que temos a receber, o que devemos e o saldo
 function _parcSaldo(parceriaId){
   const itens = (_parcFin||[]).filter(function(f){ return f.parceria_id === parceriaId; });
@@ -24459,7 +24522,7 @@ function openParceriaModal(parceriaId){
           '<div><div class="info-label" style="margin-bottom:5px">Email</div><input id="pcContEmail" type="email" class="login-input" value="' + esc(dados.contato_email) + '" style="background:var(--surface-2)" /></div>' +
           '<div><div class="info-label" style="margin-bottom:5px">Telefone</div><input id="pcContTel" class="login-input" value="' + esc(dados.contato_telefone) + '" style="background:var(--surface-2)" /></div>' +
         '</div>' +
-        '<div><div class="info-label" style="margin-bottom:5px">📋 Combinados / Acordos</div><textarea id="pcCombinados" class="login-input" rows="3" placeholder="O que foi acordado, responsabilidades de cada lado, escopo da parceria..." style="background:var(--surface-2);resize:vertical;min-height:80px">' + (dados.combinados||'') + '</textarea></div>' +
+        '<div><div class="info-label" style="margin-bottom:5px">📋 Combinados / Acordos</div><textarea id="pcCombinados" class="login-input" rows="3" placeholder="O que foi acordado, responsabilidades de cada lado, escopo da parceria..." style="background:var(--surface-2);resize:vertical;min-height:80px">' + escapeHtml(dados.combinados||'') + '</textarea></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">💰 Condições financeiras</div><input id="pcCondFin" class="login-input" value="' + esc(dados.condicoes_financeiras) + '" placeholder="Ex: 10% por venda fechada / R$ 500 fixo mensal / Sem custo" style="background:var(--surface-2)" /></div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">' +
           '<div><div class="info-label" style="margin-bottom:5px">💸 Investido (R$)</div><input id="pcInvestido" type="number" step="0.01" class="login-input" value="' + (parseFloat(dados.valor_investido)||0) + '" placeholder="0" style="background:var(--surface-2);text-align:right" /></div>' +
@@ -24471,7 +24534,7 @@ function openParceriaModal(parceriaId){
           '<div><div class="info-label" style="margin-bottom:5px">Prioridade</div><select id="pcPrio" class="login-input" style="background:var(--surface-2)"><option value="alta" ' + (dados.prioridade==='alta'?'selected':'') + '>🔴 Alta</option><option value="media" ' + ((dados.prioridade||'media')==='media'?'selected':'') + '>🟡 Média</option><option value="baixa" ' + (dados.prioridade==='baixa'?'selected':'') + '>⚪ Baixa</option></select></div>' +
         '</div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Tags</div><input id="pcTags" class="login-input" value="' + esc(dados.tags) + '" placeholder="design, sp, video... (separe por virgula)" style="background:var(--surface-2)" /></div>' +
-        '<div><div class="info-label" style="margin-bottom:5px">Observações</div><textarea id="pcObs" class="login-input" rows="2" style="background:var(--surface-2);resize:vertical">' + (dados.observacoes||'') + '</textarea></div>' +
+        '<div><div class="info-label" style="margin-bottom:5px">Observações</div><textarea id="pcObs" class="login-input" rows="2" style="background:var(--surface-2);resize:vertical">' + escapeHtml(dados.observacoes||'') + '</textarea></div>' +
       '</div>' +
       '<div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:' + (isEdit?'space-between':'flex-end') + ';align-items:center;border-top:1px solid var(--border)">' +
         (isEdit ? '<button class="btn" onclick="excluirParceria(\'' + parceriaId + '\')" style="color:var(--danger);border-color:var(--danger)">🗑 Excluir</button>' : '') +
@@ -24593,11 +24656,13 @@ function abrirParceriaDetalhe(parceriaId){
           (p.contato_nome ? '<div class="info-item"><div class="info-label">Contato</div><div class="info-value">' + escapeHtml(p.contato_nome) + '</div></div>' : '') +
           (p.contato_email ? '<div class="info-item"><div class="info-label">Email</div><div class="info-value">' + escapeHtml(p.contato_email) + '</div></div>' : '') +
           (p.contato_telefone ? '<div class="info-item"><div class="info-label">Telefone</div><div class="info-value">' + escapeHtml(p.contato_telefone) + '</div></div>' : '') +
-          (p.condicoes_financeiras ? '<div class="info-item"><div class="info-label">Condições financeiras</div><div class="info-value">' + escapeHtml(p.condicoes_financeiras) + '</div></div>' : '') +
+          '<div class="info-item"><div class="info-label">Condições financeiras</div><input value="' + escapeHtml(p.condicoes_financeiras||'').replace(/"/g,'&quot;') + '" placeholder="— clique pra preencher —" onblur="parcEditCampo(\'' + p.id + '\',\'condicoes_financeiras\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;font-weight:600;color:var(--text);font-family:inherit;padding:2px 0;outline:none" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" /></div>' +
         '</div>' +
 
-        (p.combinados ? '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📋 Combinados</div><div style="font-size:13px;white-space:pre-wrap">' + escapeHtml(p.combinados) + '</div></div>' : '') +
-        (p.observacoes ? '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📝 Observações</div><div style="font-size:13px;white-space:pre-wrap">' + escapeHtml(p.observacoes) + '</div></div>' : '') +
+        '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📋 Combinados <span style="font-weight:400;text-transform:none;letter-spacing:0">· clique pra editar, salva sozinho</span></div>' +
+          '<textarea onblur="parcEditCampo(\'' + p.id + '\',\'combinados\',this.value)" oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'" placeholder="O que foi acordado com esse parceiro..." style="width:100%;min-height:56px;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;line-height:1.55;color:var(--text);font-family:inherit;resize:none;outline:none;overflow:hidden" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'">' + escapeHtml(p.combinados||'') + '</textarea></div>' +
+        '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📝 Observações <span style="font-weight:400;text-transform:none;letter-spacing:0">· clique pra editar</span></div>' +
+          '<textarea onblur="parcEditCampo(\'' + p.id + '\',\'observacoes\',this.value)" oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'" placeholder="Anotações livres..." style="width:100%;min-height:40px;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;line-height:1.55;color:var(--text);font-family:inherit;resize:none;outline:none;overflow:hidden" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'">' + escapeHtml(p.observacoes||'') + '</textarea></div>' +
 
         // ===== INDICAÇÕES (nas duas direções) =====
         (function(){
@@ -24609,7 +24674,10 @@ function abrirParceriaDetalhe(parceriaId){
             return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--surface-2)">'
               + '<span style="font-size:13px;flex-shrink:0" title="' + dirTxt + '">' + (x.direcao==='enviada'?'📤':'📥') + '</span>'
               + '<div style="flex:1;min-width:0">'
-                + '<div style="font-size:13px;font-weight:600">' + escapeHtml(x.indicado) + (x.empresa ? ' <span class="text-3" style="font-weight:400">· ' + escapeHtml(x.empresa) + '</span>' : '') + '</div>'
+                + '<div style="display:flex;gap:6px;align-items:center">'
+                  + '<input value="' + escapeHtml(x.indicado).replace(/"/g,'&quot;') + '" onblur="parcIndEdit(\'' + x.id + '\',\'indicado\',this.value)" title="Clique pra editar" style="flex:1;min-width:80px;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;font-weight:600;color:var(--text);font-family:inherit;padding:1px 0;outline:none" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" />'
+                  + '<input value="' + escapeHtml(x.empresa||'').replace(/"/g,'&quot;') + '" placeholder="empresa" onblur="parcIndEdit(\'' + x.id + '\',\'empresa\',this.value)" style="width:110px;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:12px;color:var(--text-3);font-family:inherit;padding:1px 0;outline:none" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" />'
+                + '</div>'
                 + '<div class="text-xs text-3" style="margin-top:1px">' + dirTxt + (x.data ? ' · ' + _parcDataBR(x.data) : '') + (x.comissao ? ' · comissão ' + _parcMoeda(x.comissao) : '') + '</div>'
               + '</div>'
               + '<button class="btn btn-sm" onclick="parcIndicacaoStatus(\'' + x.id + '\',\'' + p.id + '\')" title="Clique pra mudar a situação" style="color:' + corSt + ';flex-shrink:0;font-size:11.5px">' + st + '</button>'
@@ -24649,10 +24717,13 @@ function abrirParceriaDetalhe(parceriaId){
             return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid ' + (atrasado?'var(--danger)':'var(--border)') + ';border-radius:10px;margin-bottom:6px;background:' + (atrasado?'rgba(239,68,68,.07)':'var(--surface-2)') + '">'
               + '<button class="icon-btn" onclick="parcTogglePago(\'' + x.id + '\',\'' + p.id + '\')" title="' + (x.pago?'Marcar como em aberto':'Marcar como quitado') + '" style="width:26px;height:26px;border:2px solid ' + (x.pago?'var(--success)':'var(--border-strong)') + ';background:' + (x.pago?'var(--success)':'transparent') + ';color:#fff;border-radius:7px;flex-shrink:0;font-size:13px;font-weight:800">' + (x.pago?'✓':'') + '</button>'
               + '<div style="flex:1;min-width:0">'
-                + '<div style="font-size:13px;font-weight:600;' + (x.pago?'color:var(--text-3);text-decoration:line-through':'') + '">' + escapeHtml(x.descricao) + '</div>'
-                + '<div class="text-xs text-3" style="margin-top:2px">' + (ehReceber?'a receber':'a pagar') + ' · vence ' + venc + (atrasado?' · <b style="color:var(--danger)">vencido</b>':'') + (x.pago&&x.pago_em?' · quitado em '+_parcDataBR(x.pago_em):'') + '</div>'
+                + '<input value="' + escapeHtml(x.descricao).replace(/"/g,'&quot;') + '" onblur="parcFinEdit(\'' + x.id + '\',\'descricao\',this.value)" title="Clique pra editar a descrição" style="width:100%;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;font-weight:600;font-family:inherit;padding:1px 0;outline:none;' + (x.pago?'color:var(--text-3);text-decoration:line-through':'color:var(--text)') + '" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" />'
+                + '<div class="text-xs text-3" style="margin-top:2px;display:flex;align-items:center;gap:5px;flex-wrap:wrap">' + (ehReceber?'a receber':'a pagar') + ' · vence '
+                  + '<input type="date" value="' + (x.vencimento||'') + '" onchange="parcFinEdit(\'' + x.id + '\',\'vencimento\',this.value)" title="Clique pra mudar o vencimento" style="background:transparent;border:none;border-bottom:1px dashed var(--border);font-size:11px;color:' + (atrasado?'var(--danger)':'var(--text-3)') + ';font-family:inherit;padding:0;outline:none;width:98px" />'
+                  + (atrasado?' <b style="color:var(--danger)">vencido</b>':'') + (x.pago&&x.pago_em?' · quitado em '+_parcDataBR(x.pago_em):'') + '</div>'
               + '</div>'
-              + '<div style="font:700 14px \'Sora\',sans-serif;white-space:nowrap;color:' + (ehReceber?'var(--success-text)':'var(--danger)') + '">' + (ehReceber?'+':'−') + ' ' + _parcMoeda(x.valor) + '</div>'
+              + '<div style="display:flex;align-items:center;gap:2px;white-space:nowrap;color:' + (ehReceber?'var(--success-text)':'var(--danger)') + '"><span style="font:700 14px \'Sora\',sans-serif">' + (ehReceber?'+':'−') + '</span>'
+                + '<input value="' + (parseFloat(x.valor)||0).toLocaleString('pt-BR',{minimumFractionDigits:2}) + '" onblur="parcFinEdit(\'' + x.id + '\',\'valor\',this.value)" title="Clique pra editar o valor" inputmode="decimal" style="width:86px;background:transparent;border:none;border-bottom:1px dashed transparent;font:700 14px \'Sora\',sans-serif;color:inherit;text-align:right;padding:1px 0;outline:none" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" /></div>'
               + '<button class="icon-btn" onclick="parcDelLancamento(\'' + x.id + '\',\'' + p.id + '\')" title="Remover" style="width:24px;height:24px;color:var(--text-3);flex-shrink:0">✕</button>'
               + '</div>';
           };
@@ -24683,7 +24754,8 @@ function abrirParceriaDetalhe(parceriaId){
             + (anexos.length ? anexos.map(function(a){
                 return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--surface-2)">'
                   + '<span style="font-size:15px;flex-shrink:0">' + (icone[a.categoria]||'📎') + '</span>'
-                  + '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--info-text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(a.nome) + '</a>'
+                  + '<input value="' + escapeHtml(a.nome).replace(/"/g,'&quot;') + '" onblur="parcAnexoEdit(\'' + a.id + '\',this.value)" title="Clique pra renomear" style="flex:1;min-width:0;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;font-weight:600;color:var(--text);font-family:inherit;padding:1px 0;outline:none" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" />'
+                  + '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer" title="Abrir o documento" class="btn btn-sm" style="text-decoration:none;flex-shrink:0;font-size:11px">↗ Abrir</a>'
                   + '<span class="text-xs text-3" style="flex-shrink:0">' + escapeHtml(a.categoria||'') + '</span>'
                   + '<button class="icon-btn" onclick="parcDelAnexo(\'' + a.id + '\',\'' + p.id + '\')" title="Remover" style="width:24px;height:24px;color:var(--text-3);flex-shrink:0">✕</button>'
                   + '</div>';
