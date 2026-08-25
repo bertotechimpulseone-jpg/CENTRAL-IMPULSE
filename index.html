@@ -24049,15 +24049,108 @@ async function loadRelacionamentos(){
 // ============ PARCERIAS ============
 if(typeof _parcerias === 'undefined') var _parcerias = [];
 if(typeof _parceriasResultados === 'undefined') var _parceriasResultados = [];
+if(typeof _parcFin === 'undefined') var _parcFin = [];         // lançamentos a receber / a pagar
+if(typeof _parcAnexos === 'undefined') var _parcAnexos = [];   // contratos e documentos
+
+// Situação financeira de uma parceria: o que temos a receber, o que devemos e o saldo
+function _parcSaldo(parceriaId){
+  const itens = (_parcFin||[]).filter(function(f){ return f.parceria_id === parceriaId; });
+  const hoje = new Date().toLocaleDateString('sv-SE');
+  const abertos = itens.filter(function(f){ return !f.pago; });
+  const soma = function(arr){ return arr.reduce(function(t,f){ return t + (parseFloat(f.valor)||0); }, 0); };
+  const aReceber = soma(abertos.filter(function(f){ return f.tipo === 'receber'; }));
+  const aPagar   = soma(abertos.filter(function(f){ return f.tipo === 'pagar'; }));
+  const vencidos = abertos.filter(function(f){ return f.vencimento && String(f.vencimento) < hoje; });
+  return {
+    itens: itens, abertos: abertos,
+    aReceber: aReceber, aPagar: aPagar, saldo: aReceber - aPagar,
+    recebido: soma(itens.filter(function(f){ return f.pago && f.tipo==='receber'; })),
+    pagoTotal: soma(itens.filter(function(f){ return f.pago && f.tipo==='pagar'; })),
+    vencidos: vencidos, valorVencido: soma(vencidos)
+  };
+}
+function _parcMoeda(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+function _parcDataBR(d){ if(!d) return ''; const x=String(d).split('-'); return x.length===3 ? (x[2]+'/'+x[1]+'/'+x[0].slice(2)) : String(d); }
+
+// ===== Lançamento financeiro =====
+async function parcAddLancamento(parceriaId){
+  const tipo = (document.getElementById('pfTipo')||{}).value || 'receber';
+  const desc = ((document.getElementById('pfDesc')||{}).value || '').trim();
+  const valor = parseFloat(((document.getElementById('pfValor')||{}).value || '0').replace(',','.')) || 0;
+  const venc = (document.getElementById('pfVenc')||{}).value || null;
+  if(!desc){ toast('Descreva o lançamento','info'); return; }
+  if(!valor){ toast('Informe o valor','info'); return; }
+  try{
+    const { data, error } = await _supa.from('parceria_financeiro')
+      .insert({ parceria_id: parceriaId, tipo: tipo, descricao: desc, valor: valor, vencimento: venc, pago: false })
+      .select().single();
+    if(error) throw error;
+    _parcFin.push(data);
+    toast('✓ Lançamento adicionado','success');
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui salvar o lançamento','info'); }
+}
+async function parcTogglePago(id, parceriaId){
+  const item = (_parcFin||[]).find(function(f){ return f.id === id; });
+  if(!item) return;
+  const novo = !item.pago;
+  try{
+    const { error } = await _supa.from('parceria_financeiro')
+      .update({ pago: novo, pago_em: novo ? new Date().toLocaleDateString('sv-SE') : null }).eq('id', id);
+    if(error) throw error;
+    item.pago = novo; item.pago_em = novo ? new Date().toLocaleDateString('sv-SE') : null;
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui atualizar','info'); }
+}
+async function parcDelLancamento(id, parceriaId){
+  if(!confirm('Remover esse lançamento?')) return;
+  try{
+    await _supa.from('parceria_financeiro').delete().eq('id', id);
+    _parcFin = _parcFin.filter(function(f){ return f.id !== id; });
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui remover','info'); }
+}
+// ===== Anexos (contrato e documentos) =====
+async function parcAddAnexo(parceriaId){
+  const nome = ((document.getElementById('paNome')||{}).value || '').trim();
+  const url  = ((document.getElementById('paUrl')||{}).value || '').trim();
+  const cat  = (document.getElementById('paCat')||{}).value || 'contrato';
+  if(!nome || !url){ toast('Preencha o nome e o link do documento','info'); return; }
+  try{
+    const { data, error } = await _supa.from('parceria_anexos')
+      .insert({ parceria_id: parceriaId, nome: nome, url: url, categoria: cat }).select().single();
+    if(error) throw error;
+    _parcAnexos.unshift(data);
+    toast('✓ Documento anexado','success');
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui anexar','info'); }
+}
+async function parcDelAnexo(id, parceriaId){
+  if(!confirm('Remover esse documento da parceria?')) return;
+  try{
+    await _supa.from('parceria_anexos').delete().eq('id', id);
+    _parcAnexos = _parcAnexos.filter(function(a){ return a.id !== id; });
+    abrirParceriaDetalhe(parceriaId);
+  }catch(e){ console.warn(e); toast('Não consegui remover','info'); }
+}
+if(typeof window!=='undefined'){
+  window.parcAddLancamento=parcAddLancamento; window.parcTogglePago=parcTogglePago;
+  window.parcDelLancamento=parcDelLancamento; window.parcAddAnexo=parcAddAnexo; window.parcDelAnexo=parcDelAnexo;
+  window._parcSaldo=_parcSaldo;
+}
 if(typeof _parcFiltroStatus === 'undefined') var _parcFiltroStatus = 'todas';
 
 async function loadParcerias(){
   if(!_supa){ _parcerias = []; _parceriasResultados = []; return; }
   try {
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       _supa.from('parcerias').select('*').order('created_at',{ascending:false}),
-      _supa.from('parcerias_resultados').select('*').order('data',{ascending:false})
+      _supa.from('parcerias_resultados').select('*').order('data',{ascending:false}),
+      _supa.from('parceria_financeiro').select('*').order('vencimento',{ascending:true}),
+      _supa.from('parceria_anexos').select('*').order('created_at',{ascending:false})
     ]);
+    _parcFin = (r3 && !r3.error) ? (r3.data||[]) : [];
+    _parcAnexos = (r4 && !r4.error) ? (r4.data||[]) : [];
     if(r1.error){
       if(r1.error.code === '42P01' || (r1.error.message||'').includes('does not exist')){
         toast('⚠ Rode o SQL 46-parcerias.sql no Supabase pra ativar essa aba','info');
@@ -24163,6 +24256,23 @@ function renderParcerias(c){
         '<div class="stat-card"><div class="stat-value">' + totalLeads + '</div><div class="stat-label">Leads</div></div>' +
         '<div class="stat-card"><div class="stat-value">' + totalVendas + '</div><div class="stat-label">Vendas</div></div>' +
       '</div>' +
+
+      // Situação financeira somando todas as parcerias
+      (function(){
+        const tot = parcerias.reduce(function(acc,pp){
+          const f = _parcSaldo(pp.id);
+          acc.receber += f.aReceber; acc.pagar += f.aPagar; acc.vencido += f.valorVencido; acc.qtdVenc += f.vencidos.length;
+          return acc;
+        }, {receber:0, pagar:0, vencido:0, qtdVenc:0});
+        const saldo = tot.receber - tot.pagar;
+        if(!tot.receber && !tot.pagar) return '';
+        return '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">'
+          + '<div class="stat-card" style="flex:1;min-width:150px"><div class="stat-value" style="color:var(--success-text)">' + _parcMoeda(tot.receber) + '</div><div class="stat-label">💚 A haver (nos devem)</div></div>'
+          + '<div class="stat-card" style="flex:1;min-width:150px"><div class="stat-value" style="color:var(--danger)">' + _parcMoeda(tot.pagar) + '</div><div class="stat-label">💸 Débito (devemos)</div></div>'
+          + '<div class="stat-card" style="flex:1;min-width:150px"><div class="stat-value" style="color:' + (saldo>=0?'var(--success-text)':'var(--danger)') + '">' + (saldo<0?'−':'') + _parcMoeda(Math.abs(saldo)) + '</div><div class="stat-label">Saldo das parcerias</div></div>'
+          + (tot.vencido ? '<div class="stat-card" style="flex:1;min-width:150px;border:1px solid var(--danger)"><div class="stat-value" style="color:var(--danger)">' + _parcMoeda(tot.vencido) + '</div><div class="stat-label">⚠ Vencido · ' + tot.qtdVenc + ' lançamento(s)</div></div>' : '')
+          + '</div>';
+      })() +
 
       // Filtros status
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">' +
@@ -24393,8 +24503,73 @@ function abrirParceriaDetalhe(parceriaId){
         (p.combinados ? '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📋 Combinados</div><div style="font-size:13px;white-space:pre-wrap">' + escapeHtml(p.combinados) + '</div></div>' : '') +
         (p.observacoes ? '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📝 Observações</div><div style="font-size:13px;white-space:pre-wrap">' + escapeHtml(p.observacoes) + '</div></div>' : '') +
 
+        // ===== SITUAÇÃO FINANCEIRA =====
+        (function(){
+          const f = _parcSaldo(p.id);
+          const cor = f.saldo > 0 ? 'var(--success-text)' : f.saldo < 0 ? 'var(--danger)' : 'var(--text)';
+          const cartao = function(rot, val, corV, sub){
+            return '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:12px 13px;flex:1;min-width:132px">'
+              + '<div class="text-xs text-3" style="font-weight:600">' + rot + '</div>'
+              + '<div style="font:800 18px \'Sora\',sans-serif;letter-spacing:-.02em;margin-top:3px;color:' + (corV||'var(--text)') + '">' + val + '</div>'
+              + (sub ? '<div class="text-xs text-3" style="margin-top:2px">' + sub + '</div>' : '') + '</div>';
+          };
+          const linha = function(x){
+            const venc = x.vencimento ? _parcDataBR(x.vencimento) : 'sem data';
+            const atrasado = !x.pago && x.vencimento && String(x.vencimento) < new Date().toLocaleDateString('sv-SE');
+            const ehReceber = x.tipo === 'receber';
+            return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid ' + (atrasado?'var(--danger)':'var(--border)') + ';border-radius:10px;margin-bottom:6px;background:' + (atrasado?'rgba(239,68,68,.07)':'var(--surface-2)') + '">'
+              + '<button class="icon-btn" onclick="parcTogglePago(\'' + x.id + '\',\'' + p.id + '\')" title="' + (x.pago?'Marcar como em aberto':'Marcar como quitado') + '" style="width:26px;height:26px;border:2px solid ' + (x.pago?'var(--success)':'var(--border-strong)') + ';background:' + (x.pago?'var(--success)':'transparent') + ';color:#fff;border-radius:7px;flex-shrink:0;font-size:13px;font-weight:800">' + (x.pago?'✓':'') + '</button>'
+              + '<div style="flex:1;min-width:0">'
+                + '<div style="font-size:13px;font-weight:600;' + (x.pago?'color:var(--text-3);text-decoration:line-through':'') + '">' + escapeHtml(x.descricao) + '</div>'
+                + '<div class="text-xs text-3" style="margin-top:2px">' + (ehReceber?'a receber':'a pagar') + ' · vence ' + venc + (atrasado?' · <b style="color:var(--danger)">vencido</b>':'') + (x.pago&&x.pago_em?' · quitado em '+_parcDataBR(x.pago_em):'') + '</div>'
+              + '</div>'
+              + '<div style="font:700 14px \'Sora\',sans-serif;white-space:nowrap;color:' + (ehReceber?'var(--success-text)':'var(--danger)') + '">' + (ehReceber?'+':'−') + ' ' + _parcMoeda(x.valor) + '</div>'
+              + '<button class="icon-btn" onclick="parcDelLancamento(\'' + x.id + '\',\'' + p.id + '\')" title="Remover" style="width:24px;height:24px;color:var(--text-3);flex-shrink:0">✕</button>'
+              + '</div>';
+          };
+          return '<div class="card-header" style="margin-top:16px"><div class="card-title">💰 Situação financeira</div></div>'
+            + '<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px">'
+              + cartao('A haver (nos devem)', _parcMoeda(f.aReceber), 'var(--success-text)', f.abertos.filter(function(x){return x.tipo==='receber';}).length + ' em aberto')
+              + cartao('Débito (devemos)', _parcMoeda(f.aPagar), 'var(--danger)', f.abertos.filter(function(x){return x.tipo==='pagar';}).length + ' em aberto')
+              + cartao('Saldo', (f.saldo>=0?'':'−') + _parcMoeda(Math.abs(f.saldo)), cor, f.saldo>=0?'a nosso favor':'contra nós')
+              + (f.vencidos.length ? cartao('Vencido', _parcMoeda(f.valorVencido), 'var(--danger)', f.vencidos.length + ' lançamento(s)') : '')
+            + '</div>'
+            + (f.itens.length ? f.itens.slice().sort(function(a,b){ return (a.pago?1:0)-(b.pago?1:0) || String(a.vencimento||'').localeCompare(String(b.vencimento||'')); }).map(linha).join('')
+               : '<div class="text-sm text-3" style="padding:12px 2px">Nenhum lançamento ainda. Registre o que a parceria deve ou o que temos a pagar.</div>')
+            + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:12px;border-top:1px solid var(--border)">'
+              + '<select id="pfTipo" class="login-input" style="background:var(--surface-2);width:132px"><option value="receber">A haver</option><option value="pagar">Débito</option></select>'
+              + '<input id="pfDesc" class="login-input" placeholder="Do que se trata" style="background:var(--surface-2);flex:1;min-width:150px" />'
+              + '<input id="pfValor" class="login-input" placeholder="0,00" inputmode="decimal" style="background:var(--surface-2);width:110px" />'
+              + '<input id="pfVenc" type="date" class="login-input" style="background:var(--surface-2);width:150px" />'
+              + '<button class="btn btn-primary btn-sm" onclick="parcAddLancamento(\'' + p.id + '\')">+ Lançar</button>'
+            + '</div>';
+        })() +
+
+        // ===== CONTRATOS E DOCUMENTOS =====
+        (function(){
+          const anexos = (_parcAnexos||[]).filter(function(a){ return a.parceria_id === p.id; });
+          const icone = {contrato:'📄', combinado:'📋', proposta:'💼', outro:'📎'};
+          return '<div class="card-header" style="margin-top:16px"><div class="card-title">📄 Contratos e documentos</div>'
+            + '<span class="badge b-default">' + anexos.length + '</span></div>'
+            + (anexos.length ? anexos.map(function(a){
+                return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;background:var(--surface-2)">'
+                  + '<span style="font-size:15px;flex-shrink:0">' + (icone[a.categoria]||'📎') + '</span>'
+                  + '<a href="' + escapeHtml(a.url) + '" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--info-text);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escapeHtml(a.nome) + '</a>'
+                  + '<span class="text-xs text-3" style="flex-shrink:0">' + escapeHtml(a.categoria||'') + '</span>'
+                  + '<button class="icon-btn" onclick="parcDelAnexo(\'' + a.id + '\',\'' + p.id + '\')" title="Remover" style="width:24px;height:24px;color:var(--text-3);flex-shrink:0">✕</button>'
+                  + '</div>';
+              }).join('')
+              : '<div class="text-sm text-3" style="padding:12px 2px">Nenhum documento anexado ainda.</div>')
+            + '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:12px;border-top:1px solid var(--border)">'
+              + '<input id="paNome" class="login-input" placeholder="Nome do documento" style="background:var(--surface-2);flex:1;min-width:150px" />'
+              + '<input id="paUrl" class="login-input" placeholder="Link (Drive, PDF...)" style="background:var(--surface-2);flex:1;min-width:180px" />'
+              + '<select id="paCat" class="login-input" style="background:var(--surface-2);width:140px"><option value="contrato">Contrato</option><option value="combinado">Combinado</option><option value="proposta">Proposta</option><option value="outro">Outro</option></select>'
+              + '<button class="btn btn-primary btn-sm" onclick="parcAddAnexo(\'' + p.id + '\')">+ Anexar</button>'
+            + '</div>';
+        })() +
+
         // Resultados (timeline)
-        '<div class="card-header" style="margin-top:14px"><div class="card-title">📊 Resultados</div>' +
+        '<div class="card-header" style="margin-top:16px"><div class="card-title">📊 Resultados</div>' +
           '<button class="btn btn-primary btn-sm" onclick="addResultadoParceria(\'' + p.id + '\')">+ Adicionar resultado</button></div>' +
         (resultados.length === 0
           ? '<div class="text-mu text-sm" style="padding:14px;background:var(--surface-2);border-radius:8px">Nenhum resultado registrado ainda. Clique em "+ Adicionar resultado" pra começar a mensurar.</div>'
