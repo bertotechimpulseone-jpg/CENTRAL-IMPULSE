@@ -13586,8 +13586,8 @@ function capPeriodoLabel(cap, today){
 function podeGerenciarCaptacoes(){
   try {
     const _norm = s => (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
-    const PRIMEIROS_NOMES = ['gabi','gabriela','elen','ellen','julia','angelo'];  // adicione aqui outros nomes (sem acento)
-    const EMAILS = ['gabi@impulseone.com.br','gabriela@impulseone.com.br','elen@impulseone.com.br','ellen@impulseone.com.br','julia@impulseone.com.br','angelo@impulseone.com.br'];  // adicione aqui outros emails
+    const PRIMEIROS_NOMES = ['gabi','gabriela','elen','ellen','julia','angelo','graci','graciele','gracieli','graciela'];  // adicione aqui outros nomes (sem acento)
+    const EMAILS = ['gabi@impulseone.com.br','gabriela@impulseone.com.br','elen@impulseone.com.br','ellen@impulseone.com.br','julia@impulseone.com.br','angelo@impulseone.com.br','graci@impulseone.com.br','graciele@impulseone.com.br'];  // adicione aqui outros emails
     if(typeof isGestor === 'function' && isGestor()) return true;
     const meuNome = (typeof getMeuNome === 'function' ? (getMeuNome()||'') : '').trim();
     const meuPrimeiro = _norm(meuNome.split(/\s+/)[0]);
