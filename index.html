@@ -27457,6 +27457,7 @@ async function renderPagamentos(c){
       } catch(e){ console.warn('[fetch nome]', e); }
     }
     console.log('[renderPagamentos] meuDbId=', meuDbId, 'nome=', meuNomePrimeiro, 'email=', meuEmail);
+    window._pagMeuDbId = meuDbId;   // usado pela trava de autoria da nota fiscal
     // Recarrega team do banco pra pegar colabs novos (Gael, Antonio, etc)
     if(_supa && (team.length < 10 || true)){
       try {
@@ -28224,7 +28225,7 @@ function _comissaoDescricaoHTML(p, com, ehGestor){
     ? ''
     : (p.status_pago ? '' : '<div style="font-size:10.5px;color:var(--warning-text);margin-top:3px">⏳ Aguardando o OK da administração pra pagar</div>');
   const hintFechado = (!fechado && ehGestor) ? '<span style="color:var(--warning-text)">← preencha o fechado pra calcular os ' + pct + '%</span>' : '';
-  const origem = _comissaoOrigemHTML(p, com, ehGestor);
+  const origem = _comissaoOrigemHTML(p, com, ehGestor) + _comissaoContratoHTML(p, com, ehGestor);
   return '<div style="display:flex;align-items:center;gap:6px">' +
     (ehGestor
       ? '<input value="' + escapeHtml(p.descricao||'') + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'descricao\',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);outline:none" />'
@@ -28261,6 +28262,57 @@ function _comissaoOrigemHTML(p, com, ehGestor){
   return '<div style="margin-top:3px"><button onclick="comissaoVincularModal(\'' + p.id + '\')" ' +
     'title="Dizer de qual orçamento ou negociação veio esta comissão" ' +
     'style="background:none;border:1px dashed var(--border);border-radius:999px;padding:2px 9px;font-size:11px;color:var(--text-3);cursor:pointer;font-family:inherit">🔗 Vincular orçamento</button></div>';
+}
+
+// Contrato que gerou a comissão — o do mês em que a venda fechou.
+// Prioridade: anexo próprio da comissão > contrato do cadastro do cliente.
+function _comissaoContratoUrlDoCliente(com){
+  const nome = ((com && com.cliente) || '').trim().toLowerCase();
+  if(!nome) return null;
+  const cli = (clients||[]).find(c => ((c.name||'').trim().toLowerCase() === nome)
+    || ((c.nome_social||'').trim().toLowerCase() === nome)
+    || ((c.razao_social||'').trim().toLowerCase() === nome));
+  return (cli && cli.contrato_url) ? {url: cli.contrato_url, cliente: cli.name} : null;
+}
+
+function _comissaoContratoHTML(p, com, ehGestor){
+  com = com || {};
+  if(com.contrato_url){
+    const nome = com.contrato_nome ? ' · ' + escapeHtml(com.contrato_nome) : '';
+    return '<div style="margin-top:3px;font-size:11px">' +
+      '<a href="' + escapeHtml(com.contrato_url) + '" target="_blank" rel="noopener" title="Contrato que gerou esta comissão" ' +
+      'style="display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;color:var(--accent);text-decoration:none">📑 Contrato' + nome + ' ↗</a>' +
+      (ehGestor ? ' <button onclick="comissaoAnexarContrato(\'' + p.id + '\')" title="Trocar o contrato anexado" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:10px;padding:0 2px;font-family:inherit">trocar</button>' : '') +
+      '</div>';
+  }
+  const doCliente = _comissaoContratoUrlDoCliente(com);
+  if(doCliente){
+    return '<div style="margin-top:3px;font-size:11px">' +
+      '<a href="' + escapeHtml(doCliente.url) + '" target="_blank" rel="noopener" title="Contrato do cadastro de ' + escapeHtml(doCliente.cliente||'') + '" ' +
+      'style="display:inline-block;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;color:var(--accent);text-decoration:none">📑 Contrato do cliente ↗</a>' +
+      (ehGestor ? ' <button onclick="comissaoAnexarContrato(\'' + p.id + '\')" title="Anexar o contrato específico deste fechamento" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:10px;padding:0 2px;font-family:inherit">anexar outro</button>' : '') +
+      '</div>';
+  }
+  if(!ehGestor) return '';
+  return '<div style="margin-top:3px"><button onclick="comissaoAnexarContrato(\'' + p.id + '\')" ' +
+    'title="Anexar o contrato do mês em que essa venda fechou" ' +
+    'style="background:none;border:1px dashed var(--border);border-radius:999px;padding:2px 9px;font-size:11px;color:var(--text-3);cursor:pointer;font-family:inherit">📑 Anexar contrato</button></div>';
+}
+
+async function comissaoAnexarContrato(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  const com = _comissaoDados(p) || _comissaoDraft(p);
+  const arq = await _nfEscolherArquivo('contratos-comissao');
+  if(!arq || !arq.url) return;
+  com.contrato_url = arq.url;
+  com.contrato_nome = arq.nome;
+  const obs = JSON.stringify({comissao: com});
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({observacoes: obs}).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui anexar: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  p.observacoes = obs;
+  toast('📑 Contrato anexado à comissão','success');
+  renderPagamentos(document.getElementById('content'));
 }
 
 function comissaoAbrirOrigem(id){
@@ -28431,19 +28483,22 @@ async function comissaoEditRow(id, campo, valor){
 // ===== NOTA FISCAL — pagamento só sai depois que a NF estiver no sistema =====
 // Vale pra variável e pra fixo. Colaborador manda a dele; a administração vê e abre.
 function _nfCelulaHTML(p, ehGestor, ehMeu){
-  const podeSubir = ehGestor || ehMeu;
+  // Quem MANDA a nota é o colaborador (dono do pagamento). A administração só acessa.
+  const podeSubir = ehMeu && !p.status_pago;
   if(p.nf_url){
     const quando = p.nf_em ? new Date(p.nf_em).toLocaleDateString('pt-BR') : '';
     return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px">' +
-      '<a href="' + escapeHtml(p.nf_url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (p.nf_nome?': '+escapeHtml(p.nf_nome):'') + '" ' +
-      'style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 NF ok</a>' +
+      '<a href="' + escapeHtml(p.nf_url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (p.nf_nome?': '+escapeHtml(p.nf_nome):'') + (p.nf_por?' (enviada por '+escapeHtml(p.nf_por)+')':'') + '" ' +
+      'style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 Ver NF</a>' +
       (quando ? '<span style="font-size:9.5px;color:var(--text-3)">' + quando + '</span>' : '') +
-      (podeSubir && !p.status_pago ? '<button onclick="nfEnviar(\'' + p.id + '\')" title="Substituir a nota fiscal" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>' : '') +
+      (podeSubir ? '<button onclick="nfEnviar(\'' + p.id + '\')" title="Substituir a nota fiscal" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>' : '') +
       '</div>';
   }
-  if(!podeSubir) return '<span class="text-3" style="font-size:11px">—</span>';
-  return '<button class="btn btn-sm" onclick="nfEnviar(\'' + p.id + '\')" title="Anexar a nota fiscal deste pagamento" ' +
-    'style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
+  if(podeSubir){
+    return '<button class="btn btn-sm" onclick="nfEnviar(\'' + p.id + '\')" title="Anexar a sua nota fiscal deste pagamento" ' +
+      'style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
+  }
+  return '<span class="badge b-warning" style="font-size:10px" title="O colaborador ainda não enviou a nota fiscal">aguardando NF</span>';
 }
 
 function _nfsFixo(fixo){
@@ -28456,32 +28511,34 @@ function _nfFixoDoMes(fixo, mes){
 function _nfFixoCelulaHTML(fixo, mes){
   const nf = _nfFixoDoMes(fixo, mes);
   if(nf){
-    return '<a href="' + escapeHtml(nf.url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (nf.nome?': '+escapeHtml(nf.nome):'') + '" style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 NF ok</a>' +
-      ' <button onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Substituir" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>';
+    return '<a href="' + escapeHtml(nf.url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (nf.nome?': '+escapeHtml(nf.nome):'') + '" style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 Ver NF</a>' +
+      ' <button onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Substituir a nota deste mês" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>';
   }
-  return '<button class="btn btn-sm" onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Anexar a nota fiscal deste mês" style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
+  // Fixo não tem colaborador dono no sistema — a administração lança a nota que recebeu.
+  return '<button class="btn btn-sm" onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Lançar a nota fiscal recebida deste mês" style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Lançar NF</button>';
 }
 
 // Abre o seletor de arquivo e devolve {url, nome} depois de subir pro storage
-function _nfEscolherArquivo(){
+function _nfEscolherArquivo(pasta){
+  const dir = pasta || 'notas-fiscais';
   return new Promise((resolve) => {
     const inp = document.createElement('input');
     inp.type = 'file';
-    inp.accept = '.pdf,.xml,image/*';
+    inp.accept = '.pdf,.xml,.doc,.docx,image/*';
     inp.onchange = async () => {
       const f = inp.files && inp.files[0];
       if(!f){ resolve(null); return; }
       if(f.size > 15 * 1024 * 1024){ toast('Arquivo muito grande (máx 15 MB)','info'); resolve(null); return; }
-      toast('Enviando nota fiscal...','info');
+      toast('Enviando arquivo...','info');
       try {
-        const path = 'notas-fiscais/' + Date.now() + '_' + f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        const path = dir + '/' + Date.now() + '_' + f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
         const { error: upErr } = await _supa.storage.from('uploads').upload(path, f, {upsert:true, contentType: f.type || 'application/pdf'});
         if(upErr) throw upErr;
         const { data: pub } = _supa.storage.from('uploads').getPublicUrl(path);
         resolve({url: (pub && pub.publicUrl) || '', nome: f.name});
       } catch(e){
         console.warn('[nf upload]', e);
-        toast('Não consegui enviar a nota: ' + (e.message||e),'info');
+        toast('Não consegui enviar o arquivo: ' + (e.message||e),'info');
         resolve(null);
       }
     };
@@ -28493,6 +28550,9 @@ async function nfEnviar(id){
   const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
   if(!p) return;
   if(p.status_pago){ toast('Esse pagamento já foi efetuado','info'); return; }
+  // A nota é do colaborador — a administração só acessa o que foi enviado.
+  const meuId = window._pagMeuDbId || (_currentProfile && _currentProfile.id) || null;
+  if(meuId && p.profile_id && p.profile_id !== meuId){ toast('🧾 A nota fiscal é enviada pelo próprio colaborador','info'); return; }
   const arq = await _nfEscolherArquivo();
   if(!arq || !arq.url) return;
   const quem = (_currentProfile && _currentProfile.name) ? _currentProfile.name : ((_currentUser && _currentUser.email) || '');
