@@ -14790,6 +14790,7 @@ async function salvarLeadDetalhe(leadId){
   const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
   if(!lead) return;
   const _funilAntes = lead.funil || 'venda';
+  const _aprovadoAntes = !!lead.aprovado;
   const patch = {
     stage: document.getElementById('ldStage').value,
     funil: (document.getElementById('ldFunil')||{}).value || lead.funil || 'venda',
@@ -14816,6 +14817,8 @@ async function salvarLeadDetalhe(leadId){
     }
   }
   Object.assign(lead, patch);
+  // Orçamento acabou de virar APROVADO → gera a comissão da executiva comercial em Pagamentos
+  if(patch.aprovado === true && !_aprovadoAntes){ try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead]', e); } }
   // Reflete o serviço contratado no cliente correspondente — APPEND, nunca sobrescreve o plano
   const _serv = (patch.servico_contratado||'').trim();
   if(_serv){
@@ -27471,6 +27474,7 @@ async function renderPagamentos(c){
 
     // ehGestor financeiro: vê tudo
     const ehGestor = ADMIN_FINANCEIRO_EMAILS.includes(meuEmail) || ADMIN_FINANCEIRO_NOMES.some(n => meuNomePrimeiro === n);
+    const _pctComissaoPadrao = ehGestor ? await _comissaoPercent() : null;
     // QUALQUER colaborador autenticado pode adicionar pagamento pra si proprio
     const podeAdicionarProprio = !ehGestor && !!_currentUser;
     const temAcesso = ehGestor || podeAdicionarProprio;
@@ -27555,6 +27559,7 @@ async function renderPagamentos(c){
         '</select>' : '') +
         ((ehGestor || podeAdicionarProprio) ? '<button class="btn btn-primary" onclick="novoPagamentoVariavelModal(' + (podeAdicionarProprio && !ehGestor ? '\'' + meuDbId + '\'' : '') + ')">+ Pagamento variável</button>' : '') +
         (ehGestor ? '<button class="btn" onclick="novoPagamentoFixoModal()">+ Fixo</button>' : '') +
+        (ehGestor ? '<div title="% padrão de comissão de venda — aplicada automaticamente quando um orçamento é aprovado no pipeline" style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0 10px">💼 Comissão <input type="number" step="0.5" min="0" max="100" value="' + _pctComissaoPadrao + '" onblur="salvarComissaoPercentPadrao(this.value)" style="width:48px;background:transparent;border:none;font-family:inherit;font-size:12.5px;font-weight:700;color:var(--text);outline:none;text-align:right" />%</div>' : '') +
       '</div></div>' +
 
       // === STAT CARDS — Total / Variaveis mes / Variaveis ano / A pagar / Ja pago ===
@@ -27615,8 +27620,10 @@ async function renderPagamentos(c){
             const obs = JSON.parse(p.observacoes||'{}');
             if(Array.isArray(obs.clientes) && obs.clientes.length > 0) temDetalhesClientes = true;
           } catch(e){}
-          // Observacao em texto livre (so quando NAO eh o registro JSON do Andre) — mostra junto da descricao.
-          const obsTexto = (!temDetalhesClientes && p.observacoes) ? String(p.observacoes) : '';
+          // Comissão de venda (JSON gravado quando o orçamento foi aprovado no pipeline)
+          const comInfo = (() => { try { const o = JSON.parse(p.observacoes||'{}'); return (o && o.comissao) ? o.comissao : null; } catch(e){ return null; } })();
+          // Observacao em texto livre (so quando NAO eh o registro JSON do Andre nem comissão) — mostra junto da descricao.
+          const obsTexto = (!temDetalhesClientes && !comInfo && p.observacoes) ? String(p.observacoes) : '';
           return '<tr style="' + (isPago?'opacity:.85':'') + '">' +
             '<td style="padding:8px">' + (() => {
               const fre = !colab && p.nome_manual;
@@ -27626,7 +27633,9 @@ async function renderPagamentos(c){
               const pixHtml = (fre && p.pix) ? '<div class="text-xs text-3" style="margin-top:2px">PIX: <span style="color:var(--text-2)">'+escapeHtml(p.pix)+'</span> <button onclick="_copiarPix(\''+String(p.pix).replace(/'/g,"\\'")+'\')" title="Copiar Pix" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;vertical-align:middle">📋</button></div>' : '';
               return '<div style="display:flex;align-items:flex-start;gap:8px"><div class="avatar" style="background:'+cor+';width:24px;height:24px;font-size:10px;flex-shrink:0">'+ini+'</div><div><strong>'+escapeHtml(nm)+'</strong>'+(fre?' <span class="badge b-purple" style="font-size:9px;vertical-align:middle">Freela</span>':'')+pixHtml+'</div></div>';
             })() + '</td>' +
-            '<td style="padding:8px">' + (ehGestor
+            '<td style="padding:8px">' + (comInfo
+              ? _comissaoDescricaoHTML(p, comInfo, ehGestor)
+              : ehGestor
               ? '<input value="' + escapeHtml(p.descricao||'') + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'descricao\',this.value)" style="' + inputStyle + '" />' + (temDetalhesClientes
                   ? '<button onclick="verClientesPagamento(\'' + p.id + '\')" style="display:block;margin-top:4px;font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">📋 Ver clientes selecionados</button>'
                   : '<input value="' + escapeHtml(obsTexto) + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'observacoes\',this.value)" placeholder="📝 observações..." title="Observações deste pagamento" style="background:transparent;border:none;width:100%;font-family:inherit;font-size:11px;color:var(--text-3);outline:none;margin-top:3px" />')
@@ -27634,12 +27643,18 @@ async function renderPagamentos(c){
                   ? '<button onclick="verClientesPagamento(\'' + p.id + '\')" style="display:block;margin-top:4px;font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">📋 Ver clientes</button>'
                   : (obsTexto ? '<div style="font-size:11px;color:var(--text-3);margin-top:3px;white-space:pre-wrap">📝 ' + escapeHtml(obsTexto) + '</div>' : ''))
             ) + '</td>' +
-            '<td style="padding:8px;text-align:right">' + (ehGestor
+            '<td style="padding:8px;text-align:right">' + (comInfo
+              ? '<strong title="Calculado automaticamente: valor fechado × %">R$ ' + (parseFloat(p.valor)||0).toFixed(2) + '</strong>'
+              : ehGestor
               ? '<input type="number" step="0.01" value="' + (parseFloat(p.valor)||0) + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'valor\',this.value)" style="background:transparent;border:none;width:90px;text-align:right;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" />'
               : 'R$ ' + (parseFloat(p.valor)||0).toFixed(2)
             ) + '</td>' +
-            // Status_pago: so gestor edita
-            '<td style="padding:8px;text-align:center">' + (ehGestor
+            // Status_pago: so gestor edita. Comissão exige o duplo check antes do "Marcar pago".
+            '<td style="padding:8px;text-align:center">' + (comInfo && !isPago && !comInfo.ok_pagamento
+              ? (ehGestor
+                  ? '<button class="btn btn-sm" onclick="comissaoLiberar(\'' + p.id + '\')" title="Duplo check da administração — libera o financeiro pra pagar" style="padding:3px 10px;font-size:11px;color:var(--accent);border-color:var(--accent)">✔✔ Liberar pgto</button>'
+                  : '<span class="badge b-warning" title="Aguardando OK da administração">Aguardando OK</span>')
+              : ehGestor
               ? (isPago
                   ? '<button class="btn btn-sm" onclick="atualizarPagVarCampo(\'' + p.id + '\',\'status_pago\',false)" title="Desmarcar como pago" style="padding:3px 10px;font-size:11px;color:var(--success)">✓ Pago</button>'
                   : '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:3px 10px;font-size:11px">Marcar pago</button>')
@@ -28075,6 +28090,127 @@ async function salvarPagamentoAndre(meuDbId, mesRef, valorPorCli){
     _colaboradorPagamentos.unshift(data);
     toast('✓ ' + mesRef + ' salvo · R$ ' + total.toFixed(2),'success');
   }
+  renderPagamentos(document.getElementById('content'));
+}
+
+// ========== COMISSÃO DE VENDA — gerada quando o orçamento é aprovado no pipeline ==========
+// Fluxo: card marcado "Orçamento aprovado" → cria pagamento variável pra executiva comercial
+// com valor fechado + % de comissão (só administração edita, recálculo automático) → a
+// administração dá o duplo check (Liberar pgto) → só então o financeiro marca como pago.
+const COMISSAO_PROFILE_EMAIL = 'fran@impulseone.com.br';
+const COMISSAO_PROFILE_ID_FALLBACK = '89a1fd81-09a5-4db4-b63c-a7b5eae78f55'; // Francielle da Luz Carvalho
+let _comissaoPercentCache = null;
+
+async function _comissaoPercent(){
+  if(_comissaoPercentCache !== null) return _comissaoPercentCache;
+  let pct = 10;
+  if(_supa){
+    try {
+      const { data } = await _supa.from('app_settings').select('value').eq('key','comissao_percent').maybeSingle();
+      if(data && data.value !== null && data.value !== '' && !isNaN(parseFloat(data.value))) pct = parseFloat(data.value);
+    } catch(e){}
+  }
+  _comissaoPercentCache = pct;
+  return pct;
+}
+
+async function salvarComissaoPercentPadrao(v){
+  const pct = parseFloat(String(v).replace(',','.'));
+  if(isNaN(pct) || pct < 0 || pct > 100){ toast('Porcentagem inválida (0 a 100)','info'); return; }
+  if(_comissaoPercentCache !== null && pct === _comissaoPercentCache) return;
+  _comissaoPercentCache = pct;
+  if(_supa){ try { await _supa.from('app_settings').upsert({key:'comissao_percent', value:String(pct), updated_at:new Date().toISOString()}, {onConflict:'key'}); } catch(e){ console.warn('[comissao pct]', e); } }
+  toast('✓ Comissão padrão agora é ' + pct + '% (vale pros próximos orçamentos aprovados)','success');
+}
+
+function _comissaoProfileId(){
+  const porEmail = (team||[]).find(tm => (tm.email||'').toLowerCase() === COMISSAO_PROFILE_EMAIL);
+  if(porEmail && porEmail._dbId) return porEmail._dbId;
+  const porNome = (team||[]).find(tm => /^franci/i.test((tm.name||'').trim()));
+  if(porNome && porNome._dbId) return porNome._dbId;
+  return COMISSAO_PROFILE_ID_FALLBACK;
+}
+
+async function gerarComissaoDoLead(lead){
+  try {
+    if(!_supa || !lead || !lead.id) return;
+    // dedup: se esse orçamento já gerou comissão, não duplica
+    const { data: jaTem } = await _supa.from('colaborador_pagamentos').select('id').like('observacoes', '%"lead_id":"' + String(lead.id) + '"%').limit(1);
+    if(jaTem && jaTem.length) return;
+    const fechado = parseFloat(lead.value) || 0;
+    const percent = await _comissaoPercent();
+    const valor = Math.round(fechado * percent) / 100;
+    const payload = {
+      profile_id: _comissaoProfileId(),
+      mes_ref: new Date().toISOString().slice(0,7),
+      descricao: 'Comissão — ' + (lead.name || 'venda'),
+      valor: valor,
+      status_pago: false,
+      observacoes: JSON.stringify({comissao: {lead_id: String(lead.id), cliente: lead.name||'', fechado: fechado, percent: percent, ok_pagamento: false}})
+    };
+    const { data, error } = await _supa.from('colaborador_pagamentos').insert(payload).select().single();
+    if(error){ console.warn('[comissao]', error); toast('Orçamento aprovado, mas não consegui criar a comissão: ' + error.message,'info'); return; }
+    if(typeof _colaboradorPagamentos !== 'undefined' && Array.isArray(_colaboradorPagamentos)) _colaboradorPagamentos.unshift(data);
+    if(fechado <= 0){
+      toast('💰 Comissão criada em Pagamentos, mas o card está sem valor — preencha o valor fechado lá','info');
+    } else {
+      toast('💰 Comissão de R$ ' + valor.toFixed(2) + ' (' + percent + '% de R$ ' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ') foi pro pagamento da Fran','success');
+    }
+  } catch(e){ console.warn('[gerarComissaoDoLead]', e); }
+}
+
+function _comissaoDescricaoHTML(p, com, ehGestor){
+  const fechado = parseFloat(com.fechado)||0;
+  const pct = parseFloat(com.percent)||0;
+  const okLine = com.ok_pagamento
+    ? '<div style="font-size:10.5px;color:var(--success-text);margin-top:3px">✔✔ Liberado por ' + escapeHtml(String(com.ok_por||'').split(' ')[0]) + (com.ok_em ? ' em ' + new Date(com.ok_em).toLocaleDateString('pt-BR') : '') + '</div>'
+    : (p.status_pago ? '' : '<div style="font-size:10.5px;color:var(--warning-text);margin-top:3px">⏳ Aguardando o OK da administração pra pagar</div>');
+  return '<strong style="font-size:12.5px">' + escapeHtml(p.descricao||'Comissão') + '</strong> <span class="badge b-purple" style="font-size:9px;vertical-align:middle">Comissão</span>' +
+    '<div style="font-size:11px;color:var(--text-3);margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">💼 Fechado: R$ ' +
+    (ehGestor
+      ? '<input type="number" step="0.01" min="0" value="' + fechado + '" onblur="comissaoEditRow(\'' + p.id + '\',\'fechado\',this.value)" title="Valor fechado do orçamento — recalcula a comissão" style="width:84px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:11px;color:var(--text-2);outline:none" />'
+      : '<span style="color:var(--text-2)">' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>') +
+    ' · ' +
+    (ehGestor
+      ? '<input type="number" step="0.5" min="0" max="100" value="' + pct + '" onblur="comissaoEditRow(\'' + p.id + '\',\'percent\',this.value)" title="% de comissão (só administração edita) — recalcula o valor" style="width:52px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:11px;color:var(--text-2);outline:none;text-align:right" />%'
+      : '<span style="color:var(--text-2)">' + pct + '%</span>') +
+    ' de comissão</div>' + okLine;
+}
+
+function _comissaoDados(p){
+  try { const o = JSON.parse(p.observacoes||'{}'); return (o && o.comissao) ? o.comissao : null; } catch(e){ return null; }
+}
+
+async function comissaoEditRow(id, campo, valor){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  const com = _comissaoDados(p); if(!com) return;
+  const num = parseFloat(String(valor).replace(',','.'));
+  if(isNaN(num) || num < 0){ toast('Valor inválido','info'); renderPagamentos(document.getElementById('content')); return; }
+  if(campo === 'percent' && num > 100){ toast('A comissão é uma porcentagem (0 a 100)','info'); renderPagamentos(document.getElementById('content')); return; }
+  if(parseFloat(com[campo]) === num) return; // nada mudou
+  com[campo] = num;
+  const novoValor = Math.round((parseFloat(com.fechado)||0) * (parseFloat(com.percent)||0)) / 100;
+  const obs = JSON.stringify({comissao: com});
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({valor: novoValor, observacoes: obs}).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui salvar: ' + (error ? error.message : 'sem permissão'),'info'); renderPagamentos(document.getElementById('content')); return; }
+  p.valor = novoValor; p.observacoes = obs;
+  toast('✓ Comissão recalculada: R$ ' + novoValor.toFixed(2),'success');
+  renderPagamentos(document.getElementById('content'));
+}
+
+async function comissaoLiberar(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  const com = _comissaoDados(p); if(!com) return;
+  if(!confirm('Liberar o pagamento desta comissão (R$ ' + (parseFloat(p.valor)||0).toFixed(2) + ')?\n\nDepois do seu OK o financeiro consegue marcar como pago.')) return;
+  const quem = (_currentProfile && _currentProfile.name) ? _currentProfile.name : ((_currentUser && _currentUser.email) || 'administração');
+  com.ok_pagamento = true; com.ok_por = quem; com.ok_em = new Date().toISOString();
+  const obs = JSON.stringify({comissao: com});
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({observacoes: obs}).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui liberar: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  p.observacoes = obs;
+  toast('✔✔ Pagamento liberado pro financeiro','success');
   renderPagamentos(document.getElementById('content'));
 }
 
