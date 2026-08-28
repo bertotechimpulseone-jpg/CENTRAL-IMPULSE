@@ -6869,6 +6869,19 @@ function _placarPopupTop3SeUltimoDia(){
     document.body.appendChild(ov);
   } catch(e){ console.warn('[placar popup]', e); }
 }
+// Avatar de pessoa com a FOTO cadastrada na Equipe (profiles.foto_url); cai nas iniciais se não tiver.
+// Use em qualquer lugar que mostre um colaborador.
+function _avatarFoto(m, size, extraStyle){
+  m = m || {};
+  const s = size || 32;
+  const ex = extraStyle || '';
+  if(m.foto_url){
+    return '<img src="' + escapeHtml(m.foto_url) + '" alt="" class="avatar-foto" style="width:' + s + 'px;height:' + s + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;' + ex + '" />';
+  }
+  const ini = escapeHtml(m.init || (m.name || m.full_name || '?')[0] || '?');
+  return '<div class="avatar" style="background:' + (m.color || m.avatar_color || '#888') + ';width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s*0.42) + 'px;flex-shrink:0;' + ex + '">' + ini + '</div>';
+}
+
 function _placarAvatar(m, size){
   return m.foto_url
     ? `<img src="${escapeHtml(m.foto_url)}" alt="" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0;border:2px solid var(--surface)" />`
@@ -7132,7 +7145,7 @@ function renderDashboard(c){
               const corBorda = p.status === 'vazio' ? 'var(--warning)' : 'var(--accent)';
               const txt = p.status === 'vazio' ? 'Checklist não preenchido' : `${p.pendentes} de ${p.total} pendentes`;
               return `<div onclick="currentCollab='${p.nome.replace(/\'/g,'')}';goTo('operacional')" style="border:1px solid var(--border);border-left:3px solid ${corBorda};border-radius:10px;padding:10px 12px;cursor:pointer;background:var(--surface);display:flex;align-items:center;gap:10px;transition:.15s" onmouseover="this.style.background='var(--surface-2)'" onmouseout="this.style.background='var(--surface)'">
-                <div class="avatar" style="background:${p.m.color};width:34px;height:34px;font-size:13px">${p.m.init}</div>
+                ${_avatarFoto(p.m, 34)}
                 <div style="flex:1;min-width:0">
                   <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.nome}</div>
                   <div class="text-xs text-3" style="margin-top:2px">${txt}</div>
@@ -11103,7 +11116,7 @@ function renderCalendario(c){
           const total = Math.round((df - di)/86400000)+1;
           const restantes = Math.ceil((df - hoje)/86400000);
           return '<div class="list-item">'+
-            '<div class="avatar" style="background:'+(p?p.color:'#888')+'">'+(p?p.init:'?')+'</div>'+
+            _avatarFoto(p||{init:'?'}, 36)+
             '<div class="list-content"><div class="list-title">'+(p?p.name:'Colaborador removido')+'</div><div class="list-meta">'+di.toLocaleDateString('pt-BR')+' - '+df.toLocaleDateString('pt-BR')+' · '+total+' dias</div></div>'+
             '<span class="badge b-info">volta em '+restantes+' dia'+(restantes!==1?'s':'')+'</span>'+
           '</div>';
@@ -12365,7 +12378,7 @@ function abrirSelecionarColaboradorFerias(){
       '<div style="padding:14px 22px 22px;display:flex;flex-direction:column;gap:8px">' +
         semFerias.map(m =>
           '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface-2);border-radius:9px;border:1px solid var(--border);cursor:pointer" onclick="colocarColaboradorEmFerias(\'' + (m._dbId||'') + '\')">' +
-            '<div class="avatar" style="background:' + m.color + ';width:32px;height:32px;font-size:12px">' + m.init + '</div>' +
+            _avatarFoto(m, 32) +
             '<div style="flex:1"><div style="font-size:13.5px;font-weight:600">' + m.name + '</div>' +
             '<div class="text-xs text-3">' + (m.role||'') + ' · contrato: ' + (m.contract_type||'PJ') + '</div></div>' +
             '<button class="btn btn-sm btn-primary" style="padding:4px 10px;font-size:11px">+ Adicionar</button>' +
@@ -12966,7 +12979,7 @@ function abrirGestaoFeriasAno(ano, profileDbId){
             const total = totalPorColab[m._dbId] || 0;
             const destaque = profileDbId && m._dbId === profileDbId ? 'background:var(--warning-soft);border-left:3px solid var(--warning)' : '';
             return '<tr style="' + destaque + '">' +
-              '<td><div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:' + m.color + ';width:30px;height:30px;font-size:12px">' + m.init + '</div><div><strong>' + m.name + '</strong><div class="text-xs text-3">' + (m.role||'') + '</div></div></div></td>' +
+              '<td><div style="display:flex;align-items:center;gap:10px">' + _avatarFoto(m, 30) + '<div><strong>' + m.name + '</strong><div class="text-xs text-3">' + (m.role||'') + '</div></div></div></td>' +
               '<td style="text-align:center"><strong style="font-size:14px;color:' + (total>0?'var(--text)':'var(--text-3)') + '">' + total + ' dias</strong></td>' +
               '<td style="text-align:right">' +
                 '<button class="btn btn-sm btn-primary" onclick="adicionarFeriasAno(' + ano + ',\'' + (m._dbId||'') + '\')" style="padding:4px 10px;font-size:11px" title="Adicionar período em ' + ano + '">+ Adicionar período</button>' +
@@ -12985,7 +12998,7 @@ function abrirGestaoFeriasAno(ano, profileDbId){
               const di = new Date(f.data_inicio+'T00:00:00').toLocaleDateString('pt-BR');
               const df = new Date(f.data_fim+'T00:00:00').toLocaleDateString('pt-BR');
               return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border)">' +
-                '<div class="avatar" style="background:' + pes.color + ';width:24px;height:24px;font-size:10px">' + pes.init + '</div>' +
+                _avatarFoto(pes, 24) +
                 '<div style="flex:1"><div style="font-size:12.5px;font-weight:600">' + pes.name + '</div>' +
                 '<div class="text-xs text-3">' + di + ' até ' + df + ' · <strong>' + (f.dias||0) + ' dias</strong>' + (f.motivo ? ' · ' + f.motivo : '') + '</div></div>' +
                 '<button class="btn btn-sm" onclick="openProgramarFeriasModal({editing:\'' + f.id + '\'});document.getElementById(\'gestaoFeriasModal\').remove()" style="padding:3px 8px;font-size:11px">✏️</button>' +
@@ -13158,7 +13171,7 @@ function renderFerias(){
           else if(hojeD > df){ status = 'Concluída'; badge = 'b-success'; }
           else { status = 'Em curso'; badge = 'b-warning'; }
           return `<tr>
-            <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="background:${pes.color};width:26px;height:26px;font-size:11px">${pes.init}</div><strong>${pes.name}</strong></div></td>
+            <td><div style="display:flex;align-items:center;gap:8px">${_avatarFoto(pes, 26)}<strong>${pes.name}</strong></div></td>
             <td>${di.toLocaleDateString('pt-BR')}</td>
             <td>${df.toLocaleDateString('pt-BR')}</td>
             <td><strong>${f.dias||0} dias</strong></td>
@@ -16856,7 +16869,7 @@ function renderPontoStatusHoje(stats, today){
     }
     return `<div class="card" style="margin-bottom:14px;border-left:4px solid ${statusColor}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div class="avatar" style="background:${s.member.color||'#999'};width:46px;height:46px;font-size:17px">${s.member.init||s.member.name[0]}</div>
+        ${_avatarFoto(s.member, 46)}
         <div style="flex:1;min-width:180px">
           <div style="font-weight:700;font-size:15px">${s.member.name}</div>
           <div style="font-size:13px;color:${statusColor};font-weight:600;margin-top:2px">${statusIco} ${statusTxt}</div>
@@ -16890,7 +16903,7 @@ function renderPontoHoje(stats){
       const ent = log?.entrada ? new Date(log.entrada).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}) : null;
       const sai = log?.saida ? new Date(log.saida).toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'}) : null;
       return `<div class="list-item">
-        <div class="avatar" style="background:${s.member.color||'#999'}">${s.member.init||s.member.name[0]}</div>
+        ${_avatarFoto(s.member, 36)}
         <div class="list-content">
           <div class="list-title">${s.member.name}</div>
           <div class="list-meta">${ent?'Entrada: '+ent:'Ainda não registrou'}${sai?' · Saída: '+sai:ent?' · Trabalhando há '+s.horasHoje.toFixed(1)+'h':''}</div>
@@ -16917,7 +16930,7 @@ function renderPontoSemana(stats){
       const pct = Math.min(100, (totalSem/meta)*100);
       return `<div style="padding:11px 0;border-bottom:1px solid var(--border)">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-          <div class="avatar" style="background:${s.member.color||'#999'}">${s.member.init||s.member.name[0]}</div>
+          ${_avatarFoto(s.member, 36)}
           <div style="flex:1"><strong>${s.member.name}</strong></div>
           <strong>${totalSem.toFixed(1)}h <span class="text-xs text-3">/ ${meta}h</span></strong>
         </div>
@@ -16940,7 +16953,7 @@ function renderPontoMes(stats){
           const cls = s.horasMes >= meta ? 'b-success' : s.horasMes >= meta*0.8 ? 'b-info' : 'b-warning';
           const lbl = s.horasMes >= meta ? 'Meta atingida' : s.horasMes >= meta*0.8 ? 'No caminho' : 'Abaixo';
           return `<tr>
-            <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="background:${s.member.color}">${s.member.init}</div><strong>${s.member.name}</strong></div></td>
+            <td><div style="display:flex;align-items:center;gap:8px">${_avatarFoto(s.member, 32)}<strong>${s.member.name}</strong></div></td>
             <td>${s.totalDias}</td>
             <td><strong>${s.horasMes.toFixed(1)}h</strong> <span class="text-xs text-3">/ ${meta}h</span></td>
             <td>${media.toFixed(1)}h</td>
@@ -16977,7 +16990,7 @@ function renderPontoHistorico(){
           const dateFmt = new Date(l.work_date+'T12:00:00').toLocaleDateString('pt-BR', {day:'2-digit',month:'short',weekday:'short'});
           return `<tr>
             <td><strong>${dateFmt}</strong></td>
-            <td><span style="display:inline-flex;align-items:center;gap:6px"><span class="avatar" style="background:${member.color};width:22px;height:22px;font-size:10px">${member.init}</span>${member.name}</span></td>
+            <td><span style="display:inline-flex;align-items:center;gap:6px">${_avatarFoto(member, 22)}${member.name}</span></td>
             <td>${ent}</td>
             <td>${ii} → ${If}</td>
             <td>${sai}</td>
@@ -22223,7 +22236,7 @@ async function openEditUsuario(id){
   const mod = document.getElementById('clientModal');
   mod.innerHTML = `
     <div class="modal-head">
-      <div class="avatar" style="background:${p.avatar_color||'#1d1d1f'};width:40px;height:40px;font-size:14px">${p.initials||(p.full_name||'?')[0]}</div>
+      ${_avatarFoto({foto_url:p.foto_url, color:p.avatar_color||'#1d1d1f', init:p.initials||(p.full_name||'?')[0]}, 40)}
       <div style="flex:1"><div style="font-size:17px;font-weight:700">${p.full_name}</div><div class="text-xs text-3">${p.email||'sem email/login'}</div></div>
       <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
@@ -25313,7 +25326,7 @@ async function buscarProfileNoBanco(profileId){
   // Senao busca no banco
   if(!_supa) return null;
   try {
-    const r = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials').eq('id', profileId).maybeSingle();
+    const r = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials, foto_url').eq('id', profileId).maybeSingle();
     if(r.data){
       const p = {
         _dbId: r.data.id,
@@ -25321,6 +25334,7 @@ async function buscarProfileNoBanco(profileId){
         email: r.data.email,
         role: r.data.position || '',
         color: r.data.avatar_color || '#888',
+        foto_url: r.data.foto_url || '',
         init: r.data.initials || ((r.data.full_name||'?')[0]||'?').toUpperCase()
       };
       _profilesExtras[profileId] = p;
@@ -25339,7 +25353,7 @@ async function carregarProfilesPagamentos(){
   if(faltando.length === 0) return;
   console.log('[carregarProfilesPagamentos] buscando', faltando.length, 'profiles extras');
   try {
-    const r = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials').in('id', faltando);
+    const r = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials, foto_url').in('id', faltando);
     if(r.data){
       r.data.forEach(p => {
         _profilesExtras[p.id] = {
@@ -25348,6 +25362,7 @@ async function carregarProfilesPagamentos(){
           email: p.email,
           role: p.position || '',
           color: p.avatar_color || '#888',
+          foto_url: p.foto_url || '',
           init: p.initials || ((p.full_name||'?')[0]||'?').toUpperCase()
         };
       });
@@ -27445,7 +27460,7 @@ async function renderPagamentos(c){
     // Recarrega team do banco pra pegar colabs novos (Gael, Antonio, etc)
     if(_supa && (team.length < 10 || true)){
       try {
-        const { data: novosProfiles } = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials, enabled').order('full_name');
+        const { data: novosProfiles } = await _supa.from('profiles').select('id, full_name, email, position, avatar_color, initials, enabled, foto_url').order('full_name');
         if(novosProfiles){
           novosProfiles.forEach(p => {
             // colaborador oculto/bloqueado nao volta pra lista por aqui
@@ -27458,6 +27473,7 @@ async function renderPagamentos(c){
                 email: p.email || '',
                 role: p.position || '',
                 color: p.avatar_color || '#888',
+                foto_url: p.foto_url || '',
                 init: p.initials || ((p.full_name||'?')[0]||'?').toUpperCase()
               });
               console.log('[refresh team] adicionado:', p.full_name);
@@ -27572,6 +27588,34 @@ async function renderPagamentos(c){
         '<div class="stat-card" style="border-left:3px solid var(--success)"><div class="stat-value" style="color:var(--success-text)">R$ ' + (((colabSelecionado||!ehGestor)?0:fixos.filter(f => f.ativo && fixoFoiPagoNoMes(f, filtro)).reduce((s,f)=>s+(parseFloat(f.valor)||0),0)) + variavelMesPago).toFixed(2) + '</div><div class="stat-label">✅ Já pago</div></div>' +
       '</div>' +
 
+      // === O QUE VOU RECEBER (colaborador) ===
+      (ehGestor ? '' : (() => {
+        const meus = variaveisMes;
+        const liberados = meus.filter(x => _pagLiberado(x) && !x.status_pago);
+        const aguardando = meus.filter(x => !_pagLiberado(x) && !x.status_pago);
+        const recebido = meus.filter(x => x.status_pago).reduce((s,x)=>s+(parseFloat(x.valor)||0),0);
+        const totalLiberado = liberados.reduce((s,x)=>s+(parseFloat(x.valor)||0),0);
+        const semNF = liberados.filter(x => !x.nf_url);
+        const totalSemNF = semNF.reduce((s,x)=>s+(parseFloat(x.valor)||0),0);
+        if(!meus.length) return '';
+        return '<div class="card" style="margin-bottom:16px;border-left:3px solid ' + (totalLiberado>0?'var(--success)':'var(--border)') + '">' +
+          '<div class="card-header"><div class="card-title">💵 O que você vai receber — ' + fmtMes(filtro) + '</div></div>' +
+          '<div style="display:flex;gap:22px;flex-wrap:wrap;align-items:flex-end">' +
+            '<div><div style="font-size:26px;font-weight:800;color:var(--success-text);line-height:1.1">R$ ' + totalLiberado.toFixed(2) + '</div>' +
+            '<div class="text-xs text-3" style="margin-top:3px">liberado pra pagamento (' + liberados.length + ')</div></div>' +
+            (aguardando.length ? '<div><div style="font-size:16px;font-weight:700;color:var(--warning-text)">R$ ' + aguardando.reduce((s,x)=>s+(parseFloat(x.valor)||0),0).toFixed(2) + '</div><div class="text-xs text-3">aguardando o OK da administração</div></div>' : '') +
+            (recebido > 0 ? '<div><div style="font-size:16px;font-weight:700">R$ ' + recebido.toFixed(2) + '</div><div class="text-xs text-3">já pago</div></div>' : '') +
+          '</div>' +
+          (totalSemNF > 0
+            ? '<div style="margin-top:13px;padding:11px 13px;background:var(--warning-soft);border:1px solid var(--warning);border-radius:9px;font-size:12.5px;line-height:1.5">' +
+              '🧾 <strong>Falta a nota fiscal</strong> de R$ ' + totalSemNF.toFixed(2) + ' (' + semNF.length + ' lançamento' + (semNF.length>1?'s':'') + '). ' +
+              'O financeiro só efetua o pagamento depois que a nota estiver aqui — use o botão <strong>Enviar NF</strong> na linha.</div>'
+            : (totalLiberado > 0
+              ? '<div style="margin-top:13px;padding:11px 13px;background:var(--success-soft, rgba(34,197,94,.09));border:1px solid var(--success);border-radius:9px;font-size:12.5px">✅ Notas fiscais entregues — é só aguardar o financeiro.</div>'
+              : '')) +
+        '</div>';
+      })()) +
+
       // === PAGAMENTOS FIXOS (so quando nao tem filtro de colaborador) ===
       (colabSelecionado || !ehGestor ? '' : '<div class="card" style="margin-bottom:16px"><div class="card-header"><div class="card-title">📌 Pagamentos fixos mensais</div>' +
         '<span class="badge b-info">Total ativo: R$ ' + totalFixos.toFixed(2) + '</span></div>' +
@@ -27581,6 +27625,7 @@ async function renderPagamentos(c){
             '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Nome</th>' +
             '<th style="text-align:right;padding:8px;border-bottom:1px solid var(--border)">Valor</th>' +
             '<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border)">Ativo</th>' +
+            '<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border)">NF ' + fmtMes(filtro) + '</th>' +
             '<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border);background:var(--warning-soft)">Pago ' + fmtMes(filtro) + '</th>' +
             '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Observações</th>' +
             '<th style="padding:8px;border-bottom:1px solid var(--border)"></th></tr></thead><tbody>' +
@@ -27590,6 +27635,7 @@ async function renderPagamentos(c){
                 '<td style="padding:8px"><input value="' + escapeHtml(p.nome||'') + '" onblur="atualizarPagFixoCampo(\'' + p.id + '\',\'nome\',this.value)" style="background:transparent;border:none;width:100%;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" /></td>' +
                 '<td style="padding:8px;text-align:right"><input type="number" step="0.01" value="' + (parseFloat(p.valor)||0) + '" onblur="atualizarPagFixoCampo(\'' + p.id + '\',\'valor\',this.value)" style="background:transparent;border:none;width:90px;text-align:right;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" /></td>' +
                 '<td style="padding:8px;text-align:center"><input type="checkbox" ' + (p.ativo?'checked':'') + ' onchange="atualizarPagFixoCampo(\'' + p.id + '\',\'ativo\',this.checked)" title="Ativo: entra no calculo do mes" /></td>' +
+                '<td style="padding:8px;text-align:center">' + _nfFixoCelulaHTML(p, filtro) + '</td>' +
                 '<td style="padding:8px;text-align:center;background:rgba(245,158,11,.05)"><label style="cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11px"><input type="checkbox" ' + (pagoNoMes?'checked':'') + ' onchange="toggleFixoPagoMes(\'' + p.id + '\',\'' + filtro + '\')" />' + (pagoNoMes?'<span style="color:var(--success-text);font-weight:600">pago</span>':'<span style="color:var(--text-3)">marcar</span>') + '</label></td>' +
                 '<td style="padding:8px"><input value="' + escapeHtml(p.observacoes||'') + '" onblur="atualizarPagFixoCampo(\'' + p.id + '\',\'observacoes\',this.value)" placeholder="opcional" style="background:transparent;border:none;width:100%;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" /></td>' +
                 '<td style="padding:8px;text-align:right"><button class="icon-btn" onclick="excluirPagamentoFixo(\'' + p.id + '\')" style="color:var(--danger);width:26px;height:26px">×</button></td>' +
@@ -27633,7 +27679,7 @@ async function renderPagamentos(c){
               const ini = colab ? colab.init : (fre ? (p.nome_manual.trim().split(/\s+/).map(x=>x[0]||'').slice(0,2).join('').toUpperCase()||'F') : '?');
               const cor = colab ? colab.color : '#8b5cf6';
               const pixHtml = (fre && p.pix) ? '<div class="text-xs text-3" style="margin-top:2px">PIX: <span style="color:var(--text-2)">'+escapeHtml(p.pix)+'</span> <button onclick="_copiarPix(\''+String(p.pix).replace(/'/g,"\\'")+'\')" title="Copiar Pix" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;vertical-align:middle">📋</button></div>' : '';
-              return '<div style="display:flex;align-items:flex-start;gap:8px"><div class="avatar" style="background:'+cor+';width:24px;height:24px;font-size:10px;flex-shrink:0">'+ini+'</div><div><strong>'+escapeHtml(nm)+'</strong>'+(fre?' <span class="badge b-purple" style="font-size:9px;vertical-align:middle">Freela</span>':'')+pixHtml+'</div></div>';
+              return '<div style="display:flex;align-items:flex-start;gap:8px">'+_avatarFoto({foto_url:(colab&&colab.foto_url)||'', color:cor, init:ini}, 24)+'<div><strong>'+escapeHtml(nm)+'</strong>'+(fre?' <span class="badge b-purple" style="font-size:9px;vertical-align:middle">Freela</span>':'')+pixHtml+'</div></div>';
             })() + '</td>' +
             '<td style="padding:8px">' + (ehComissaoRow
               ? _comissaoDescricaoHTML(p, comInfo || _comissaoDraft(p), ehGestor)
@@ -27651,6 +27697,7 @@ async function renderPagamentos(c){
               ? '<input type="number" step="0.01" value="' + (parseFloat(p.valor)||0) + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'valor\',this.value)" style="background:transparent;border:none;width:90px;text-align:right;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" />'
               : 'R$ ' + (parseFloat(p.valor)||0).toFixed(2)
             ) + '</td>' +
+            '<td style="padding:8px;text-align:center">' + _nfCelulaHTML(p, ehGestor, p.profile_id === meuDbId) + '</td>' +
             // Status_pago: so gestor edita. TODO pagamento passa pelo duplo check antes do "Marcar pago".
             '<td style="padding:8px;text-align:center">' + (!isPago && !_pagLiberado(p)
               ? (ehGestor
@@ -27678,6 +27725,7 @@ async function renderPagamentos(c){
             '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Colaborador</th>' +
             '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Descrição</th>' +
             '<th style="text-align:right;padding:8px;border-bottom:1px solid var(--border)">Valor</th>' +
+            '<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border)">Nota fiscal</th>' +
             '<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border)">Status</th>' +
             '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Data pgto</th>' +
             '<th style="padding:8px;border-bottom:1px solid var(--border)"></th>' +
@@ -27714,12 +27762,13 @@ async function renderPagamentos(c){
               return '<div style="margin-bottom:10px"><details' + _histAberto + ' ontoggle="if(window._pagHistAbertos)window._pagHistAbertos[\'' + mes + '\']=this.open" style="background:var(--surface-2);padding:8px 12px;border-radius:8px;border:1px solid var(--border)">' +
                 '<summary style="cursor:pointer;font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center"><span>📅 ' + fmtMes(mes) + ' · ' + lista.length + ' lançamento(s)</span><span class="text-xs" style="color:var(--text-3);font-weight:400">R$ ' + total.toFixed(2) + ' (R$ ' + pagos.toFixed(2) + ' pago)</span></summary>' +
                 '<div style="margin-top:10px"><table style="width:100%;font-size:12px">' +
-                  '<thead><tr><th style="text-align:left;padding:5px">Colab.</th><th style="text-align:left;padding:5px">Descrição</th><th style="text-align:right;padding:5px">Valor</th><th style="text-align:center;padding:5px">Pago</th><th style="text-align:left;padding:5px">Data</th></tr></thead><tbody>' +
+                  '<thead><tr><th style="text-align:left;padding:5px">Colab.</th><th style="text-align:left;padding:5px">Descrição</th><th style="text-align:right;padding:5px">Valor</th><th style="text-align:center;padding:5px">NF</th><th style="text-align:center;padding:5px">Pago</th><th style="text-align:left;padding:5px">Data</th></tr></thead><tbody>' +
                   lista.map(p => {
                     const colab = getColabPorId(p.profile_id);
                     return '<tr><td style="padding:5px">' + (colab?colab.name:(p.nome_manual?escapeHtml(p.nome_manual)+' <span class="badge b-purple" style="font-size:8px">Freela</span>':'(deletado)')) + '</td>' +
                       '<td style="padding:5px">' + escapeHtml(p.descricao||'') + '</td>' +
                       '<td style="padding:5px;text-align:right">R$ ' + (parseFloat(p.valor)||0).toFixed(2) + '</td>' +
+                      '<td style="padding:5px;text-align:center">' + (p.nf_url ? '<a href="' + escapeHtml(p.nf_url) + '" target="_blank" rel="noopener" title="Abrir nota fiscal" style="text-decoration:none">🧾</a>' : '<span class="text-3">—</span>') + '</td>' +
                       '<td style="padding:5px;text-align:center">' + (p.status_pago?'<span class="badge b-success">✓</span>':'<span class="badge b-warning">—</span>') + '</td>' +
                       '<td style="padding:5px">' + (p.data_pagamento||'-') + '</td></tr>';
                   }).join('') +
@@ -28175,6 +28224,7 @@ function _comissaoDescricaoHTML(p, com, ehGestor){
     ? ''
     : (p.status_pago ? '' : '<div style="font-size:10.5px;color:var(--warning-text);margin-top:3px">⏳ Aguardando o OK da administração pra pagar</div>');
   const hintFechado = (!fechado && ehGestor) ? '<span style="color:var(--warning-text)">← preencha o fechado pra calcular os ' + pct + '%</span>' : '';
+  const origem = _comissaoOrigemHTML(p, com, ehGestor);
   return '<div style="display:flex;align-items:center;gap:6px">' +
     (ehGestor
       ? '<input value="' + escapeHtml(p.descricao||'') + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'descricao\',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);outline:none" />'
@@ -28188,7 +28238,170 @@ function _comissaoDescricaoHTML(p, com, ehGestor){
     (ehGestor
       ? '<input type="number" step="0.5" min="0" max="100" value="' + pct + '" onblur="comissaoEditRow(\'' + p.id + '\',\'percent\',this.value)" title="% de comissão (só administração edita) — recalcula o valor" style="width:52px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:11px;color:var(--text-2);outline:none;text-align:right" />%'
       : '<span style="color:var(--text-2)">' + pct + '%</span>') +
-    ' de comissão ' + hintFechado + '</div>' + obsLivre + okLine;
+    ' de comissão ' + hintFechado + '</div>' + origem + obsLivre + okLine;
+}
+
+// ===== DE ONDE VEIO A COMISSÃO — leva pro orçamento/card que a originou =====
+function _comissaoOrigemHTML(p, com, ehGestor){
+  com = com || {};
+  const nome = com.cliente || com.orc_numero || '';
+  if(com.orcamento_id || com.lead_id){
+    const rotulo = com.orcamento_id
+      ? '📄 ' + escapeHtml(com.orc_numero || 'Orçamento') + (nome && nome !== com.orc_numero ? ' · ' + escapeHtml(nome) : '')
+      : '🎯 ' + escapeHtml(nome || 'Card do pipeline');
+    const desvincular = ehGestor
+      ? ' <button onclick="comissaoDesvincular(\'' + p.id + '\')" title="Desvincular esta origem" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:11px;padding:0 2px">✕</button>'
+      : '';
+    return '<div style="margin-top:3px;font-size:11px">' +
+      '<button onclick="comissaoAbrirOrigem(\'' + p.id + '\')" title="Abrir a origem desta comissão" ' +
+      'style="background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-size:11px;color:var(--accent);cursor:pointer;font-family:inherit">' +
+      rotulo + ' ↗</button>' + desvincular + '</div>';
+  }
+  if(!ehGestor) return '';
+  return '<div style="margin-top:3px"><button onclick="comissaoVincularModal(\'' + p.id + '\')" ' +
+    'title="Dizer de qual orçamento ou negociação veio esta comissão" ' +
+    'style="background:none;border:1px dashed var(--border);border-radius:999px;padding:2px 9px;font-size:11px;color:var(--text-3);cursor:pointer;font-family:inherit">🔗 Vincular orçamento</button></div>';
+}
+
+function comissaoAbrirOrigem(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  const com = _comissaoDados(p);
+  if(!com) return;
+  if(com.orcamento_id){
+    const existe = (orcamentosSalvos||[]).some(b => String(b.id) === String(com.orcamento_id));
+    if(!existe){ toast('Orçamento não está mais salvo no sistema','info'); return; }
+    comTab = 'orcamento';
+    goTo('comercial');
+    setTimeout(() => { try { carregarOrcSalvo(com.orcamento_id); } catch(e){ console.warn(e); } }, 120);
+    return;
+  }
+  if(com.lead_id){
+    comTab = 'pipeline';
+    if(com.funil) comFunil = com.funil;
+    goTo('comercial');
+    setTimeout(() => { try { abrirLeadDetalhe(com.lead_id); } catch(e){ toast('Card não encontrado no pipeline','info'); } }, 200);
+  }
+}
+
+async function comissaoVincularModal(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  try { if(typeof loadOrcamentosSalvos === 'function') await loadOrcamentosSalvos(); } catch(e){}
+  try { if(typeof carregarLeads === 'function' && !_leadsCache) await carregarLeads(); } catch(e){}
+  const orcs = (orcamentosSalvos||[]).slice(0, 60);
+  const leads = (_leadsCache||[]).slice(0, 60);
+  let m = document.getElementById('comVincModal'); if(m) m.remove();
+  m = document.createElement('div');
+  m.id = 'comVincModal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:220;display:flex;align-items:center;justify-content:center;padding:20px';
+  m.onclick = (ev) => { if(ev.target === m) m.remove(); };
+  const linhaOrc = (b) => {
+    const nome = (b.client_data && b.client_data.nome) ? b.client_data.nome : '(sem cliente)';
+    const tot = parseFloat(b.total)||0;
+    return '<button onclick="comissaoVincular(\'' + p.id + '\',\'orcamento\',\'' + b.id + '\')" class="com-vinc-item" ' +
+      'style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:6px">' +
+      '<span style="font-size:15px">📄</span><span style="flex:1;min-width:0">' +
+      '<span style="display:block;font-size:12.5px;font-weight:600;color:var(--text)">' + escapeHtml(nome) + '</span>' +
+      '<span style="display:block;font-size:11px;color:var(--text-3)">' + escapeHtml(b.numero||'') + ' · ' + new Date(b.created_at).toLocaleDateString('pt-BR') + (b.status?' · '+escapeHtml(b.status):'') + '</span></span>' +
+      '<strong style="font-size:12.5px;color:var(--success-text);white-space:nowrap">R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong></button>';
+  };
+  const linhaLead = (l) => {
+    const v = parseFloat(l.value)||0;
+    return '<button onclick="comissaoVincular(\'' + p.id + '\',\'lead\',\'' + l.id + '\')" class="com-vinc-item" ' +
+      'style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:6px">' +
+      '<span style="font-size:15px">🎯</span><span style="flex:1;min-width:0">' +
+      '<span style="display:block;font-size:12.5px;font-weight:600;color:var(--text)">' + escapeHtml(l.name||'(sem nome)') + '</span>' +
+      '<span style="display:block;font-size:11px;color:var(--text-3)">pipeline' + (l.stage?' · '+escapeHtml(l.stage):'') + (l.aprovado?' · aprovado':'') + '</span></span>' +
+      '<strong style="font-size:12.5px;color:var(--success-text);white-space:nowrap">R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong></button>';
+  };
+  const vazio = (!orcs.length && !leads.length);
+  m.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;max-width:520px;width:100%;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.3)">' +
+      '<div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
+        '<div style="width:38px;height:38px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:17px">🔗</div>' +
+        '<div style="flex:1"><div style="font-size:15px;font-weight:700">De onde vem essa comissão?</div>' +
+        '<div class="text-xs text-3" style="margin-top:2px">' + escapeHtml(p.descricao||'') + '</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'comVincModal\').remove()" style="width:30px;height:30px">×</button>' +
+      '</div>' +
+      '<div style="padding:8px 14px 6px"><input id="comVincBusca" placeholder="🔍 Buscar cliente ou número..." oninput="comissaoVincFiltrar(this.value)" class="login-input" style="background:var(--surface-2);width:100%" /></div>' +
+      '<div style="padding:6px 14px 16px;overflow:auto;flex:1" id="comVincLista">' +
+        (vazio
+          ? '<div class="empty-state" style="padding:26px"><div class="ico">📄</div><div class="ttl">Nada pra vincular ainda</div><div class="desc">Orçamentos salvos e cards do pipeline aparecem aqui.</div></div>'
+          : (orcs.length ? '<div class="info-label" style="margin:6px 0 7px">Orçamentos salvos</div>' + orcs.map(linhaOrc).join('') : '') +
+            (leads.length ? '<div class="info-label" style="margin:12px 0 7px">Negociações do pipeline</div>' + leads.map(linhaLead).join('') : '')) +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(m);
+  setTimeout(()=>{ const el = document.getElementById('comVincBusca'); if(el) el.focus(); }, 60);
+}
+
+function comissaoVincFiltrar(termo){
+  const t = (termo||'').toLowerCase().trim();
+  document.querySelectorAll('#comVincLista .com-vinc-item').forEach(el => {
+    el.style.display = (!t || el.textContent.toLowerCase().includes(t)) ? '' : 'none';
+  });
+}
+
+async function comissaoVincular(id, tipo, origemId){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  const com = _comissaoDados(p) || _comissaoDraft(p);
+  let fechadoNovo = 0, rotulo = '';
+  if(tipo === 'orcamento'){
+    const b = (orcamentosSalvos||[]).find(x => String(x.id) === String(origemId));
+    if(!b){ toast('Orçamento não encontrado','info'); return; }
+    fechadoNovo = parseFloat(b.total)||0;
+    com.orcamento_id = String(b.id);
+    com.orc_numero = b.numero || '';
+    com.cliente = (b.client_data && b.client_data.nome) ? b.client_data.nome : (com.cliente||'');
+    delete com.lead_id;
+    rotulo = (b.numero||'Orçamento') + ' — ' + (com.cliente||'');
+  } else {
+    const l = (_leadsCache||[]).find(x => String(x.id) === String(origemId));
+    if(!l){ toast('Negociação não encontrada','info'); return; }
+    fechadoNovo = parseFloat(l.value)||0;
+    com.lead_id = String(l.id);
+    com.cliente = l.name || com.cliente || '';
+    if(l.funil) com.funil = l.funil;
+    delete com.orcamento_id; delete com.orc_numero;
+    rotulo = com.cliente;
+  }
+  // O valor fechado só é sobrescrito com o OK do usuário — pode já ter sido ajustado à mão.
+  const fechadoAtual = parseFloat(com.fechado)||0;
+  let usarFechado = fechadoAtual;
+  if(fechadoNovo > 0 && fechadoNovo !== fechadoAtual){
+    const pct = parseFloat(com.percent)||0;
+    const novaCom = Math.round(fechadoNovo * pct)/100;
+    const msg = fechadoAtual > 0
+      ? 'Vincular a ' + rotulo + '.\n\nUsar o valor fechado dessa origem (R$ ' + fechadoNovo.toFixed(2) + ') no lugar do atual (R$ ' + fechadoAtual.toFixed(2) + ')?\nA comissão passa a ser R$ ' + novaCom.toFixed(2) + ' (' + pct + '%).\n\nOK = usar o novo · Cancelar = só vincular, mantendo o valor atual'
+      : 'Vincular a ' + rotulo + '.\n\nUsar o valor fechado dessa origem (R$ ' + fechadoNovo.toFixed(2) + ')? A comissão fica R$ ' + novaCom.toFixed(2) + ' (' + pct + '%).\n\nOK = calcular · Cancelar = só vincular';
+    if(confirm(msg)) usarFechado = fechadoNovo;
+  }
+  com.fechado = usarFechado;
+  const novoValor = usarFechado > 0 ? Math.round(usarFechado * (parseFloat(com.percent)||0))/100 : (parseFloat(p.valor)||0);
+  const obs = JSON.stringify({comissao: com});
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({valor: novoValor, observacoes: obs}).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui vincular: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  p.valor = novoValor; p.observacoes = obs;
+  const m = document.getElementById('comVincModal'); if(m) m.remove();
+  toast('🔗 Comissão vinculada a ' + rotulo,'success');
+  renderPagamentos(document.getElementById('content'));
+}
+
+async function comissaoDesvincular(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  const com = _comissaoDados(p);
+  if(!com) return;
+  if(!confirm('Tirar o vínculo com a origem?\n\nO valor da comissão continua o mesmo.')) return;
+  delete com.orcamento_id; delete com.orc_numero; delete com.lead_id;
+  const obs = JSON.stringify({comissao: com});
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({observacoes: obs}).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui salvar: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  p.observacoes = obs;
+  toast('Vínculo removido','success');
+  renderPagamentos(document.getElementById('content'));
 }
 
 function _comissaoDados(p){
@@ -28212,6 +28425,97 @@ async function comissaoEditRow(id, campo, valor){
   if(error || !data || !data.length){ toast('Não consegui salvar: ' + (error ? error.message : 'sem permissão'),'info'); renderPagamentos(document.getElementById('content')); return; }
   p.valor = novoValor; p.observacoes = obs;
   toast(fech > 0 ? '✓ Comissão recalculada: R$ ' + novoValor.toFixed(2) : '✓ Salvo — preencha o valor fechado pra calcular a comissão','success');
+  renderPagamentos(document.getElementById('content'));
+}
+
+// ===== NOTA FISCAL — pagamento só sai depois que a NF estiver no sistema =====
+// Vale pra variável e pra fixo. Colaborador manda a dele; a administração vê e abre.
+function _nfCelulaHTML(p, ehGestor, ehMeu){
+  const podeSubir = ehGestor || ehMeu;
+  if(p.nf_url){
+    const quando = p.nf_em ? new Date(p.nf_em).toLocaleDateString('pt-BR') : '';
+    return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px">' +
+      '<a href="' + escapeHtml(p.nf_url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (p.nf_nome?': '+escapeHtml(p.nf_nome):'') + '" ' +
+      'style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 NF ok</a>' +
+      (quando ? '<span style="font-size:9.5px;color:var(--text-3)">' + quando + '</span>' : '') +
+      (podeSubir && !p.status_pago ? '<button onclick="nfEnviar(\'' + p.id + '\')" title="Substituir a nota fiscal" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>' : '') +
+      '</div>';
+  }
+  if(!podeSubir) return '<span class="text-3" style="font-size:11px">—</span>';
+  return '<button class="btn btn-sm" onclick="nfEnviar(\'' + p.id + '\')" title="Anexar a nota fiscal deste pagamento" ' +
+    'style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
+}
+
+function _nfsFixo(fixo){
+  try { const o = JSON.parse(fixo.nfs_meses || '{}'); return (o && typeof o === 'object') ? o : {}; } catch(e){ return {}; }
+}
+function _nfFixoDoMes(fixo, mes){
+  const nf = _nfsFixo(fixo)[mes];
+  return (nf && nf.url) ? nf : null;
+}
+function _nfFixoCelulaHTML(fixo, mes){
+  const nf = _nfFixoDoMes(fixo, mes);
+  if(nf){
+    return '<a href="' + escapeHtml(nf.url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (nf.nome?': '+escapeHtml(nf.nome):'') + '" style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 NF ok</a>' +
+      ' <button onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Substituir" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>';
+  }
+  return '<button class="btn btn-sm" onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Anexar a nota fiscal deste mês" style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
+}
+
+// Abre o seletor de arquivo e devolve {url, nome} depois de subir pro storage
+function _nfEscolherArquivo(){
+  return new Promise((resolve) => {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.pdf,.xml,image/*';
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0];
+      if(!f){ resolve(null); return; }
+      if(f.size > 15 * 1024 * 1024){ toast('Arquivo muito grande (máx 15 MB)','info'); resolve(null); return; }
+      toast('Enviando nota fiscal...','info');
+      try {
+        const path = 'notas-fiscais/' + Date.now() + '_' + f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+        const { error: upErr } = await _supa.storage.from('uploads').upload(path, f, {upsert:true, contentType: f.type || 'application/pdf'});
+        if(upErr) throw upErr;
+        const { data: pub } = _supa.storage.from('uploads').getPublicUrl(path);
+        resolve({url: (pub && pub.publicUrl) || '', nome: f.name});
+      } catch(e){
+        console.warn('[nf upload]', e);
+        toast('Não consegui enviar a nota: ' + (e.message||e),'info');
+        resolve(null);
+      }
+    };
+    inp.click();
+  });
+}
+
+async function nfEnviar(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  if(p.status_pago){ toast('Esse pagamento já foi efetuado','info'); return; }
+  const arq = await _nfEscolherArquivo();
+  if(!arq || !arq.url) return;
+  const quem = (_currentProfile && _currentProfile.name) ? _currentProfile.name : ((_currentUser && _currentUser.email) || '');
+  const agora = new Date().toISOString();
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({nf_url: arq.url, nf_nome: arq.nome, nf_em: agora, nf_por: quem}).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui salvar a nota: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  p.nf_url = arq.url; p.nf_nome = arq.nome; p.nf_em = agora; p.nf_por = quem;
+  toast('🧾 Nota fiscal lançada — liberado pro financeiro pagar','success');
+  renderPagamentos(document.getElementById('content'));
+}
+
+async function nfEnviarFixo(fixoId, mes){
+  const f = (_pagamentosFixos||[]).find(x => String(x.id) === String(fixoId));
+  if(!f) return;
+  const arq = await _nfEscolherArquivo();
+  if(!arq || !arq.url) return;
+  const mapa = _nfsFixo(f);
+  mapa[mes] = {url: arq.url, nome: arq.nome, em: new Date().toISOString(), por: (_currentProfile && _currentProfile.name) || ''};
+  const json = JSON.stringify(mapa);
+  const { data, error } = await _supa.from('pagamentos_fixos').update({nfs_meses: json}).eq('id', fixoId).select();
+  if(error || !data || !data.length){ toast('Não consegui salvar a nota: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  f.nfs_meses = json;
+  toast('🧾 Nota fiscal de ' + mes + ' lançada','success');
   renderPagamentos(document.getElementById('content'));
 }
 
@@ -28383,6 +28687,7 @@ async function marcarComoPago(id){
   const p = _colaboradorPagamentos.find(x => x.id === id);
   if(!p) return;
   if(!_pagLiberado(p)){ toast('⏳ Esse pagamento ainda não foi liberado pela administração','info'); return; }
+  if(!p.nf_url){ toast('🧾 Sem nota fiscal lançada — o pagamento só pode ser efetuado depois da NF','info'); return; }
   const hoje = new Date().toISOString().split('T')[0];
   const dataInput = prompt('Data do pagamento (YYYY-MM-DD):', p.data_pagamento || hoje);
   if(!dataInput) return;
@@ -28438,6 +28743,11 @@ function fixoFoiPagoNoMes(fixo, mes){
 async function toggleFixoPagoMes(fixoId, mes){
   const p = _pagamentosFixos.find(x => x.id === fixoId);
   if(!p) return;
+  if(!fixoFoiPagoNoMes(p, mes) && !_nfFixoDoMes(p, mes)){
+    toast('🧾 Sem nota fiscal de ' + mes + ' — o pagamento só pode ser efetuado depois da NF','info');
+    renderPagamentos(document.getElementById('content'));
+    return;
+  }
   let arr = [];
   try { arr = JSON.parse(p.pagos_meses || '[]'); if(!Array.isArray(arr)) arr = []; } catch(e){ arr = []; }
   const idx = arr.indexOf(mes);
