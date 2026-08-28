@@ -27651,16 +27651,16 @@ async function renderPagamentos(c){
               ? '<input type="number" step="0.01" value="' + (parseFloat(p.valor)||0) + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'valor\',this.value)" style="background:transparent;border:none;width:90px;text-align:right;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" />'
               : 'R$ ' + (parseFloat(p.valor)||0).toFixed(2)
             ) + '</td>' +
-            // Status_pago: so gestor edita. Comissão exige o duplo check antes do "Marcar pago".
-            '<td style="padding:8px;text-align:center">' + (ehComissaoRow && !isPago && !(comInfo && comInfo.ok_pagamento)
+            // Status_pago: so gestor edita. TODO pagamento passa pelo duplo check antes do "Marcar pago".
+            '<td style="padding:8px;text-align:center">' + (!isPago && !_pagLiberado(p)
               ? (ehGestor
-                  ? '<button class="btn btn-sm" onclick="comissaoLiberar(\'' + p.id + '\')" title="Duplo check da administração — libera o financeiro pra pagar" style="padding:3px 10px;font-size:11px;color:var(--accent);border-color:var(--accent)">✔✔ Liberar pgto</button>'
-                  : '<span class="badge b-warning" title="Aguardando OK da administração">Aguardando OK</span>')
+                  ? '<button class="btn btn-sm" onclick="pagamentoLiberar(\'' + p.id + '\')" title="Duplo check da administração — libera o financeiro pra pagar" style="padding:3px 10px;font-size:11px;color:var(--accent);border-color:var(--accent)">✔✔ Liberar pgto</button>'
+                  : '<span class="badge b-warning" title="Aguardando o OK da administração">Aguardando OK</span>')
               : ehGestor
               ? (isPago
                   ? '<button class="btn btn-sm" onclick="atualizarPagVarCampo(\'' + p.id + '\',\'status_pago\',false)" title="Desmarcar como pago" style="padding:3px 10px;font-size:11px;color:var(--success)">✓ Pago</button>'
-                  : '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:3px 10px;font-size:11px">Marcar pago</button>')
-              : (isPago ? '<span class="badge b-success">Pago</span>' : '<span class="badge b-warning">Pendente</span>')
+                  : '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:3px 10px;font-size:11px" title="Liberado pela administração — pode pagar">Marcar pago</button>' + _pagLiberadoSelo(p))
+              : (isPago ? '<span class="badge b-success">Pago</span>' : '<span class="badge b-info" title="Liberado pela administração — aguardando o financeiro">✔✔ Liberado</span>')
             ) + '</td>' +
             '<td style="padding:8px">' + (ehGestor
               ? '<input type="date" value="' + (p.data_pagamento||'') + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'data_pagamento\',this.value)" style="background:transparent;border:none;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" />'
@@ -28171,8 +28171,8 @@ function _comissaoDescricaoHTML(p, com, ehGestor){
   const fechado = parseFloat(com.fechado)||0;
   const pct = parseFloat(com.percent)||0;
   const obsLivre = com.obs ? '<div style="font-size:11px;color:var(--text-3);margin-top:2px;white-space:pre-wrap">📝 ' + escapeHtml(String(com.obs)) + '</div>' : '';
-  const okLine = com.ok_pagamento
-    ? '<div style="font-size:10.5px;color:var(--success-text);margin-top:3px">✔✔ Liberado por ' + escapeHtml(String(com.ok_por||'').split(' ')[0]) + (com.ok_em ? ' em ' + new Date(com.ok_em).toLocaleDateString('pt-BR') : '') + '</div>'
+  const okLine = (typeof _pagLiberado === 'function' && _pagLiberado(p))
+    ? ''
     : (p.status_pago ? '' : '<div style="font-size:10.5px;color:var(--warning-text);margin-top:3px">⏳ Aguardando o OK da administração pra pagar</div>');
   const hintFechado = (!fechado && ehGestor) ? '<span style="color:var(--warning-text)">← preencha o fechado pra calcular os ' + pct + '%</span>' : '';
   return '<div style="display:flex;align-items:center;gap:6px">' +
@@ -28215,20 +28215,46 @@ async function comissaoEditRow(id, campo, valor){
   renderPagamentos(document.getElementById('content'));
 }
 
-async function comissaoLiberar(id){
+// ===== DUPLO CHECK — vale pra TODO pagamento variável =====
+// Só a administração libera; enquanto não liberar, o financeiro não vê o "Marcar pago".
+// Estado nas colunas liberado/liberado_por/liberado_em; comissões antigas guardavam no JSON.
+function _pagLiberado(p){
+  if(!p) return false;
+  if(p.liberado === true) return true;
+  try { const o = JSON.parse(p.observacoes||'{}'); if(o && o.comissao && o.comissao.ok_pagamento) return true; } catch(e){}
+  return false;
+}
+
+function _pagLiberadoQuem(p){
+  if(p && p.liberado_por) return {por: p.liberado_por, em: p.liberado_em};
+  try { const o = JSON.parse(p.observacoes||'{}'); if(o && o.comissao && o.comissao.ok_pagamento) return {por: o.comissao.ok_por, em: o.comissao.ok_em}; } catch(e){}
+  return null;
+}
+
+function _pagLiberadoSelo(p){
+  const q = _pagLiberadoQuem(p);
+  if(!q || !q.por) return '';
+  const quando = q.em ? ' ' + new Date(q.em).toLocaleDateString('pt-BR') : '';
+  return '<div style="font-size:10px;color:var(--success-text);margin-top:3px">✔✔ ' + escapeHtml(String(q.por).split(' ')[0]) + quando + '</div>';
+}
+
+async function pagamentoLiberar(id){
   const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
   if(!p) return;
-  const com = _comissaoDados(p) || _comissaoDraft(p);
-  if(!confirm('Liberar o pagamento desta comissão (R$ ' + (parseFloat(p.valor)||0).toFixed(2) + ')?\n\nDepois do seu OK o financeiro consegue marcar como pago.')) return;
+  const colab = (typeof getColabPorId==='function' ? getColabPorId(p.profile_id) : null);
+  const quemRecebe = colab ? colab.name : (p.nome_manual || 'colaborador');
+  if(!confirm('Liberar o pagamento de R$ ' + (parseFloat(p.valor)||0).toFixed(2) + ' para ' + quemRecebe + '?\n\n' + (p.descricao||'') + '\n\nDepois do seu OK o financeiro consegue marcar como pago.')) return;
   const quem = (_currentProfile && _currentProfile.name) ? _currentProfile.name : ((_currentUser && _currentUser.email) || 'administração');
-  com.ok_pagamento = true; com.ok_por = quem; com.ok_em = new Date().toISOString();
-  const obs = JSON.stringify({comissao: com});
-  const { data, error } = await _supa.from('colaborador_pagamentos').update({observacoes: obs}).eq('id', id).select();
+  const agora = new Date().toISOString();
+  const { data, error } = await _supa.from('colaborador_pagamentos').update({liberado: true, liberado_por: quem, liberado_em: agora}).eq('id', id).select();
   if(error || !data || !data.length){ toast('Não consegui liberar: ' + (error ? error.message : 'sem permissão'),'info'); return; }
-  p.observacoes = obs;
-  toast('✔✔ Pagamento liberado pro financeiro','success');
+  p.liberado = true; p.liberado_por = quem; p.liberado_em = agora;
+  toast('✔✔ Liberado pro financeiro pagar','success');
   renderPagamentos(document.getElementById('content'));
 }
+
+// Mantido pelo nome antigo (comissões) — mesmo duplo check
+async function comissaoLiberar(id){ return pagamentoLiberar(id); }
 
 function novoPagamentoVariavelModal(presetColabId){
   if(!_supa){ toast('Banco nao conectado','info'); return; }
@@ -28356,6 +28382,7 @@ window._copiarPix = _copiarPix;
 async function marcarComoPago(id){
   const p = _colaboradorPagamentos.find(x => x.id === id);
   if(!p) return;
+  if(!_pagLiberado(p)){ toast('⏳ Esse pagamento ainda não foi liberado pela administração','info'); return; }
   const hoje = new Date().toISOString().split('T')[0];
   const dataInput = prompt('Data do pagamento (YYYY-MM-DD):', p.data_pagamento || hoje);
   if(!dataInput) return;
