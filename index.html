@@ -27622,6 +27622,8 @@ async function renderPagamentos(c){
           } catch(e){}
           // Comissão de venda (JSON gravado quando o orçamento foi aprovado no pipeline)
           const comInfo = (() => { try { const o = JSON.parse(p.observacoes||'{}'); return (o && o.comissao) ? o.comissao : null; } catch(e){ return null; } })();
+          // Pagamento criado à mão com "comissão" no nome ganha o mesmo tratamento (fechado + % + duplo check)
+          const ehComissaoRow = !!comInfo || /comiss/i.test(p.descricao||'');
           // Observacao em texto livre (so quando NAO eh o registro JSON do Andre nem comissão) — mostra junto da descricao.
           const obsTexto = (!temDetalhesClientes && !comInfo && p.observacoes) ? String(p.observacoes) : '';
           return '<tr style="' + (isPago?'opacity:.85':'') + '">' +
@@ -27633,8 +27635,8 @@ async function renderPagamentos(c){
               const pixHtml = (fre && p.pix) ? '<div class="text-xs text-3" style="margin-top:2px">PIX: <span style="color:var(--text-2)">'+escapeHtml(p.pix)+'</span> <button onclick="_copiarPix(\''+String(p.pix).replace(/'/g,"\\'")+'\')" title="Copiar Pix" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;padding:0;vertical-align:middle">📋</button></div>' : '';
               return '<div style="display:flex;align-items:flex-start;gap:8px"><div class="avatar" style="background:'+cor+';width:24px;height:24px;font-size:10px;flex-shrink:0">'+ini+'</div><div><strong>'+escapeHtml(nm)+'</strong>'+(fre?' <span class="badge b-purple" style="font-size:9px;vertical-align:middle">Freela</span>':'')+pixHtml+'</div></div>';
             })() + '</td>' +
-            '<td style="padding:8px">' + (comInfo
-              ? _comissaoDescricaoHTML(p, comInfo, ehGestor)
+            '<td style="padding:8px">' + (ehComissaoRow
+              ? _comissaoDescricaoHTML(p, comInfo || _comissaoDraft(p), ehGestor)
               : ehGestor
               ? '<input value="' + escapeHtml(p.descricao||'') + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'descricao\',this.value)" style="' + inputStyle + '" />' + (temDetalhesClientes
                   ? '<button onclick="verClientesPagamento(\'' + p.id + '\')" style="display:block;margin-top:4px;font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">📋 Ver clientes selecionados</button>'
@@ -27643,14 +27645,14 @@ async function renderPagamentos(c){
                   ? '<button onclick="verClientesPagamento(\'' + p.id + '\')" style="display:block;margin-top:4px;font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">📋 Ver clientes</button>'
                   : (obsTexto ? '<div style="font-size:11px;color:var(--text-3);margin-top:3px;white-space:pre-wrap">📝 ' + escapeHtml(obsTexto) + '</div>' : ''))
             ) + '</td>' +
-            '<td style="padding:8px;text-align:right">' + (comInfo
+            '<td style="padding:8px;text-align:right">' + (comInfo && (parseFloat(comInfo.fechado)||0) > 0
               ? '<strong title="Calculado automaticamente: valor fechado × %">R$ ' + (parseFloat(p.valor)||0).toFixed(2) + '</strong>'
               : ehGestor
               ? '<input type="number" step="0.01" value="' + (parseFloat(p.valor)||0) + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'valor\',this.value)" style="background:transparent;border:none;width:90px;text-align:right;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" />'
               : 'R$ ' + (parseFloat(p.valor)||0).toFixed(2)
             ) + '</td>' +
             // Status_pago: so gestor edita. Comissão exige o duplo check antes do "Marcar pago".
-            '<td style="padding:8px;text-align:center">' + (comInfo && !isPago && !comInfo.ok_pagamento
+            '<td style="padding:8px;text-align:center">' + (ehComissaoRow && !isPago && !(comInfo && comInfo.ok_pagamento)
               ? (ehGestor
                   ? '<button class="btn btn-sm" onclick="comissaoLiberar(\'' + p.id + '\')" title="Duplo check da administração — libera o financeiro pra pagar" style="padding:3px 10px;font-size:11px;color:var(--accent);border-color:var(--accent)">✔✔ Liberar pgto</button>'
                   : '<span class="badge b-warning" title="Aguardando OK da administração">Aguardando OK</span>')
@@ -28159,22 +28161,34 @@ async function gerarComissaoDoLead(lead){
   } catch(e){ console.warn('[gerarComissaoDoLead]', e); }
 }
 
+function _comissaoDraft(p){
+  // Pagamento manual "comissão" que ainda não tem os dados: começa sem fechado e com a % padrão
+  const livre = (p && p.observacoes && !/^\s*\{/.test(p.observacoes)) ? String(p.observacoes) : '';
+  return {manual:true, fechado:0, percent:(_comissaoPercentCache !== null ? _comissaoPercentCache : 10), ok_pagamento:false, obs:livre};
+}
+
 function _comissaoDescricaoHTML(p, com, ehGestor){
   const fechado = parseFloat(com.fechado)||0;
   const pct = parseFloat(com.percent)||0;
+  const obsLivre = com.obs ? '<div style="font-size:11px;color:var(--text-3);margin-top:2px;white-space:pre-wrap">📝 ' + escapeHtml(String(com.obs)) + '</div>' : '';
   const okLine = com.ok_pagamento
     ? '<div style="font-size:10.5px;color:var(--success-text);margin-top:3px">✔✔ Liberado por ' + escapeHtml(String(com.ok_por||'').split(' ')[0]) + (com.ok_em ? ' em ' + new Date(com.ok_em).toLocaleDateString('pt-BR') : '') + '</div>'
     : (p.status_pago ? '' : '<div style="font-size:10.5px;color:var(--warning-text);margin-top:3px">⏳ Aguardando o OK da administração pra pagar</div>');
-  return '<strong style="font-size:12.5px">' + escapeHtml(p.descricao||'Comissão') + '</strong> <span class="badge b-purple" style="font-size:9px;vertical-align:middle">Comissão</span>' +
+  const hintFechado = (!fechado && ehGestor) ? '<span style="color:var(--warning-text)">← preencha o fechado pra calcular os ' + pct + '%</span>' : '';
+  return '<div style="display:flex;align-items:center;gap:6px">' +
+    (ehGestor
+      ? '<input value="' + escapeHtml(p.descricao||'') + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'descricao\',this.value)" style="flex:1;min-width:0;background:transparent;border:none;font-family:inherit;font-size:12.5px;font-weight:600;color:var(--text);outline:none" />'
+      : '<strong style="font-size:12.5px">' + escapeHtml(p.descricao||'Comissão') + '</strong>') +
+    '<span class="badge b-purple" style="font-size:9px;flex-shrink:0">Comissão</span></div>' +
     '<div style="font-size:11px;color:var(--text-3);margin-top:3px;display:flex;align-items:center;gap:4px;flex-wrap:wrap">💼 Fechado: R$ ' +
     (ehGestor
-      ? '<input type="number" step="0.01" min="0" value="' + fechado + '" onblur="comissaoEditRow(\'' + p.id + '\',\'fechado\',this.value)" title="Valor fechado do orçamento — recalcula a comissão" style="width:84px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:11px;color:var(--text-2);outline:none" />'
-      : '<span style="color:var(--text-2)">' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>') +
+      ? '<input type="number" step="0.01" min="0" value="' + (fechado || '') + '" placeholder="0,00" onblur="comissaoEditRow(\'' + p.id + '\',\'fechado\',this.value)" title="Valor total fechado — a comissão é calculada em cima dele" style="width:84px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:11px;color:var(--text-2);outline:none" />'
+      : '<span style="color:var(--text-2)">' + (fechado ? fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—') + '</span>') +
     ' · ' +
     (ehGestor
       ? '<input type="number" step="0.5" min="0" max="100" value="' + pct + '" onblur="comissaoEditRow(\'' + p.id + '\',\'percent\',this.value)" title="% de comissão (só administração edita) — recalcula o valor" style="width:52px;background:transparent;border:none;border-bottom:1px dashed var(--border);font-family:inherit;font-size:11px;color:var(--text-2);outline:none;text-align:right" />%'
       : '<span style="color:var(--text-2)">' + pct + '%</span>') +
-    ' de comissão</div>' + okLine;
+    ' de comissão ' + hintFechado + '</div>' + obsLivre + okLine;
 }
 
 function _comissaoDados(p){
@@ -28184,25 +28198,27 @@ function _comissaoDados(p){
 async function comissaoEditRow(id, campo, valor){
   const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
   if(!p) return;
-  const com = _comissaoDados(p); if(!com) return;
+  const com = _comissaoDados(p) || _comissaoDraft(p);
   const num = parseFloat(String(valor).replace(',','.'));
   if(isNaN(num) || num < 0){ toast('Valor inválido','info'); renderPagamentos(document.getElementById('content')); return; }
   if(campo === 'percent' && num > 100){ toast('A comissão é uma porcentagem (0 a 100)','info'); renderPagamentos(document.getElementById('content')); return; }
-  if(parseFloat(com[campo]) === num) return; // nada mudou
+  if(!com.manual && parseFloat(com[campo]) === num) return; // nada mudou
   com[campo] = num;
-  const novoValor = Math.round((parseFloat(com.fechado)||0) * (parseFloat(com.percent)||0)) / 100;
+  const fech = parseFloat(com.fechado)||0;
+  // Só recalcula quando o valor fechado está preenchido — senão preserva o valor atual da linha
+  const novoValor = fech > 0 ? Math.round(fech * (parseFloat(com.percent)||0)) / 100 : (parseFloat(p.valor)||0);
   const obs = JSON.stringify({comissao: com});
   const { data, error } = await _supa.from('colaborador_pagamentos').update({valor: novoValor, observacoes: obs}).eq('id', id).select();
   if(error || !data || !data.length){ toast('Não consegui salvar: ' + (error ? error.message : 'sem permissão'),'info'); renderPagamentos(document.getElementById('content')); return; }
   p.valor = novoValor; p.observacoes = obs;
-  toast('✓ Comissão recalculada: R$ ' + novoValor.toFixed(2),'success');
+  toast(fech > 0 ? '✓ Comissão recalculada: R$ ' + novoValor.toFixed(2) : '✓ Salvo — preencha o valor fechado pra calcular a comissão','success');
   renderPagamentos(document.getElementById('content'));
 }
 
 async function comissaoLiberar(id){
   const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
   if(!p) return;
-  const com = _comissaoDados(p); if(!com) return;
+  const com = _comissaoDados(p) || _comissaoDraft(p);
   if(!confirm('Liberar o pagamento desta comissão (R$ ' + (parseFloat(p.valor)||0).toFixed(2) + ')?\n\nDepois do seu OK o financeiro consegue marcar como pago.')) return;
   const quem = (_currentProfile && _currentProfile.name) ? _currentProfile.name : ((_currentUser && _currentUser.email) || 'administração');
   com.ok_pagamento = true; com.ok_por = quem; com.ok_em = new Date().toISOString();
