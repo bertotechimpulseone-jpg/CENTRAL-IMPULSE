@@ -27760,7 +27760,11 @@ async function renderPagamentos(c){
               ? '<input type="number" step="0.01" value="' + (parseFloat(p.valor)||0) + '" onblur="atualizarPagVarCampo(\'' + p.id + '\',\'valor\',this.value)" style="background:transparent;border:none;width:90px;text-align:right;font-family:inherit;font-size:12.5px;color:var(--text);outline:none" />'
               : 'R$ ' + (parseFloat(p.valor)||0).toFixed(2)
             ) + '</td>' +
-            '<td style="padding:8px;text-align:center">' + (p.nf_url ? _nfCelulaHTML(p, ehGestor, false) : _nfMesCelulaHTML(p.profile_id, p.mes_ref || filtro, !!meuDbId && p.profile_id === meuDbId && !p.status_pago)) + '</td>' +
+            '<td style="padding:8px;text-align:center">' + (p.nf_url
+              ? _nfCelulaHTML(p, ehGestor, false)
+              : (p.status_pago && !(_nfDoMes(p.profile_id, p.mes_ref || filtro)||{}).url
+                  ? '<span class="badge b-warning" style="font-size:10px" title="Pago sem nota fiscal">pago sem NF</span>'
+                  : _nfMesCelulaHTML(p.profile_id, p.mes_ref || filtro, !!meuDbId && p.profile_id === meuDbId && !p.status_pago))) + '</td>' +
             // Status_pago: so gestor edita. TODO pagamento passa pelo duplo check antes do "Marcar pago".
             '<td style="padding:8px;text-align:center">' + (!isPago && !_pagLiberado(p)
               ? (ehGestor
@@ -29034,7 +29038,9 @@ async function marcarComoPago(id){
   const p = _colaboradorPagamentos.find(x => x.id === id);
   if(!p) return;
   if(!_pagLiberado(p)){ toast('⏳ Esse pagamento ainda não foi liberado pela administração','info'); return; }
-  if(!p.nf_url && !(_nfDoMes(p.profile_id, p.mes_ref) || {}).url){ toast('🧾 Sem nota fiscal do mês — o pagamento só pode ser efetuado depois da NF','info'); return; }
+  // Sem nota o sistema avisa, mas a administração decide se paga assim mesmo
+  const _semNF = !p.nf_url && !(_nfDoMes(p.profile_id, p.mes_ref) || {}).url;
+  if(_semNF && !confirm('Esse pagamento ainda não tem nota fiscal do mês.' + String.fromCharCode(10,10) + 'Marcar como pago mesmo assim?')) return;
   const hoje = new Date().toISOString().split('T')[0];
   const dataInput = prompt('Data do pagamento (YYYY-MM-DD):', p.data_pagamento || hoje);
   if(!dataInput) return;
@@ -29093,9 +29099,10 @@ async function toggleFixoPagoMes(fixoId, mes){
   // Só exige nota de quem é colaborador (sócios/aluguel não emitem nota pra nós)
   const _donoFx = _fixoDono(p);
   if(!fixoFoiPagoNoMes(p, mes) && _donoFx && !_nfFixoDoMes(p, mes) && !(_nfDoMes(_donoFx._dbId, mes)||{}).url){
-    toast('🧾 Sem nota fiscal de ' + mes + ' — o pagamento só pode ser efetuado depois da NF','info');
-    renderPagamentos(document.getElementById('content'));
-    return;
+    if(!confirm(_donoFx.name + ' ainda não enviou a nota fiscal de ' + mes + '.' + String.fromCharCode(10,10) + 'Marcar como pago mesmo assim?')){
+      renderPagamentos(document.getElementById('content'));
+      return;
+    }
   }
   let arr = [];
   try { arr = JSON.parse(p.pagos_meses || '[]'); if(!Array.isArray(arr)) arr = []; } catch(e){ arr = []; }
