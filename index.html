@@ -301,6 +301,53 @@ body.public-page #lembretesWidget{display:none!important}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
 @media (max-width:1100px){.grid-2,.grid-2e,.grid-3,.grid-4{grid-template-columns:1fr}}
+/* ==========================================================================
+   BLINDAGEM MOBILE — vale pra tela que existe hoje e pra qualquer tela nova.
+   Regra da casa: no celular NADA pode empurrar a pagina pro lado. O que for
+   largo demais (tabela, imagem, texto colado) rola dentro do proprio cartao.
+   ========================================================================== */
+@media (max-width:768px){
+  /* filho de flex/grid precisa poder encolher, senao ele estica o pai */
+  #content *:not(svg):not(svg *){min-width:0}
+  #content .card,#content .stat-card,#content .list-item,#content .modal-pane{max-width:100%}
+
+  /* midia nunca passa da largura da tela */
+  #content img,#content video,#content canvas,#content iframe,#content embed{max-width:100%;height:auto}
+
+  /* tabela larga rola sozinha dentro do cartao (nao precisa de div em volta) */
+  #content table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* bloco de codigo/texto pre-formatado quebra em vez de esticar a tela */
+  #content pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
+
+  /* palavra gigante (link, email, id) quebra em vez de esticar a tela */
+  #content,#content p,#content span,#content div,#content td,#content th,#content li,#content a{overflow-wrap:break-word}
+
+  /* alvo de toque confortavel */
+  #content .icon-btn{min-width:32px;min-height:32px}
+  #content input[type=checkbox],#content input[type=radio]{min-width:18px;min-height:18px}
+
+  /* modal usa a altura real do celular (100vh mente com a barra do navegador) */
+  .modal,.modal-content,[id$="Modal"] > div{max-height:100dvh}
+}
+/* Cabecalho: no celular so o essencial, pra busca e botoes nao ficarem espremidos */
+@media (max-width:768px){
+  .topbar{padding:0 12px;gap:8px}
+  .mobile-brand{display:none!important}           /* o titulo da pagina ja fica logo abaixo */
+  .top-actions .icon-btn[title="Ajuda"]{display:none}
+  .search{flex:1;min-width:0;max-width:none}
+  .search input{padding:9px 12px 9px 34px;font-size:14px;text-overflow:ellipsis}
+  .search kbd{display:none}                        /* atalho de teclado nao existe no celular */
+  .top-actions{gap:4px}
+}
+@media (max-width:370px){
+  .topbar{gap:6px;padding:0 9px}
+  .mobile-refresh-btn{display:none!important}      /* tela bem estreita: fica so o essencial */
+}
+
+/* o vigia marca aqui quem estourou; a marca sozinha ja conserta */
+.mb-clamp{max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+
 
 .chart-box{height:240px;position:relative}
 
@@ -6470,7 +6517,56 @@ function renderPage(page){
   };
   c.innerHTML='';c.scrollTop=0;
   (r[page]||renderDashboard)(c);
+  _mobileGuardAgendar();
 }
+
+// ===== VIGIA MOBILE =====
+// Rede de seguranca: depois de cada tela desenhada, mede se algo ficou mais largo
+// que o celular. Se ficou, marca o culpado pra ele rolar dentro do cartao em vez
+// de empurrar a pagina inteira. Vale pra telas futuras tambem, sem precisar lembrar.
+let _mbTimer = null;
+function _mobileGuardAgendar(){
+  if(_mbTimer) clearTimeout(_mbTimer);
+  _mbTimer = setTimeout(function(){ try{ _mobileGuard(); }catch(e){ console.warn('[mobile guard]', e); } }, 180);
+}
+
+function _mobileGuard(){
+  if(window.innerWidth > 768) return;
+  const areas = [document.getElementById('content')].concat(
+    Array.prototype.slice.call(document.querySelectorAll('.modal, .modal-body, [id$="Modal"] > div'))
+  ).filter(Boolean);
+  let ajustados = 0;
+  areas.forEach(function(area){
+    for(let passo = 0; passo < 3; passo++){
+      const limite = area.clientWidth;
+      if(!limite || area.scrollWidth <= limite + 4) break;
+      const filhos = area.querySelectorAll('*');
+      let mexeu = false;
+      for(let i = 0; i < filhos.length && i < 6000; i++){
+        const el = filhos[i];
+        if(el.classList.contains('mb-clamp')) continue;
+        const cs = getComputedStyle(el);
+        if(cs.display === 'none' || cs.position === 'fixed') continue;
+        if(cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue;
+        const r = el.getBoundingClientRect();
+        // dois jeitos de estourar: o bloco e mais largo que a tela, OU o conteudo
+        // dele vaza pra fora (grid de coluna fixa, <pre>, linha com nowrap).
+        const largoDemais = r.width > limite + 1;
+        const conteudoVaza = cs.overflowX === 'visible' && el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0;
+        if(!largoDemais && !conteudoVaza) continue;
+        // so marca o mais externo: se o pai ja foi marcado, esse ja esta resolvido
+        if(el.parentElement && el.parentElement.closest('.mb-clamp')) continue;
+        el.classList.add('mb-clamp');
+        mexeu = true; ajustados++;
+      }
+      if(!mexeu) break;
+    }
+  });
+  if(ajustados) console.info('[mobile guard] ' + ajustados + ' bloco(s) ajustado(s) pra caber na tela');
+}
+window._mobileGuard = _mobileGuard;
+window.addEventListener('resize', _mobileGuardAgendar);
+window.addEventListener('orientationchange', _mobileGuardAgendar);
 function toggleNotif(){
   const pop = document.getElementById('notifPop');
   pop.classList.toggle('open');
