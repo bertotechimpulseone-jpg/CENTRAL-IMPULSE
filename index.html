@@ -11774,18 +11774,10 @@ async function uploadProfileDoc(profileIdx, file, customName){
     toast('Enviando arquivo...','info');
     const ext = file.name.split('.').pop();
     const fileName = 'profile-' + dbId + '/' + Date.now() + '-' + file.name.replace(/[^a-zA-Z0-9.-]/g,'_');
-    const { data: upData, error: upErr } = await _supa.storage.from('team-documents').upload(fileName, file);
-    if(upErr){
-      // Bucket pode não existir
-      if(upErr.message && upErr.message.includes('not found')){
-        toast('Bucket "team-documents" nao existe. Crie no Supabase Storage','info');
-        alert('Crie o bucket no Supabase:\n\n1. Supabase → Storage\n2. New bucket → Nome: "team-documents" → PRIVATE → Create\n3. Tente novamente');
-        return;
-      }
-      throw upErr;
-    }
-    // Pega URL publica/assinada
-    const { data: urlData } = _supa.storage.from('team-documents').getPublicUrl(fileName);
+    // bucket 'uploads' com pasta propria (o 'team-documents' nunca existiu)
+    const { data: upData, error: upErr } = await _supa.storage.from('uploads').upload('team-documents/' + fileName, file, {contentType: file.type || undefined});
+    if(upErr) throw upErr;
+    const { data: urlData } = _supa.storage.from('uploads').getPublicUrl('team-documents/' + fileName);
     const publicUrl = urlData.publicUrl;
     // Salva como link
     await _supa.from('custom_links').insert({
@@ -11822,7 +11814,7 @@ function abrirUploadDocModal(profileIdx){
         <input id="docName" class="login-input" placeholder="Ex: Contrato CLT 2026" style="background:var(--surface-2);margin-bottom:12px" />
         <div class="info-label" style="margin-bottom:5px">Selecione o arquivo</div>
         <input id="docFile" type="file" accept="*/*" style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13px;cursor:pointer" />
-        <div class="text-xs text-3 mt-3">⚠ Antes do primeiro upload, crie um bucket "team-documents" no Supabase Storage (privado)</div>
+
         <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="doUploadDoc(${profileIdx})">📎 Enviar documento</button>
       </div>
 
@@ -21834,7 +21826,9 @@ function capToggleCli(mode){
   document.getElementById('capCliCustomBox').style.display = mode==='custom'?'grid':'none';
 }
 
-// Upload do briefing pro Supabase Storage (bucket "captacoes-briefing")
+// Upload do briefing. Usa o bucket 'uploads' — o unico que existe no projeto.
+// Antes apontava pra 'captacoes-briefing', que nunca foi criado: o upload falhava e
+// o sistema mandava o usuario criar bucket na mao no Supabase.
 async function capUploadBriefing(input){
   const file = input.files && input.files[0];
   if(!file) return;
@@ -21842,13 +21836,12 @@ async function capUploadBriefing(input){
   if(!_supa){ toast('Supabase necessário','info'); return; }
   toast('Enviando anexo...','info');
 
-  // ESTRATÉGIA 1: tenta Supabase Storage primeiro (bucket "captacoes-briefing")
   try {
     const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
-    const path = `briefings/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
-    const { error } = await _supa.storage.from('captacoes-briefing').upload(path, file, {upsert:false});
+    const path = `captacoes-briefing/${Date.now()}_${Math.random().toString(36).slice(2,8)}.${ext}`;
+    const { error } = await _supa.storage.from('uploads').upload(path, file, {upsert:false, contentType: file.type || undefined});
     if(!error){
-      const { data: pub } = _supa.storage.from('captacoes-briefing').getPublicUrl(path);
+      const { data: pub } = _supa.storage.from('uploads').getPublicUrl(path);
       document.getElementById('capBriefUrl').value = pub.publicUrl;
       document.getElementById('capBriefName').value = file.name;
       document.getElementById('capBriefFileName').textContent = '📎 ' + file.name;
@@ -21856,18 +21849,13 @@ async function capUploadBriefing(input){
       return;
     }
     console.warn('[uploadBrief] Storage falhou, tentando base64:', error);
-    // Se for outro erro que não bucket faltando, mostra
-    if(error.message && !error.message.toLowerCase().includes('not found') && !error.message.toLowerCase().includes('bucket')){
-      // Continua pro fallback mesmo assim
-    }
   } catch(e){
     console.warn('[uploadBrief] exception, tentando base64:', e);
   }
 
-  // ESTRATÉGIA 2 (fallback): salva como base64 no campo do banco (até 1MB)
+  // Se o envio falhar, arquivo pequeno ainda vai direto no banco
   if(file.size > 1*1024*1024){
-    toast('Arquivo grande (>1MB). Crie o bucket no Supabase Storage.','info');
-    alert('⚠ O bucket "captacoes-briefing" não existe no Supabase Storage.\n\nPra arquivos grandes (>1MB), o bucket é necessário:\n\n1. Vai em Supabase → Storage\n2. Clica em "Create bucket"\n3. Nome: captacoes-briefing\n4. MARCA "Public bucket" → Save\n\nPra arquivos pequenos (≤1MB), o sistema salva direto no banco como base64 (não precisa de bucket).\n\nReduza o arquivo e tente de novo, ou crie o bucket.');
+    toast('Não consegui enviar o anexo agora. Tente de novo em instantes ou use um arquivo menor.','info');
     return;
   }
 
