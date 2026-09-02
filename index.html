@@ -21635,6 +21635,16 @@ function autoPreencherTelefoneResp(nomeSelecionado){
   toast('📱 Telefone de ' + nomeSelecionado + ' preenchido: ' + tel, 'success');
 }
 
+// Quem continua com prazo automatico de 15 dias. O resto e preenchido a mao.
+const CAP_PRAZO_AUTO = ['yas','yasmin'];
+function _capPrazoAutomatico(nomeResp){
+  const n = (nomeResp||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+  if(!n) return false;
+  const primeiro = n.split(/\s+/)[0];
+  return CAP_PRAZO_AUTO.indexOf(primeiro) !== -1;
+}
+window._capPrazoAutomatico = _capPrazoAutomatico;
+
 async function openCaptacaoFormModal(cap){
   const isEdit = !!cap;
   // Anexo do briefing (base64) não vem no load — busca sob demanda ANTES de montar o form,
@@ -21728,6 +21738,10 @@ async function openCaptacaoFormModal(cap){
           <div>
             <div class="info-label" style="margin-bottom:4px">Horário *</div>
             <input id="capTime" type="time" class="login-input" value="${c.time||'10:00'}" style="background:var(--surface-2);width:100%" />
+          </div>
+          <div>
+            <div class="info-label" style="margin-bottom:4px">Prazo de entrega</div>
+            <input id="capPrazo" type="date" class="login-input" value="${c.prazo_entrega||''}" title="Opcional. Deixe vazio se essa captação não tem prazo." style="background:var(--surface-2);width:100%" />
           </div>
           <div>
             <div class="info-label" style="margin-bottom:4px">Prioridade</div>
@@ -21925,7 +21939,9 @@ async function salvarCaptacaoForm(capId){
     material_url: document.getElementById('capMaterialUrl').value.trim() || null,
     referencia_url: document.getElementById('capRefUrl').value.trim() || null,
     briefing_arquivo_url: document.getElementById('capBriefUrl').value.trim() || null,
-    briefing_arquivo_nome: document.getElementById('capBriefName').value.trim() || null
+    briefing_arquivo_nome: document.getElementById('capBriefName').value.trim() || null,
+    // prazo e manual: vale o que estiver no campo (vazio = sem prazo)
+    prazo_entrega: ((document.getElementById('capPrazo')||{}).value || '').trim() || null
   };
 
   const btn = document.getElementById('capSaveBtn');
@@ -21939,8 +21955,9 @@ async function salvarCaptacaoForm(capId){
       toast('✓ Captação atualizada','success');
     } else {
       payload.share_token = gerarShareToken();
-      // Prazo de entrega automatico: data da captacao + 15 dias corridos
-      if(payload.scheduled_date){
+      // Prazo automatico (captacao + 15 dias) SO nas captacoes da Yasmin.
+      // Nas outras o prazo e opcional e vai no campo "Prazo de entrega" do formulario.
+      if(!payload.prazo_entrega && payload.scheduled_date && _capPrazoAutomatico(payload.responsavel_nome)){
         try {
           const d = new Date(payload.scheduled_date + 'T00:00:00');
           d.setDate(d.getDate() + 15);
