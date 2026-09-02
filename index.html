@@ -2758,6 +2758,8 @@ async function loadDataFromSupabase(){
           services: cl.services || [],
           journey_steps: Array.isArray(cl.journey_steps) ? cl.journey_steps : [],
           oculto: !!cl.oculto,
+          pre_cadastro: !!cl.pre_cadastro,
+          pre_cadastro_origem: cl.pre_cadastro_origem || '',
           conhecendo_url: cl.conhecendo_url || '',
           aniversarios: Array.isArray(cl.aniversarios) ? cl.aniversarios : [],
           cnpj: cl.cnpj || '',
@@ -7672,7 +7674,7 @@ function renderClientes(c){
           return `
             <button class="cli-btn" data-search="${searchKey}" data-status="${cli.status}" onclick="openClient(${cli.id})">
               <div class="cli-btn-logo ${cli.logo_url?'has-image':''}" style="background:${cli.logo_url?'transparent':cli.color}">${cli.logo_url?`<img src="${cli.logo_url}" alt="${escapeHtml(_nomeCli(cli))}" onerror="this.outerHTML='${cli.init}'"/>`:cli.init}</div>
-              <div class="cli-btn-name">${escapeHtml(_nomeCli(cli))}${cli.gestor_nome?`<div style="font-size:10px;color:var(--text-muted);font-weight:500;margin-top:2px">👤 ${escapeHtml(cli.gestor_nome)}</div>`:''}</div>
+              <div class="cli-btn-name">${cli.pre_cadastro?`<div style="font-size:9.5px;font-weight:700;color:#fbbf24;letter-spacing:.04em;margin-bottom:2px">⚠ PRÉ-CADASTRO</div>`:''}${escapeHtml(_nomeCli(cli))}${cli.gestor_nome?`<div style="font-size:10px;color:var(--text-muted);font-weight:500;margin-top:2px">👤 ${escapeHtml(cli.gestor_nome)}</div>`:''}</div>
             </button>
           `;
         }).join('')}
@@ -12122,10 +12124,49 @@ async function autoSyncFieldUI(table, recordId, field, value, label){
 }
 
 // Reload silencioso de uma tabela (atualiza array global)
+// Coloca uma tarefa recem-criada no checklist de quem vai fazer, SEM esperar recarregar
+// a pagina. Antes a lista so era montada no load: quem criava (e o responsavel) nao via
+// nada ate dar F5, e parecia que a tarefa nao tinha ido pro checklist.
+function _tarefaNoChecklistLocal(t){
+  try{
+    if(!t || !t.is_daily) return false;
+    const tm = (team||[]).find(x => x._dbId === t.assigned_to);
+    if(!tm) return false;
+    const primeiro = (tm.name||'').trim().split(/\s+/)[0];
+    if(!primeiro) return false;
+    if(!dailyChecklists[primeiro]) dailyChecklists[primeiro] = [];
+    // tarefa marcada pra frente so aparece no dia dela
+    if(t.due_date){
+      const hojeISO = new Date().toLocaleDateString('sv-SE');
+      if(String(t.due_date) > hojeISO) return false;
+    }
+    if((dailyChecklists[primeiro]||[]).some(function(x){ return x._dbId === t.id; })) return true;
+    const cli = (clients||[]).find(function(c){ return c._dbId === t.client_id; });
+    dailyChecklists[primeiro].push({
+      _dbId: t.id,
+      t: t.title, p: t.priority || 'med',
+      time: t.scheduled_time ? String(t.scheduled_time).substring(0,5) : '09:00',
+      client: cli ? cli.name : 'Geral',
+      fixa: !!t.fixa_id,
+      done: !!t.done
+    });
+    if(Array.isArray(window._tasksRaw)) window._tasksRaw.push(t);
+    // se a pessoa estiver com o checklist aberto, atualiza na hora
+    if(typeof currentPage !== 'undefined' && (currentPage === 'checklist' || currentPage === 'operacional')){
+      try{ renderPage(currentPage); }catch(e){}
+    }
+    return true;
+  }catch(e){ console.warn('[tarefa->checklist]', e); return false; }
+}
+window._tarefaNoChecklistLocal = _tarefaNoChecklistLocal;
+
 async function silentReload(table){
   if(!_supa) return;
   try {
-    if(table === 'clients'){
+    if(table === 'tasks'){
+      const { data } = await _supa.from('tasks').select('*').order('created_at',{ascending:false});
+      if(data) _remontarChecklists(data);
+    } else if(table === 'clients'){
       await loadDataFromSupabase();
     } else if(table === 'budgets'){
       const { data } = await _supa.from('budgets').select('*').order('created_at',{ascending:false}).limit(200);
@@ -12160,6 +12201,36 @@ async function silentReload(table){
 
 
 
+// Remonta os checklists a partir das tarefas do banco (mesma regra usada no load).
+function _remontarChecklists(tkData){
+  try{
+    window._tasksRaw = tkData || [];
+    Object.keys(dailyChecklists).forEach(function(k){ dailyChecklists[k] = []; });
+    const hojeISO = new Date().toLocaleDateString('sv-SE');
+    (tkData||[]).forEach(function(t){
+      const tm = (team||[]).find(function(x){ return x._dbId === t.assigned_to; });
+      if(!tm) return;
+      const primeiro = (tm.name||'').split(' ')[0];
+      if(!dailyChecklists[primeiro]) dailyChecklists[primeiro] = [];
+      if(!t.is_daily) return;
+      if(t.due_date && String(t.due_date) > hojeISO) return;   // agendada pra frente
+      const cli = (clients||[]).find(function(c){ return c._dbId === t.client_id; });
+      dailyChecklists[primeiro].push({
+        _dbId: t.id, t: t.title, p: t.priority||'med',
+        time: t.scheduled_time ? String(t.scheduled_time).substring(0,5) : '09:00',
+        client: cli ? cli.name : 'Geral',
+        fixa: !!t.fixa_id,
+        done: t.done || false
+      });
+    });
+    (team||[]).forEach(function(m){
+      const fn = (m.name||'').trim().split(/\s+/)[0];
+      if(fn && !(fn in dailyChecklists)) dailyChecklists[fn] = [];
+    });
+  }catch(e){ console.warn('[remontar checklists]', e); }
+}
+window._remontarChecklists = _remontarChecklists;
+
 // ============ SUPABASE REALTIME (sync entre usuarios) ============
 let _realtimeChannel = null;
 
@@ -12176,6 +12247,16 @@ function startRealtimeSync(){
       .on('postgres_changes', {event: '*', schema: 'public', table: 'profiles'}, ()=>{
         console.log('[RT] profiles mudou');
         silentReload('profiles');
+      })
+      .on('postgres_changes', {event: '*', schema: 'public', table: 'tasks'}, ()=>{
+        // tarefa criada/alterada por outra pessoa (ex: agendada no Comercial) cai no
+        // checklist de quem vai fazer sem precisar recarregar a pagina
+        console.log('[RT] tasks mudou');
+        silentReload('tasks').then(()=>{
+          if(currentPage === 'checklist' || currentPage === 'operacional' || currentPage === 'dashboard'){
+            try{ renderPage(currentPage); }catch(e){}
+          }
+        });
       })
       .on('postgres_changes', {event: '*', schema: 'public', table: 'budgets'}, ()=>{
         console.log('[RT] budgets mudou');
@@ -15032,7 +15113,20 @@ async function salvarLeadDetalhe(leadId){
   }
   Object.assign(lead, patch);
   // Orçamento acabou de virar APROVADO → gera a comissão da executiva comercial em Pagamentos
-  if(patch.aprovado === true && !_aprovadoAntes){ try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead]', e); } }
+  if(patch.aprovado === true && !_aprovadoAntes){
+    try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead]', e); }
+    // cliente novo fechado entra no cadastro com o que o card ja tem
+    try {
+      await preCadastrarCliente({
+        nome: lead.name || '',
+        phone: lead.phone || '',
+        email: lead.email || '',
+        valor: parseFloat(lead.value) || 0,
+        servicos: lead.servico_contratado ? [lead.servico_contratado] : [],
+        rotulo: 'card do pipeline'
+      });
+    } catch(e){ console.warn('[pré-cadastro do card]', e); }
+  }
   // Reflete o serviço contratado no cliente correspondente — APPEND, nunca sobrescreve o plano
   const _serv = (patch.servico_contratado||'').trim();
   if(_serv){
@@ -15087,7 +15181,11 @@ async function agendarTarefaDoLead(leadId){
   const tm = (team||[]).find(x => x._dbId === quem);
   const primeiro = tm ? (tm.name||'').split(' ')[0] : 'a pessoa';
   const [a,m,d] = dia.split('-');
-  toast('✓ Tarefa no checklist de ' + primeiro + ' em ' + d + '/' + m, 'success');
+  // entra no checklist agora, sem esperar recarregar (o responsavel recebe pelo tempo real)
+  const entrouHoje = _tarefaNoChecklistLocal(r);
+  toast(entrouHoje
+    ? '✓ Tarefa já está no checklist de ' + primeiro + ' (hoje)'
+    : '✓ Tarefa no checklist de ' + primeiro + ' em ' + d + '/' + m, 'success');
   _leadTarefasRender(leadId);
 }
 // Lista as tarefas ja agendadas deste card
@@ -28467,6 +28565,118 @@ function _comissaoProfileId(){
   return COMISSAO_PROFILE_ID_FALLBACK;
 }
 
+// ===== PRE-CADASTRO DO CLIENTE FECHADO =====
+// Fechou a venda, o cliente ja entra no cadastro com tudo que o sistema JA SABE
+// (orcamento, card do pipeline). O que falta vira uma tarefa pra Heidy completar,
+// e o cliente fica marcado como "pre-cadastro" ate ela terminar.
+const PRE_CAD_RESPONSAVEL = 'heidy';
+
+function _preCadNormaliza(s){
+  return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+
+function _preCadClienteExiste(nome){
+  const alvo = _preCadNormaliza(nome);
+  if(!alvo) return null;
+  return (clients||[]).find(function(c){
+    return _preCadNormaliza(c.name) === alvo
+        || _preCadNormaliza(c.razao_social) === alvo
+        || _preCadNormaliza(c.nome_fantasia) === alvo;
+  }) || null;
+}
+
+function _preCadResponsavelId(){
+  const alvo = PRE_CAD_RESPONSAVEL;
+  const p = (team||[]).find(function(m){ return _preCadNormaliza(m.name).split(' ')[0] === alvo; });
+  return p ? p._dbId : null;
+}
+
+// O que ainda falta pro cadastro ficar completo
+function _preCadPendencias(dados){
+  const falta = [];
+  if(!dados.cnpj)           falta.push('CNPJ');
+  if(!dados.razao_social)   falta.push('razão social');
+  if(!dados.phone)          falta.push('telefone');
+  if(!dados.email)          falta.push('e-mail');
+  if(!dados.instagram)      falta.push('Instagram');
+  if(!dados.plan_name)      falta.push('plano contratado');
+  if(!dados.plan_value)     falta.push('valor do plano');
+  if(!dados.contract_start) falta.push('início do contrato');
+  if(!dados.gestor_nome)    falta.push('gestor responsável');
+  if(!dados.contrato_url)   falta.push('contrato assinado');
+  return falta;
+}
+
+// origem: {nome, cnpj, razao_social, phone, email, endereco, valor, servicos, rotulo}
+async function preCadastrarCliente(origem){
+  try{
+    if(!_supa || !origem || !origem.nome) return null;
+    const jaTem = _preCadClienteExiste(origem.nome);
+    if(jaTem){ console.info('[pré-cadastro] ' + origem.nome + ' já está no cadastro'); return null; }
+
+    const hoje = new Date().toLocaleDateString('sv-SE');
+    const dados = {
+      name: String(origem.nome).trim(),
+      cnpj: origem.cnpj || null,
+      razao_social: origem.razao_social || null,
+      phone: origem.phone || null,
+      email: origem.email || null,
+      instagram: null,
+      plan_name: (origem.servicos && origem.servicos.length) ? origem.servicos.join(' + ').slice(0,120) : null,
+      plan_value: parseFloat(origem.valor) || null,
+      contract_start: null,
+      gestor_nome: null,
+      contrato_url: null,
+      status: 'active',
+      services_list: origem.servicos || [],
+      pre_cadastro: true,
+      pre_cadastro_origem: origem.rotulo || 'comercial',
+      initials: String(origem.nome).trim().split(/\s+/).map(function(w){ return w[0]||''; }).slice(0,2).join('').toUpperCase(),
+      color: '#EC1E79'
+    };
+    const falta = _preCadPendencias(dados);
+    dados.observacoes = '⚠ Pré-cadastro criado pelo Comercial em ' + hoje.split('-').reverse().join('/')
+      + (origem.rotulo ? ' (' + origem.rotulo + ')' : '')
+      + (falta.length ? '. Falta preencher: ' + falta.join(', ') + '.' : '. Cadastro completo.');
+
+    const novo = await dbCreate('clients', dados);
+    if(!novo){ return null; }
+
+    // cai na lista da tela na hora
+    try{
+      clients.push(Object.assign({}, dados, {
+        id: clients.length + 1, _dbId: novo.id, origIdx: clients.length,
+        init: dados.initials, mrr: dados.plan_value || 0, planName: dados.plan_name || '',
+        planValue: dados.plan_value || 0, oculto: false, journey_steps: []
+      }));
+    }catch(e){}
+
+    // pendencias viram tarefa da responsavel pelo cadastro
+    let avisou = '';
+    const respId = _preCadResponsavelId();
+    if(respId && falta.length){
+      const tarefa = await dbCreate('tasks', {
+        title: 'Completar cadastro de ' + dados.name + ' · falta ' + falta.join(', '),
+        assigned_to: respId,
+        client_id: novo.id,
+        priority: 'high',
+        scheduled_time: '09:00',
+        due_date: hoje,
+        is_daily: true,
+        done: false
+      });
+      if(tarefa){
+        try{ _tarefaNoChecklistLocal(tarefa); }catch(e){}
+        const tm = (team||[]).find(function(m){ return m._dbId === respId; });
+        avisou = ' · pendências no checklist de ' + ((tm && tm.name) || 'quem cuida do cadastro').split(' ')[0];
+      }
+    }
+    toast('👤 ' + dados.name + ' entrou como pré-cadastro' + avisou, 'success');
+    return novo;
+  }catch(e){ console.warn('[preCadastrarCliente]', e); return null; }
+}
+window.preCadastrarCliente = preCadastrarCliente;
+
 // Orçamento aprovado → comissão automática da executiva comercial, já com o orçamento vinculado.
 async function gerarComissaoDoOrcamento(b){
   try {
@@ -28499,6 +28709,20 @@ async function gerarComissaoDoOrcamento(b){
     toast(fechado > 0
       ? '💰 Comissão de R$ ' + valor.toFixed(2) + ' (' + percent + '% de R$ ' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ') criada em Pagamentos'
       : '💰 Comissão criada em Pagamentos — esse orçamento está sem valor total','success');
+    // cliente novo fechado: ja entra no cadastro com o que o orçamento traz
+    try{
+      const cd = b.client_data || {};
+      await preCadastrarCliente({
+        nome: cliente,
+        cnpj: cd.cnpj || '',
+        razao_social: cd.razao_social || '',
+        phone: cd.telefone || '',
+        email: cd.email || '',
+        valor: fechado,
+        servicos: (b.services||[]).map(function(s){ return s.desc || s.descricao || s.nome || ''; }).filter(Boolean),
+        rotulo: 'orçamento ' + (b.numero || '')
+      });
+    }catch(e){ console.warn('[pré-cadastro do orçamento]', e); }
   } catch(e){ console.warn('[gerarComissaoDoOrcamento]', e); }
 }
 
