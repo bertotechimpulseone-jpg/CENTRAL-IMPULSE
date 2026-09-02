@@ -4237,7 +4237,7 @@ async function gerarRelatorioPDF(){
   catch(e){ toast('Não consegui salvar no sistema, mas vou gerar o PDF','info'); }
   document.getElementById('relModal')?.remove();
   await _relAbrirPreview(d);
-  setTimeout(function(){ try{ _relBaixarPDF(); }catch(e){} }, 300);
+  setTimeout(function(){ try{ _relBaixarPDFArquivo(); }catch(e){} }, 300);
 }
 async function excluirRelatorio(id){
   const r=(_relatorios||[]).find(x=>String(x.id)===String(id));
@@ -4438,6 +4438,110 @@ async function _relFonteEmbutida(){
     return out;
   }catch(e){ console.warn('[relatorio] nao consegui embutir a fonte:', e); window._relFontCSS = ''; return ''; }
 }
+// ===== PDF DO RELATORIO COMO ARQUIVO =====
+// Antes o PDF saia pelo dialogo de impressao do navegador: no PC ficava certo, mas no
+// celular cada navegador imprime de um jeito (escala pelo tamanho da tela, derruba fundo,
+// bloqueia o pop-up). Agora o arquivo e montado aqui, com a folha A4 sempre do mesmo
+// tamanho, e baixa direto. O resultado fica igual em qualquer aparelho.
+function _relCarregarHtml2Canvas(){
+  if(window.html2canvas) return Promise.resolve(true);
+  if(window._h2cPromise) return window._h2cPromise;
+  window._h2cPromise = new Promise(function(res){
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload = function(){ res(!!window.html2canvas); };
+    s.onerror = function(){ res(false); };
+    document.head.appendChild(s);
+  });
+  return window._h2cPromise;
+}
+
+function _relNomeArquivo(d){
+  const limpa = function(s){
+    return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-zA-Z0-9 _-]/g,'').replace(/\s+/g,' ').trim();
+  };
+  const emp = limpa(d.empresa) || 'Cliente';
+  const dt = String(d.data||'').slice(0,10).split('-').reverse().join('-');
+  return ('Relatorio ' + emp + (dt ? ' ' + dt : '') + '.pdf');
+}
+
+// Espera a Montserrat estar realmente pronta (senao a letra troca e o texto estoura)
+async function _relFontePronta(){
+  try{
+    if(!document.fonts) return;
+    await document.fonts.ready;
+    const t0 = Date.now();
+    while(Date.now() - t0 < 6000){
+      if(document.fonts.check('800 25px Montserrat') && document.fonts.check('400 18px Montserrat')) return;
+      await new Promise(function(r){ setTimeout(r, 120); });
+    }
+  }catch(e){}
+}
+
+async function _relBaixarPDFArquivo(){
+  const d = _relDadosAtual, pgs = _relPaginasAtual;
+  if(!d || !pgs || !pgs.length){ toast('Gere o relatório primeiro','info'); return; }
+  const jsPDFctor = (window.jspdf || {}).jsPDF;
+  const temLib = await _relCarregarHtml2Canvas();
+  if(!temLib || !jsPDFctor){
+    toast('Sem internet pra montar o arquivo — vou abrir pela impressão','info');
+    return _relBaixarPDF();
+  }
+  const btn = document.getElementById('relBtnPDF');
+  const rotuloAntes = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = 'Gerando…'; }
+  toast('Gerando o PDF…','info');
+  _relSetup();
+  await _relFontePronta();
+
+  // Folhas montadas do zero, no tamanho exato da A4 — fora da tela e sem a escala
+  // que o preview aplica no celular (senao o PDF sairia reduzido).
+  const holder = document.createElement('div');
+  holder.setAttribute('aria-hidden','true');
+  holder.style.cssText = 'position:fixed;left:-100000px;top:0;width:' + _REL_W + 'px;background:#fff;z-index:-1;pointer-events:none';
+  holder.innerHTML = pgs.map(function(p,i){ return _relPaginaHTML(d,p,i,pgs.length); }).join('');
+  document.body.appendChild(holder);
+
+  try{
+    const doc = new jsPDFctor({orientation:'portrait', unit:'pt', format:'a4', compress:true});
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
+    const folhas = holder.querySelectorAll('.rel-page');
+    for(let i = 0; i < folhas.length; i++){
+      if(btn) btn.textContent = 'Gerando… ' + (i+1) + '/' + folhas.length;
+      const cv = await html2canvas(folhas[i], {
+        scale: 2, width: _REL_W, height: _REL_H,
+        windowWidth: _REL_W, windowHeight: _REL_H,
+        scrollX: 0, scrollY: 0, x: 0, y: 0,
+        backgroundColor: '#1b0b30', useCORS: true, logging: false, imageTimeout: 0
+      });
+      const img = cv.toDataURL('image/jpeg', 0.92);
+      if(i > 0) doc.addPage();
+      doc.addImage(img, 'JPEG', 0, 0, W, H, undefined, 'FAST');
+      cv.width = cv.height = 0;   // libera memoria (celular tem pouca)
+    }
+    const nome = _relNomeArquivo(d);
+    try{
+      doc.save(nome);
+    }catch(e){
+      // iPhone as vezes nao aceita download direto: abre o arquivo pra compartilhar
+      const url = URL.createObjectURL(doc.output('blob'));
+      window.open(url, '_blank');
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+    }
+    toast('✓ PDF salvo: ' + nome,'success');
+  }catch(e){
+    console.warn('[relatorio pdf]', e);
+    toast('Não consegui montar o arquivo — vou abrir pela impressão','info');
+    _relBaixarPDF();
+  }finally{
+    holder.remove();
+    if(btn){ btn.disabled = false; btn.textContent = rotuloAntes || '⬇ Baixar PDF'; }
+  }
+}
+window._relBaixarPDFArquivo = _relBaixarPDFArquivo;
+
 async function _relBaixarPDF(){
   const d=_relDadosAtual, pgs=_relPaginasAtual;
   if(!d || !pgs || !pgs.length){ toast('Gere o relatório primeiro','info'); return; }
@@ -4484,7 +4588,8 @@ async function _relAbrirPreview(d){
     <div id="relPreviewBar" style="position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:10px;max-width:834px;margin:0 auto 16px;background:rgba(10,6,20,.95);padding:8px 0;z-index:3;flex-wrap:wrap">
       <div style="color:#fff;font-weight:700;font-size:14.5px">${escapeHtml(d.empresa)} · ${_relFmtData(d.data)} · ${paginas.length} página${paginas.length!==1?'s':''}</div>
       <div style="display:flex;gap:8px">
-        <button class="btn" onclick="_relBaixarPDF()" style="background:#fff;color:#111;border:none;font-weight:700">⬇ Baixar PDF</button>
+        <button class="btn" id="relBtnPDF" onclick="_relBaixarPDFArquivo()" title="Baixa o arquivo pronto, igual no computador e no celular" style="background:#fff;color:#111;border:none;font-weight:700">⬇ Baixar PDF</button>
+        <button class="btn" onclick="_relBaixarPDF()" title="Abrir pela impressão do navegador" style="color:#fff;border-color:rgba(255,255,255,.3)">🖨</button>
         <button class="btn" onclick="document.getElementById('relPreview').remove()" style="color:#fff;border-color:rgba(255,255,255,.3)">Fechar</button>
       </div>
     </div>
