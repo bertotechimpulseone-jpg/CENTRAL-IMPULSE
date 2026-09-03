@@ -250,6 +250,49 @@ body.public-page #lembretesWidget{display:none!important}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow-sm);transition:.18s}
 .stat-card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
 
+
+/* ===== Banner diário do dashboard ===== */
+.banner-dia{
+  position:relative;overflow:hidden;border-radius:16px;margin-bottom:18px;
+  background:var(--grad);isolation:isolate;
+  box-shadow:0 10px 30px rgba(236,30,121,.22);
+}
+.banner-dia-luz{
+  position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(60% 120% at 88% 12%, rgba(255,255,255,.30), transparent 62%),
+    radial-gradient(48% 110% at 8% 92%, rgba(0,0,0,.22), transparent 60%);
+}
+.banner-dia-in{position:relative;z-index:1;padding:20px 26px 18px;color:#fff}
+.banner-dia-topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:9px}
+.banner-dia-eyebrow{
+  font-family:'Sora',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.18em;
+  text-transform:uppercase;color:rgba(255,255,255,.9)
+}
+.banner-dia-tag{
+  font-family:'Sora',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.34);
+  border-radius:999px;padding:3px 10px;color:#fff;backdrop-filter:blur(4px)
+}
+.banner-dia-frase{
+  font-family:'Sora',sans-serif;font-weight:800;letter-spacing:-.03em;line-height:1.22;
+  font-size:clamp(17px,2.1vw,25px);margin:0;color:#fff;text-wrap:balance;max-width:46ch;
+  text-shadow:0 2px 14px rgba(0,0,0,.18)
+}
+.banner-dia-pe{
+  margin-top:11px;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.82);letter-spacing:.02em
+}
+@media (max-width:768px){
+  .banner-dia{border-radius:14px;margin-bottom:14px}
+  .banner-dia-in{padding:16px 17px 15px}
+  .banner-dia-frase{font-size:16.5px;line-height:1.3;max-width:none}
+  .banner-dia-pe{margin-top:9px;font-size:11px}
+}
+@media (prefers-reduced-motion: no-preference){
+  .banner-dia{animation:bannerDiaIn .5s cubic-bezier(.2,.7,.2,1) both}
+  @keyframes bannerDiaIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+}
+
 /* Cards */
 .card{
   background:var(--surface);border:1px solid var(--border);
@@ -7149,6 +7192,165 @@ async function uploadFotoColaborador(idx){
   };
   inp.click();
 }
+
+// ============ BANNER DIÁRIO DO DASHBOARD ============
+// Uma reflexão por dia, igual pra todo mundo da equipe (o mesmo dia mostra a mesma
+// frase em qualquer computador). Nada de frase de calendário motivacional: a ideia é
+// provocar um pensamento que a pessoa leve pro trabalho do dia.
+const REFLEXOES_DIA = [
+  {t:'Ninguém lembra do post perfeito que não foi publicado.', k:'Entregar'},
+  {t:'Ocupado e produtivo são coisas diferentes. Uma delas cansa sem mover nada de lugar.', k:'Foco'},
+  {t:'Se o cliente precisa perguntar como está, a comunicação falhou antes do trabalho.', k:'Relação'},
+  {t:'A pressa entrega hoje o que vai voltar pra você amanhã.', k:'Cuidado'},
+  {t:'Toda tarefa que você adia vira duas: a tarefa e o peso de lembrar dela.', k:'Leveza'},
+  {t:'Criatividade não é ter ideia nova. É ter coragem de descartar a primeira.', k:'Criação'},
+  {t:'O que você não mede, o cliente mede por você. E raramente do jeito que te favorece.', k:'Dados'},
+  {t:'Existe diferença entre fazer bonito e resolver. Prefira o segundo, e faça bonito no caminho.', k:'Propósito'},
+  {t:'Nenhum relatório salva um mês que ninguém acompanhou.', k:'Rotina'},
+  {t:'Se você é o único que sabe fazer, isso não é talento. É risco.', k:'Time'},
+  {t:'A melhor ideia da reunião costuma vir de quem escutou mais.', k:'Escuta'},
+  {t:'Prometer prazo curto compra simpatia hoje e cobra confiança depois.', k:'Prazo'},
+  {t:'Cliente não compra criatividade. Compra tranquilidade.', k:'Valor'},
+  {t:'Quando tudo é urgente, nada é importante. Escolha antes que o dia escolha por você.', k:'Prioridade'},
+  {t:'Refazer com calma custa menos que explicar com pressa.', k:'Qualidade'},
+  {t:'A pergunta que você tem vergonha de fazer é a que economiza uma semana.', k:'Coragem'},
+  {t:'Trabalho invisível também cansa. Registre o que você fez.', k:'Registro'},
+  {t:'Você não precisa ter certeza pra começar. Precisa ter honestidade pra corrigir.', k:'Movimento'},
+  {t:'O detalhe que ninguém nota é exatamente o que separa profissional de amador.', k:'Ofício'},
+  {t:'Reunião sem decisão é conversa cara.', k:'Objetividade'},
+  {t:'Antes de pedir mais tempo, pergunte se é tempo ou clareza que está faltando.', k:'Clareza'},
+  {t:'Feedback que dói por dois minutos evita um erro que dói por dois meses.', k:'Feedback'},
+  {t:'Não existe cliente difícil. Existe expectativa que ninguém alinhou.', k:'Alinhamento'},
+  {t:'A entrega começa no briefing, não no prazo.', k:'Começo'},
+  {t:'Se você precisou explicar a peça, ela ainda não está pronta.', k:'Clareza'},
+  {t:'Copiar referência é atalho. Entender por que ela funciona é caminho.', k:'Estudo'},
+  {t:'O maior inimigo do resultado é o retrabalho que ninguém contou pra ninguém.', k:'Processo'},
+  {t:'Toda vez que você melhora um processo, presenteia o seu eu do mês que vem.', k:'Processo'},
+  {t:'Anotar não é burocracia. É respeito com quem vai continuar o trabalho.', k:'Registro'},
+  {t:'Perfeição é uma forma elegante de procrastinar.', k:'Entregar'},
+  {t:'Quem só entrega quando está inspirado não tem ofício, tem sorte.', k:'Disciplina'},
+  {t:'A régua do cliente não é o seu esforço. É o que ele consegue enxergar.', k:'Percepção'},
+  {t:'Silêncio prolongado com cliente nunca é neutro. Ele preenche com o pior cenário.', k:'Relação'},
+  {t:'Um bom "não" hoje protege três entregas boas amanhã.', k:'Limite'},
+  {t:'Nem toda ideia genial merece o seu mês. Algumas merecem só um teste.', k:'Teste'},
+  {t:'Você não é seu trabalho, mas seu trabalho carrega sua assinatura.', k:'Identidade'},
+  {t:'Quando o processo trava, o problema quase nunca é a pessoa.', k:'Sistema'},
+  {t:'A parte chata da tarefa é onde mora a diferença.', k:'Ofício'},
+  {t:'Começar de novo não apaga o que você aprendeu na primeira vez.', k:'Recomeço'},
+  {t:'Time que só se fala quando dá problema descobre os problemas tarde demais.', k:'Time'},
+  {t:'Se ninguém revisou, não está pronto. Está só terminado.', k:'Revisão'},
+  {t:'Talento entrega picos. Método entrega meses.', k:'Método'},
+  {t:'A dúvida que você guarda vira o erro que a equipe conserta.', k:'Coragem'},
+  {t:'Você não precisa gostar da tarefa. Precisa respeitar quem depende dela.', k:'Responsa'},
+  {t:'Marketing bom não faz barulho. Faz sentido.', k:'Estratégia'},
+  {t:'Vender é resolver primeiro, cobrar depois.', k:'Comercial'},
+  {t:'Cliente que entende o que está comprando reclama menos e renova mais.', k:'Clareza'},
+  {t:'Nunca terceirize a parte que define a qualidade do que leva o seu nome.', k:'Padrão'},
+  {t:'O prazo apertado que você aceitou calado vira a noite mal dormida de alguém.', k:'Time'},
+  {t:'Cuidado com a tarefa fácil que você faz há um ano do mesmo jeito. Ela pode ter parado de servir.', k:'Revisão'},
+  {t:'Fazer rápido e fazer com pressa não são a mesma coisa.', k:'Ritmo'},
+  {t:'Se o trabalho depende de você lembrar, ele já está falhando.', k:'Sistema'},
+  {t:'Uma boa pergunta economiza mais tempo que dez boas respostas.', k:'Pergunta'},
+  {t:'O que parece exigência do cliente costuma ser insegurança que ninguém acalmou.', k:'Empatia'},
+  {t:'Trabalhar demais é fácil. Difícil é trabalhar no que importa.', k:'Foco'},
+  {t:'Quem não separa tempo pra pensar, passa o mês só reagindo.', k:'Estratégia'},
+  {t:'A ideia que você não escreveu você não teve.', k:'Registro'},
+  {t:'Metade dos problemas de entrega são problemas de agenda mal feita.', k:'Planejar'},
+  {t:'Cliente elogia o resultado, mas renova pela experiência.', k:'Relação'},
+  {t:'Ser confiável rende mais que ser brilhante.', k:'Confiança'},
+  {t:'A pior versão de um trabalho é a que ficou pela metade esperando o momento certo.', k:'Entregar'},
+  {t:'Um erro assumido rápido custa desculpa. Um erro escondido custa contrato.', k:'Verdade'},
+  {t:'Você aprende mais com o projeto que deu errado do que com três que deram certo.', k:'Aprender'},
+  {t:'A rotina não é inimiga da criatividade. É o que libera espaço pra ela.', k:'Rotina'},
+  {t:'Antes de automatizar, entenda. Automatizar bagunça só acelera a bagunça.', k:'Processo'},
+  {t:'Se a reunião podia ser uma mensagem, mande a mensagem.', k:'Tempo'},
+  {t:'Todo mundo quer o crédito da estratégia. Poucos querem o trabalho da execução.', k:'Execução'},
+  {t:'Resultado é consequência. Constância é a causa.', k:'Constância'},
+  {t:'Não confunda estar disponível com estar presente.', k:'Presença'},
+  {t:'A tarefa que você entrega no capricho hoje é o argumento da sua próxima negociação.', k:'Reputação'},
+  {t:'Quando você explica o porquê, o time deixa de executar e começa a pensar junto.', k:'Liderança'},
+  {t:'Ninguém acerta o tom da marca sem entender o medo do cliente dela.', k:'Estratégia'},
+  {t:'O que você tolera vira padrão.', k:'Padrão'},
+  {t:'Prazo não é opinião.', k:'Prazo'},
+  {t:'Trabalho em equipe não é dividir tarefa. É não deixar ninguém carregar sozinho.', k:'Time'},
+  {t:'Se você não sabe qual problema está resolvendo, está só produzindo.', k:'Propósito'},
+  {t:'Post bonito que não conversa com ninguém é enfeite caro.', k:'Conteúdo'},
+  {t:'Número sem contexto engana melhor que mentira.', k:'Dados'},
+  {t:'Quem entende o negócio do cliente escreve melhor que quem escreve bem.', k:'Estudo'},
+  {t:'A parte mais difícil de criar é decidir o que vai ficar de fora.', k:'Edição'},
+  {t:'Você não precisa da melhor ideia. Precisa da ideia certa pra esse cliente, nesse mês.', k:'Contexto'},
+  {t:'Repetir a mensagem não é falta de criatividade. É como as pessoas lembram.', k:'Comunicação'},
+  {t:'Ajuste pedido não é crítica pessoal. É informação de graça.', k:'Feedback'},
+  {t:'Melhor um conteúdo por semana que sustenta que cinco que somem no mês seguinte.', k:'Consistência'},
+  {t:'Se você não tem orgulho de mostrar, provavelmente não deveria enviar.', k:'Padrão'},
+  {t:'A confiança se constrói em meses e se perde num prazo.', k:'Confiança'},
+  {t:'Nem tudo que dá trabalho gera valor. Nem tudo que gera valor dá trabalho.', k:'Esforço'},
+  {t:'A urgência de hoje quase sempre é o planejamento que faltou semana passada.', k:'Planejar'},
+  {t:'Existe coragem em dizer "não sei ainda".', k:'Honestidade'},
+  {t:'Quem documenta ensina duas vezes e explica metade.', k:'Registro'},
+  {t:'Cuidado com o elogio que só fala do esforço. Ele costuma vir no lugar do resultado.', k:'Resultado'},
+  {t:'O melhor argumento de venda é um cliente antigo satisfeito.', k:'Comercial'},
+  {t:'Você não perde tempo alinhando. Você perde tempo consertando o que não foi alinhado.', k:'Alinhamento'},
+  {t:'Trabalho remoto exige mais escrita, não menos conversa.', k:'Comunicação'},
+  {t:'Toda entrega carrega uma decisão que alguém tomou sozinho. Vale conferir qual foi.', k:'Decisão'},
+  {t:'Simples é o resultado de muitas escolhas difíceis.', k:'Simplicidade'},
+  {t:'Se está confuso pra você, vai estar impossível pro cliente.', k:'Clareza'},
+  {t:'Bom gosto se treina olhando muita coisa boa e perguntando por quê.', k:'Repertório'},
+  {t:'A meta do mês não muda o que precisa ser feito hoje de manhã.', k:'Presente'},
+  {t:'Quem só olha o próprio quadrado nunca vê o gargalo.', k:'Visão'},
+  {t:'Reclamar do briefing é fácil. Melhorar a pergunta é trabalho.', k:'Iniciativa'},
+  {t:'A conta que ninguém quer fazer é a que mostra onde o dinheiro escapa.', k:'Financeiro'},
+  {t:'Cliente que não sabe o que você fez acha que você não fez.', k:'Visibilidade'},
+  {t:'Existe muita gente ocupada resolvendo problema que não precisava existir.', k:'Prevenção'},
+  {t:'A entrega no prazo é o mínimo. O que te diferencia é o que vem antes dela.', k:'Diferencial'},
+  {t:'Todo processo bom já foi a improvisação de alguém que resolveu anotar.', k:'Processo'},
+  {t:'Não confunda opinião com critério.', k:'Critério'},
+  {t:'A pausa também é parte do trabalho. Cabeça cansada erra caro.', k:'Descanso'},
+  {t:'Você já sabe qual tarefa está fugindo hoje. Comece por ela.', k:'Coragem'},
+  {t:'Peça ajuda antes do prazo, não depois.', k:'Time'},
+  {t:'Ser rápido no retorno vale mais que ser perfeito na resposta.', k:'Resposta'},
+  {t:'Padronizar não é engessar. É parar de decidir a mesma coisa toda semana.', k:'Padrão'},
+  {t:'A crítica que você mais evita costuma ser a mais útil.', k:'Feedback'},
+  {t:'Ninguém constrói autoridade falando de si o tempo todo.', k:'Autoridade'},
+  {t:'O cliente não quer virar especialista. Quer confiar em um.', k:'Confiança'},
+  {t:'Uma boa entrega resolve o problema. Uma ótima antecipa o próximo.', k:'Antecipar'},
+  {t:'Se der errado, o processo falhou antes da pessoa.', k:'Sistema'},
+  {t:'Quem trabalha só pelo prazo entrega no prazo. Quem trabalha pelo cliente entrega bem.', k:'Propósito'},
+  {t:'O que te trouxe até aqui pode não te levar adiante. Revise o que virou hábito.', k:'Evolução'},
+  {t:'Não existe detalhe pequeno em coisa que o cliente vai ver.', k:'Detalhe'},
+  {t:'Trabalhe hoje como se você fosse ler esse trabalho daqui a um ano.', k:'Legado'}
+];
+
+// Mesma frase pro time inteiro no mesmo dia, e a ordem muda a cada ano.
+function _reflexaoDoDia(d){
+  const hoje = d || new Date();
+  const ini = new Date(hoje.getFullYear(), 0, 0);
+  const diaDoAno = Math.floor((hoje - ini) / 86400000);
+  const n = REFLEXOES_DIA.length;
+  const idx = ((diaDoAno * 7 + hoje.getFullYear()) % n + n) % n;
+  return REFLEXOES_DIA[idx];
+}
+window._reflexaoDoDia = _reflexaoDoDia;
+
+function renderBannerDoDia(){
+  const r = _reflexaoDoDia();
+  const hoje = new Date();
+  const dia = hoje.toLocaleDateString('pt-BR',{weekday:'long'});
+  const diaCap = dia.charAt(0).toUpperCase() + dia.slice(1);
+  return '<div class="banner-dia">' +
+    '<div class="banner-dia-luz" aria-hidden="true"></div>' +
+    '<div class="banner-dia-in">' +
+      '<div class="banner-dia-topo">' +
+        '<span class="banner-dia-eyebrow">Reflexão do dia</span>' +
+        '<span class="banner-dia-tag">' + escapeHtml(r.k || '') + '</span>' +
+      '</div>' +
+      '<p class="banner-dia-frase">' + escapeHtml(r.t) + '</p>' +
+      '<div class="banner-dia-pe">' + escapeHtml(diaCap) + ' · Impulse One</div>' +
+    '</div>' +
+  '</div>';
+}
+window.renderBannerDoDia = renderBannerDoDia;
+
 function renderDashboard(c){
   const date = new Date();
   const hr = date.getHours();
@@ -7240,6 +7442,8 @@ function renderDashboard(c){
           <button class="btn btn-primary" onclick="goTo('captacao')">🎬 Nova captação</button>
         </div>
       </div>
+
+      ${typeof renderBannerDoDia === 'function' ? renderBannerDoDia() : ''}
 
       <!-- Stats compactos: só o que importa -->
       <div class="stat-grid">
