@@ -4748,8 +4748,8 @@ async function _relAbrirPreview(d){
       <div style="color:#fff;font-weight:700;font-size:14.5px">${escapeHtml(d.empresa)} · ${_relFmtData(d.data)} · ${paginas.length} página${paginas.length!==1?'s':''}</div>
       <div style="display:flex;gap:8px">
         <button class="btn" id="relBtnPDF" onclick="_relBaixarPDFArquivo()" title="Baixa o arquivo pronto, igual no computador e no celular" style="background:#fff;color:#111;border:none;font-weight:700">⬇ Baixar PDF</button>
-        <button class="btn" onclick="_relBaixarPDF()" title="Abrir pela impressão do navegador" style="color:#fff;border-color:rgba(255,255,255,.3)">🖨</button>
-        <button class="btn" onclick="document.getElementById('relPreview').remove()" style="color:#fff;border-color:rgba(255,255,255,.3)">Fechar</button>
+        <button class="btn" onclick="_relBaixarPDF()" title="Abrir pela impressão do navegador" style="background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.36);font-weight:600">🖨 Imprimir</button>
+        <button class="btn" onclick="document.getElementById('relPreview').remove()" style="background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.36);font-weight:600">Fechar</button>
       </div>
     </div>
     <div id="relPages" style="display:flex;flex-direction:column;align-items:center;gap:22px">
