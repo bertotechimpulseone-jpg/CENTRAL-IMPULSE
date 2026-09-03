@@ -251,6 +251,58 @@ body.public-page #lembretesWidget{display:none!important}
 .stat-card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
 
 
+/* ===== Listas do dashboard (clique no número) ===== */
+.stat-clicavel{cursor:pointer}
+.stat-clicavel:hover{border-color:var(--accent-border);transform:translateY(-1px)}
+.stat-clicavel:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stat-seta{margin-left:5px;color:var(--text-3);font-weight:700}
+.stat-clicavel:hover .stat-seta{color:var(--accent)}
+.dash-item{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;
+  background:var(--surface-2);border:1px solid var(--border);border-radius:11px;
+  padding:10px 12px;margin-bottom:8px;cursor:pointer;font-family:inherit;transition:.15s
+}
+.dash-item:hover{border-color:var(--accent-border);background:var(--surface-3)}
+.dash-item-ico{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:15px;flex-shrink:0;color:#fff}
+.dash-item-txt{flex:1;min-width:0}
+.dash-item-tit{font-size:13.5px;font-weight:600;color:var(--text)}
+.dash-item-sub{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.dash-item-seta{color:var(--text-3);font-size:17px;flex-shrink:0}
+.dash-sec{font-family:'Sora',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--text-3);margin:12px 2px 8px}
+.dash-sec:first-child{margin-top:2px}
+.dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
+.dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* Aniversariante: foto com chapéu de festa */
+.dash-aniv{display:flex;align-items:center;gap:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:8px}
+.dash-aniv.hoje{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent-border)}
+.dash-aniv-foto{position:relative;flex-shrink:0;width:54px;height:54px}
+.dash-aniv-foto .avatar,.dash-aniv-foto .avatar-foto{width:54px!important;height:54px!important;border-radius:50%}
+.dash-aniv-foto .chapeu{
+  position:absolute;top:-13px;left:50%;transform:translateX(-64%) rotate(-19deg);
+  width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;
+  border-bottom:23px solid #EC1E79;filter:drop-shadow(0 2px 5px rgba(0,0,0,.35))
+}
+.dash-aniv-foto .chapeu::before{
+  content:'';position:absolute;left:-6px;top:16px;width:12px;height:6px;border-radius:0 0 8px 8px;
+  background:repeating-linear-gradient(90deg,#F7941E 0 3px,#29ABE2 3px 6px)
+}
+.dash-aniv-foto .chapeu::after{
+  content:'';position:absolute;left:-4px;top:-9px;width:9px;height:9px;border-radius:50%;
+  background:#F7941E;box-shadow:0 0 9px rgba(247,148,30,.85)
+}
+.dash-hoje{font-size:10px;font-weight:800;color:var(--accent-2);letter-spacing:.02em}
+.dash-aniv-emoji{font-size:22px;flex-shrink:0}
+@media (prefers-reduced-motion: no-preference){
+  .dash-aniv.hoje .dash-aniv-emoji{animation:dashFesta 1.6s ease-in-out infinite}
+  @keyframes dashFesta{0%,100%{transform:rotate(-9deg) scale(1)}50%{transform:rotate(9deg) scale(1.12)}}
+}
+@media (max-width:768px){
+  .dash-aniv{gap:11px;padding:10px 11px}
+  .dash-aniv-foto,.dash-aniv-foto .avatar,.dash-aniv-foto .avatar-foto{width:46px!important;height:46px!important}
+  .dash-aniv-foto{height:46px}
+  .dash-item-tit{font-size:13px}
+}
+
 /* ===== Banner diário do dashboard ===== */
 .banner-dia{
   position:relative;overflow:hidden;border-radius:16px;margin-bottom:18px;
@@ -7136,10 +7188,13 @@ function _avatarFoto(m, size, extraStyle){
   m = m || {};
   const s = size || 32;
   const ex = extraStyle || '';
-  if(m.foto_url){
-    return '<img src="' + escapeHtml(m.foto_url) + '" alt="" class="avatar-foto" style="width:' + s + 'px;height:' + s + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;' + ex + '" />';
-  }
   const ini = escapeHtml(m.init || (m.name || m.full_name || '?')[0] || '?');
+  if(m.foto_url){
+    // se a foto nao carregar (link quebrado), cai nas iniciais em vez de deixar buraco
+    const fallback = "this.outerHTML='<div class=\'avatar\' style=\'background:" + (m.color || m.avatar_color || '#888') +
+      ";width:" + s + "px;height:" + s + "px;font-size:" + Math.round(s*0.42) + "px;flex-shrink:0\'>" + ini + "</div>'";
+    return '<img src="' + escapeHtml(m.foto_url) + '" alt="" class="avatar-foto" onerror="' + fallback + '" style="width:' + s + 'px;height:' + s + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;' + ex + '" />';
+  }
   return '<div class="avatar" style="background:' + (m.color || m.avatar_color || '#888') + ';width:' + s + 'px;height:' + s + 'px;font-size:' + Math.round(s*0.42) + 'px;flex-shrink:0;' + ex + '">' + ini + '</div>';
 }
 
@@ -7358,6 +7413,88 @@ function renderBannerDoDia(){
 }
 window.renderBannerDoDia = renderBannerDoDia;
 
+// ===== LISTAS DO DASHBOARD =====
+// Clicou no número, vê quem está por trás dele.
+function abrirListaDashboard(tipo){
+  const d = window._dashListas || {};
+  const esc = escapeHtml;
+  let titulo = '', sub = '', corpo = '', irPara = '';
+
+  if(tipo === 'captacoes'){
+    const lista = d.captacoes || [];
+    titulo = '🎬 Captações próximas'; sub = lista.length + ' agendada(s)'; irPara = 'captacao';
+    corpo = lista.length ? lista.map(function(cap){
+      const cli = (clients||[]).find(function(x){ return x.name === cap.client; });
+      const quando = cap.date ? String(cap.date).split('-').reverse().join('/') : 'sem data';
+      return '<button class="dash-item" onclick="closeDashLista();goTo(\'captacao\')">' +
+        '<div class="dash-item-ico" style="background:' + (cli && cli.color || 'var(--accent)') + '">🎬</div>' +
+        '<div class="dash-item-txt"><div class="dash-item-tit">' + esc(cap.client || cap.client_custom_name || 'Sem cliente') + '</div>' +
+        '<div class="dash-item-sub">' + esc(cap.type || 'Captação') + ' · ' + quando + (cap.time ? ' às ' + esc(cap.time) : '') +
+        (cap.responsavel_nome ? ' · ' + esc(String(cap.responsavel_nome).split(' ')[0]) : '') + '</div></div>' +
+        '<span class="dash-item-seta">›</span></button>';
+    }).join('') : _dashVazio('🎬','Nenhuma captação agendada','Quando marcar uma, ela aparece aqui.');
+  }
+
+  else if(tipo === 'aniversarios'){
+    const nasc = d.aniversariantes || [], adm = d.admissoes || [];
+    const hoje = new Date().getDate();
+    titulo = '🎂 Aniversariantes do mês'; sub = (nasc.length + adm.length) + ' no total'; irPara = 'equipe';
+    const cartao = function(m, tipoAniv){
+      const ehHoje = m.dia === hoje;
+      return '<div class="dash-aniv' + (ehHoje ? ' hoje' : '') + '">' +
+        '<div class="dash-aniv-foto">' + _avatarFoto(m, 54) + '<span class="chapeu" aria-hidden="true"></span></div>' +
+        '<div class="dash-item-txt"><div class="dash-item-tit">' + esc(m.name || '') + (ehHoje ? ' <span class="dash-hoje">é hoje!</span>' : '') + '</div>' +
+        '<div class="dash-item-sub">' + (tipoAniv === 'nasc'
+            ? 'Dia ' + m.dia + (m.idade ? ' · faz ' + m.idade + ' anos' : '')
+            : 'Dia ' + m.dia + ' · ' + m.anos + ' ano(s) de Impulse') + '</div></div>' +
+        (ehHoje ? '<span class="dash-aniv-emoji">🎉</span>' : '') + '</div>';
+    };
+    corpo = (nasc.length || adm.length)
+      ? (nasc.length ? '<div class="dash-sec">Aniversário</div>' + nasc.map(function(m){ return cartao(m,'nasc'); }).join('') : '') +
+        (adm.length ? '<div class="dash-sec">Tempo de casa</div>' + adm.map(function(m){ return cartao(m,'adm'); }).join('') : '')
+      : _dashVazio('🎂','Ninguém faz aniversário neste mês','Cadastre a data de nascimento na aba Equipe.');
+  }
+
+  else if(tipo === 'checklists'){
+    const lista = d.checklists || [];
+    titulo = '✅ Checklists pendentes'; sub = lista.length + ' colaborador(es) com tarefa aberta'; irPara = 'operacional';
+    corpo = lista.length ? lista.map(function(o){
+      const feitas = (o.total || 0) - (o.pendentes || 0);
+      const pct = o.total ? Math.round(feitas / o.total * 100) : 0;
+      return '<button class="dash-item" onclick="closeDashLista();goTo(\'operacional\')">' +
+        _avatarFoto(o.m, 34) +
+        '<div class="dash-item-txt"><div class="dash-item-tit">' + esc(o.m && o.m.name || o.nome) + '</div>' +
+        '<div class="dash-item-sub">' + o.pendentes + ' pendente(s) de ' + o.total + '</div>' +
+        '<div class="dash-barra"><span style="width:' + pct + '%"></span></div></div>' +
+        '<span class="dash-item-seta">›</span></button>';
+    }).join('') : _dashVazio('✅','Todo mundo em dia','Nenhuma tarefa pendente no checklist de hoje.');
+  }
+
+  let ov = document.getElementById('dashListaModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'dashListaModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:320;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = function(ev){ if(ev.target === ov) ov.remove(); };
+  ov.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px;max-width:520px;width:100%;max-height:88dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35)">' +
+      '<div style="padding:17px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700">' + titulo + '</div>' +
+        '<div class="text-xs text-3" style="margin-top:2px">' + esc(sub) + '</div></div>' +
+        '<button class="icon-btn" onclick="closeDashLista()" style="width:30px;height:30px">×</button></div>' +
+      '<div class="modal-body" style="padding:14px 16px;overflow:auto;flex:1">' + corpo + '</div>' +
+      (irPara ? '<div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end">' +
+        '<button class="btn btn-primary" onclick="closeDashLista();goTo(\'' + irPara + '\')">Abrir a aba completa</button></div>' : '') +
+    '</div>';
+  document.body.appendChild(ov);
+  if(typeof _mobileGuardAgendar === 'function') _mobileGuardAgendar();
+}
+function _dashVazio(ico, tit, desc){
+  return '<div class="empty-state" style="padding:34px 16px"><div class="ico">' + ico + '</div><div class="ttl">' + tit + '</div><div class="desc">' + desc + '</div></div>';
+}
+function closeDashLista(){ const m = document.getElementById('dashListaModal'); if(m) m.remove(); }
+window.abrirListaDashboard = abrirListaDashboard;
+window.closeDashLista = closeDashLista;
+
 function renderDashboard(c){
   const date = new Date();
   const hr = date.getHours();
@@ -7431,6 +7568,10 @@ function renderDashboard(c){
   // ===== Total clientes
   const totalClientes = (clients||[]).filter(x => x.status !== 'cancelado').length;
 
+  // guarda o que o modal das listas vai mostrar
+  window._dashListas = { captacoes: proxCaptacoes, aniversariantes: aniversariantes,
+                         admissoes: aniversariosAdmissao, checklists: checklistsPendentes };
+
   c.innerHTML = `
     <div class="page active">
       ${typeof renderBannerDoDia === 'function' ? renderBannerDoDia() : ''}
@@ -7453,10 +7594,9 @@ function renderDashboard(c){
 
       <!-- Stats compactos: só o que importa -->
       <div class="stat-grid">
-        ${statCard('Captações próximas', String(proxCaptacoes.length), 'agendadas', 'M14 6l-4 4 4 4')}
-        ${statCard('Reuniões', String(proxReunioes.length), 'próximas', 'M23 7l-7 5 7 5z')}
-        ${statCard('Aniversariantes', String(aniversariantes.length + aniversariosAdmissao.length), 'no mês', 'M12 1v22')}
-        ${statCard('Checklists pendentes', String(checklistsPendentes.length), 'colaboradores', 'M9 11l3 3L22 4')}
+        ${statCard('Captações próximas', String(proxCaptacoes.length), 'agendadas', 'M14 6l-4 4 4 4', '', '', 'abrirListaDashboard(\'captacoes\')')}
+        ${statCard('Aniversariantes', String(aniversariantes.length + aniversariosAdmissao.length), 'no mês', 'M12 1v22', '', '', 'abrirListaDashboard(\'aniversarios\')')}
+        ${statCard('Checklists pendentes', String(checklistsPendentes.length), 'colaboradores', 'M9 11l3 3L22 4', '', '', 'abrirListaDashboard(\'checklists\')')}
       </div>
 
       ${typeof renderPlacarDashboard==='function'?renderPlacarDashboard():''}
@@ -7743,12 +7883,13 @@ function dashListCard(title,icon,pageId,items){
   `;
 }
 
-function statCard(label,value,sub,iconPath,extra,color){
+function statCard(label,value,sub,iconPath,extra,color,aoClicar){
   const colorClass = color==='warning'?'style="background:var(--warning-soft);color:var(--warning-text)"':color==='pink'?'style="background:var(--pink-soft);color:var(--pink-text)"':'';
+  const clic = aoClicar ? ` class="stat stat-clicavel" onclick="${aoClicar}" role="button" tabindex="0" title="Clique pra ver a lista"` : ' class="stat"';
   return `
-    <div class="stat">
+    <div${clic}>
       <div class="stat-head">
-        <div class="stat-label">${label}</div>
+        <div class="stat-label">${label}${aoClicar?'<span class="stat-seta">›</span>':''}</div>
         <div class="stat-icon" ${colorClass}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${iconPath}"/></svg></div>
       </div>
       <div class="stat-value">${value}</div>
