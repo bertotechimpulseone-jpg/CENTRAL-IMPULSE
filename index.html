@@ -8498,6 +8498,7 @@ function openClient(id, targetPane){
       <div class="modal-tab" onclick="cliTab(this,'arquivos')">Arquivos</div>
       <div class="modal-tab" onclick="cliTab(this,'antes')">📊 Antes</div>
       <div class="modal-tab" onclick="cliTab(this,'historico')">Histórico</div>
+      <div class="modal-tab" onclick="cliTab(this,'relatorios')">📊 Relatórios</div>
       <div class="modal-tab" onclick="cliTab(this,'orcamentos')">📄 Orçamentos</div>
     </div>
     <div class="modal-body">
@@ -8510,12 +8511,15 @@ function openClient(id, targetPane){
       ${paneArquivos(cli)}
       ${paneAntes(cli)}
       ${paneHistorico(cli)}
+      ${paneRelatoriosCliente(cli)}
       ${paneOrcamentos(cli)}
     </div>
   `;
   document.getElementById('modalBg').classList.add('open');
   // Busca os orçamentos desse cliente direto no banco (não só o cache de 50)
   setTimeout(()=>{ try { if(typeof carregarOrcamentosCliente==='function') carregarOrcamentosCliente(cli); } catch(e){} }, 40);
+  // Relatórios do cliente (aba 📊) — busca direto no banco, não só o cache
+  setTimeout(()=>{ try { if(typeof carregarRelatoriosCliente==='function') carregarRelatoriosCliente(cli); } catch(e){} }, 50);
   // Calendário editorial (aba 🗓) — busca os calendários e o que o cliente respondeu
   setTimeout(()=>{ try { if(typeof carregarCalendariosCliente==='function') carregarCalendariosCliente(cli); } catch(e){} }, 60);
   // Abre direto numa aba específica (usado pelas pendências de cadastro)
@@ -8623,6 +8627,76 @@ function _orcClienteHTML(budgets, leads, cli){
   if((budgets||[]).length) html += `<div class="info-label" style="margin:14px 0 8px">📄 Orçamentos salvos (${budgets.length})</div>` + orcCards;
   return html;
 }
+// ===== Relatórios do cliente (dentro do cadastro) =====
+// Mostra todos os relatórios já feitos pra ele, do mais novo pro mais antigo,
+// com atalho pra abrir o PDF ou continuar de onde parou.
+function _relEhDoCliente(r, cli){
+  const norm = function(s){ return (s||'').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); };
+  const alvo = norm(r && r.empresa);
+  if(!alvo) return false;
+  return alvo === norm(cli.name) || alvo === norm(cli.nome_social) || alvo === norm(cli.razao_social) || alvo === norm(cli.nome_fantasia);
+}
+
+function _relClienteHTML(lista, cli){
+  const esc = escapeHtml;
+  if(!lista.length){
+    return '<div class="empty-state" style="padding:30px 16px"><div class="ico">📊</div>'
+      + '<div class="ttl">Nenhum relatório ainda</div>'
+      + '<div class="desc">Os relatórios de ' + esc(_nomeCli(cli)) + ' aparecem aqui assim que forem criados na aba Relatórios.</div></div>';
+  }
+  // agrupa por ano, do mais novo pro mais antigo
+  const porAno = {};
+  lista.forEach(function(r){
+    const ano = String(r.data||'').slice(0,4) || '—';
+    (porAno[ano] = porAno[ano] || []).push(r);
+  });
+  const anos = Object.keys(porAno).sort().reverse();
+  return anos.map(function(ano){
+    const itens = porAno[ano].sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
+    return '<div class="info-label" style="margin:14px 0 8px">' + esc(ano) + ' · ' + itens.length + ' relatório(s)</div>'
+      + itens.map(function(r){
+        const trecho = String(r.texto||'').replace(/\s+/g,' ').trim().slice(0,120);
+        return '<div style="display:flex;align-items:center;gap:11px;padding:11px 13px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px">'
+          + '<div style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#7C5CFF,#EC1E79);display:grid;place-items:center;font-size:15px;flex-shrink:0">📊</div>'
+          + '<div style="flex:1;min-width:0">'
+            + '<div style="font-size:13.5px;font-weight:600">Relatório de ' + esc(_relFmtData(r.data)) + '</div>'
+            + (trecho ? '<div class="text-xs text-3" style="margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(trecho) + '</div>' : '')
+          + '</div>'
+          + '<button class="btn btn-sm btn-primary" onclick="closeModal();goTo(\'relatorios\');setTimeout(function(){ verRelatorio(\'' + esc(r.id) + '\'); }, 350)" title="Abrir o relatório pra ver ou baixar o PDF">Abrir</button>'
+        + '</div>';
+      }).join('');
+  }).join('');
+}
+
+function paneRelatoriosCliente(cli){
+  const cache = (typeof _relatorios !== 'undefined' ? _relatorios : []).filter(function(r){ return _relEhDoCliente(r, cli); });
+  return '<div class="modal-pane" data-pane="relatorios">'
+    + '<div class="card-header" style="margin-bottom:4px"><div class="card-title">📊 Relatórios do cliente</div>'
+    + '<span class="badge b-default" id="relClienteCount">' + cache.length + '</span></div>'
+    + '<div class="text-xs text-3" style="margin-bottom:10px">Tudo que já foi entregue pra ' + escapeHtml(_nomeCli(cli)) + ', do mais novo pro mais antigo.</div>'
+    + '<div id="relClienteLista">' + (cache.length ? _relClienteHTML(cache, cli)
+        : '<div class="text-xs text-3" style="padding:24px;text-align:center">⏳ Carregando relatórios…</div>') + '</div>'
+    + '</div>';
+}
+
+async function carregarRelatoriosCliente(cli){
+  const box = document.getElementById('relClienteLista');
+  if(!box || !_supa) return;
+  try{
+    const { data, error } = await _supa.from('relatorios').select('*').order('data',{ascending:false});
+    if(error) throw error;
+    if(Array.isArray(data)) _relatorios = data;
+    const lista = (data||[]).filter(function(r){ return _relEhDoCliente(r, cli); });
+    box.innerHTML = _relClienteHTML(lista, cli);
+    const cnt = document.getElementById('relClienteCount'); if(cnt) cnt.textContent = lista.length;
+  }catch(e){
+    console.warn('[relatorios do cliente]', e);
+    box.innerHTML = '<div class="text-xs text-3" style="padding:20px;text-align:center">Não consegui carregar os relatórios agora.</div>';
+  }
+}
+window.paneRelatoriosCliente = paneRelatoriosCliente;
+window.carregarRelatoriosCliente = carregarRelatoriosCliente;
+
 function paneOrcamentos(cli){
   const cacheB = (typeof orcamentosSalvos!=='undefined' ? orcamentosSalvos : []).filter(b => _orcEhDoCliente(b, cli));
   const leads = _orcClienteLeads(cli);
@@ -10196,21 +10270,10 @@ function paneFinanceiro(cli){
         </div>
       </div>
 
-      <!-- ===== Serviços contratados (clicáveis) ===== -->
-      <div class="section-title" data-field="services" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
-        <span>Serviços contratados</span>
-        <span class="text-xs text-3" style="font-weight:400;letter-spacing:0">clique pra marcar/desmarcar</span>
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <!-- 1) Inclusos padrão (topo) -->
-        ${allServices.filter(s=>servicesList.includes(s)).map(s=>_cardServ(s,'inc')).join('')}
-        <!-- 2) Custom (também selecionados, ficam no topo) -->
-        ${(servicesList||[]).filter(s => !allServices.includes(s)).map(s=>_cardServ(s,'custom')).join('')}
-        <!-- 3) Não inclusos (embaixo) -->
-        ${allServices.filter(s=>!servicesList.includes(s)).map(s=>_cardServ(s,'nao')).join('')}
-
-        <button class="btn btn-sm" onclick="adicionarServicoCustom(${cli.id})" style="align-self:flex-start;margin-top:6px">+ Adicionar serviço custom</button>
-      </div>
+      <!-- Bloco "Serviços contratados" saiu da tela a pedido do Vini (set/2026).
+           Os dados continuam no banco (services_list): nada foi apagado. Pra trazer de
+           volta, basta restaurar este trecho — as funções toggle/adicionar/remover
+           continuam existindo. O plano agora é descrito pelo nome do plano. -->
     </div>
   `;
 }
