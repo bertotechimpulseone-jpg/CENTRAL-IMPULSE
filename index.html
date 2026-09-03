@@ -20288,83 +20288,192 @@ async function renderPublicAprovacaoDesconto(token){
 window.renderPublicAprovacaoDesconto = renderPublicAprovacaoDesconto;
 
 // ===== Página pública: vaga + candidatura (link ?vaga) =====
-const VAGA_ATUAL = 'Estágio · Atendimento & Administrativo';
+
+// ===== CATÁLOGO DE VAGAS =====
+// Cada vaga é uma receita: texto de apresentação + perguntas. O formulário público e o
+// painel do recrutador se montam a partir daqui, então abrir vaga nova é só descrever.
+const VAGAS = {
+  estagio: {
+    slug:'estagio',
+    titulo:'Estágio · Atendimento & Administrativo',
+    h1:'Atendimento & Administrativo',
+    sub:'Atendimento ao Cliente & Administrativo · agência de marketing',
+    ativa:true,
+    badges:['🕗 8h às 15h · 1h de intervalo','💻 Híbrido','📍 Porto Alegre · pref. zona sul','🚀 Grande chance de efetivação'],
+    faz:['Atendimento ao cliente','Rotinas da área administrativa'],
+    beneficios:['Terapia','Total Pass'],
+    nota:'Estágio numa agência de marketing em crescimento, com <b style="color:var(--text)">grande possibilidade de efetivação</b>.',
+    campos:[
+      {id:'curso',    tipo:'texto',    label:'Qual curso está cursando?', req:true, ph:'Ex: Administração', col:1.5},
+      {id:'semestre', tipo:'texto',    label:'Semestre', req:true, ph:'Ex: 3º', col:1},
+      {id:'atendimento', tipo:'texto_longo', label:'Você já teve experiência com atendimento ao cliente? Conte rapidamente.', req:true},
+      {id:'organizacao', tipo:'texto_longo', label:'Como você se organiza quando tem várias tarefas ao mesmo tempo?', req:true},
+      {id:'memoria',     tipo:'texto_longo', label:'Como você avalia sua memória pra nomes, detalhes e prazos? Dê um exemplo.', req:true},
+      {id:'motivacao',   tipo:'texto_longo', label:'Por que você quer essa vaga na Impulse One?', req:true},
+      {id:'disponivel_8_15', tipo:'opcao', label:'Disponível das 8h às 15h?', opcoes:['Sim','Não','A combinar'], col:1},
+      {id:'zona_sul',        tipo:'opcao', label:'Mora na zona sul de POA?', opcoes:['Sim','Não'], col:1}
+    ],
+    portfolioObrigatorio:false,
+    destaques:['curso','disponivel_8_15','zona_sul']
+  },
+
+  storymaker: {
+    slug:'storymaker',
+    titulo:'Freelancer · Storymaker',
+    h1:'Storymaker',
+    sub:'Grava e edita stories e reels pros clientes da agência · freelancer',
+    ativa:true,
+    badges:['🎥 Freelancer por demanda','📍 Porto Alegre e região','📱 Stories, reels e bastidores','💸 Pagamento por trabalho'],
+    faz:['Gravar stories, reels e bastidores nos clientes','Editar cortes rápidos com legenda e trilha','Entregar no prazo combinado, pronto pra publicar'],
+    beneficios:['Trabalho por demanda, sem exclusividade','Pagamento combinado por captação','Contato direto com marcas em crescimento'],
+    nota:'A gente chama pra captações pontuais e recorrentes. Quem entrega bem e no prazo entra na <b style="color:var(--text)">lista de chamada frequente</b>.',
+    campos:[
+      {id:'cobranca', tipo:'opcao', label:'Como você costuma cobrar?', req:true, col:1,
+       opcoes:['Por diária','Por meia diária','Por vídeo','Por pacote mensal','Por hora']},
+      {id:'valor', tipo:'dinheiro', label:'Valor aproximado que costuma cobrar', req:true, ph:'Ex: 350,00', col:1,
+       dica:'Pode ser uma média. Serve pra gente saber se cabe no orçamento antes de te chamar.'},
+      {id:'equipamento', tipo:'opcao', label:'Que equipamento você usa?', req:true,
+       opcoes:['Celular','Celular + estabilizador','Câmera','Câmera + luz e áudio','Kit completo (câmera, luz, áudio, tripé)','Não tenho equipamento próprio']},
+      {id:'edicao', tipo:'opcao', label:'Você também edita?', req:true,
+       opcoes:['Gravo e edito tudo','Gravo e edito o básico','Só gravo','Só edito']},
+      {id:'deslocamento', tipo:'opcao', label:'Como você se desloca pras gravações?', req:true, col:1,
+       opcoes:['Carro próprio','Moto','Transporte por app','Transporte público','Depende do local']},
+      {id:'nota_fiscal', tipo:'opcao', label:'Emite nota fiscal?', req:true, col:1,
+       opcoes:['Sim, sou MEI','Sim, tenho empresa','Ainda não, mas posso abrir','Não emito']},
+      {id:'disponibilidade', tipo:'opcao', label:'Qual sua disponibilidade?', req:true,
+       opcoes:['Manhã','Tarde','Integral','Noite e fim de semana','Flexível, combino na hora']},
+      {id:'prazo', tipo:'opcao', label:'Em quanto tempo costuma entregar o material editado?', req:true,
+       opcoes:['No mesmo dia','Em até 24h','Em até 48h','Em até 3 dias','Depende do volume']},
+      {id:'orgulho', tipo:'texto_longo', label:'Conte um trabalho que você gravou e ficou orgulhoso. O que fez ele funcionar?', req:true},
+      {id:'gancho',  tipo:'texto_longo', label:'Como você prende a atenção nos 3 primeiros segundos de um stories?', req:true}
+    ],
+    portfolioObrigatorio:true,
+    portfolioLabel:'Link do portfólio (Instagram, Drive, YouTube)',
+    destaques:['valor','equipamento','edicao','nota_fiscal']
+  }
+};
+
+function _vagaAtual(){
+  try{
+    const q = new URL(location.href).searchParams.get('vaga');
+    if(q && VAGAS[q]) return VAGAS[q];
+  }catch(e){}
+  return VAGAS.estagio;
+}
+function _vagasAtivas(){ return Object.keys(VAGAS).map(function(k){ return VAGAS[k]; }).filter(function(v){ return v.ativa !== false; }); }
+function _vagaPorTitulo(tit){
+  const k = Object.keys(VAGAS).find(function(x){ return VAGAS[x].titulo === tit; });
+  return k ? VAGAS[k] : null;
+}
+window._vagaAtual = _vagaAtual; window.VAGAS = VAGAS;
+
+const VAGA_ATUAL = 'Estágio · Atendimento & Administrativo';   // mantido: vaga padrão do link antigo
 async function renderPublicVaga(){
+  const V = _vagaAtual();
   const ls=document.getElementById('loginScreen'); if(ls) ls.classList.add('hidden');
   const wrap=document.createElement('div'); wrap.id='vagaPage';
   wrap.style.cssText='position:fixed;inset:0;z-index:9000;overflow:auto;background:var(--bg,#0b0b14);color:var(--text)';
   document.body.appendChild(wrap);
+  const esc = escapeHtml;
   const badge='display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:7px 13px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2)';
   const lbl='display:block;font-size:12.5px;font-weight:700;color:var(--text-2);margin:16px 0 6px';
   const inp='width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:14px;color:var(--text);font-family:inherit;outline:none';
+  const dica='color:var(--text-3);font-size:11.5px;margin-top:5px';
+
+  // monta os campos da vaga a partir da receita
+  function campoHTML(c){
+    const req = c.req ? ' *' : '';
+    const id = 'vq_' + c.id;
+    let campo = '';
+    if(c.tipo === 'texto')       campo = '<input id="'+id+'" style="'+inp+'" placeholder="'+esc(c.ph||'')+'" />';
+    else if(c.tipo === 'texto_longo') campo = '<textarea id="'+id+'" rows="3" style="'+inp+';resize:vertical" placeholder="'+esc(c.ph||'')+'"></textarea>';
+    else if(c.tipo === 'dinheiro') campo = '<div style="display:flex;align-items:stretch;gap:8px">'
+        +'<span style="display:flex;align-items:center;padding:0 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text-3);font-size:14px">R$</span>'
+        +'<input id="'+id+'" inputmode="decimal" style="'+inp+'" placeholder="'+esc(c.ph||'0,00')+'" /></div>';
+    else if(c.tipo === 'opcao')  campo = '<select id="'+id+'" style="'+inp+'">'
+        + (c.req ? '<option value="">— escolha —</option>' : '')
+        + (c.opcoes||[]).map(function(o){ return '<option>'+esc(o)+'</option>'; }).join('') + '</select>';
+    return '<div style="'+(c.col?'':'grid-column:1 / -1')+'"><label style="'+lbl+'">'+esc(c.label)+req+'</label>'+campo
+      + (c.dica ? '<div style="'+dica+'">'+esc(c.dica)+'</div>' : '') + '</div>';
+  }
+  const camposHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+    + (V.campos||[]).map(campoHTML).join('') + '</div>';
+
+  const outrasVagas = _vagasAtivas().filter(function(x){ return x.slug !== V.slug; });
+
   wrap.innerHTML=
     '<div style="max-width:720px;margin:0 auto;padding:34px 18px 80px">'
     +'<div style="text-align:center;margin-bottom:26px">'
       +'<div style="font-family:var(--mono,monospace);font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent)">Trabalhe conosco · Impulse One</div>'
-      +'<h1 style="font-size:clamp(28px,7vw,44px);font-weight:800;margin-top:10px;line-height:1.1">Vaga de <span style="background:linear-gradient(100deg,#FF54AE,#9B7BFF,#46ECEC);-webkit-background-clip:text;background-clip:text;color:transparent">Estágio</span></h1>'
-      +'<div style="color:var(--text-3);margin-top:4px">Atendimento ao Cliente & Administrativo · agência de marketing</div>'
+      +'<h1 style="font-size:clamp(28px,7vw,44px);font-weight:800;margin-top:10px;line-height:1.1">Vaga de <span style="color:#F25FA8">'+esc(V.h1)+'</span></h1>'
+      +'<div style="color:var(--text-3);margin-top:4px">'+esc(V.sub)+'</div>'
     +'</div>'
     +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px;margin-bottom:20px">'
       +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px">'
-        +'<span style="'+badge+'">🕗 8h às 15h · 1h de intervalo</span>'
-        +'<span style="'+badge+'">💻 Híbrido</span>'
-        +'<span style="'+badge+'">📍 Porto Alegre · pref. zona sul</span>'
-        +'<span style="'+badge+'">🚀 Grande chance de efetivação</span>'
+        + (V.badges||[]).map(function(b){ return '<span style="'+badge+'">'+esc(b)+'</span>'; }).join('')
       +'</div>'
       +'<div style="font-weight:700;font-size:15px;margin-bottom:6px">O que você vai fazer</div>'
-      +'<ul style="margin:0 0 14px;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.7"><li>Atendimento ao cliente</li><li>Rotinas da área administrativa</li></ul>'
-      +'<div style="font-weight:700;font-size:15px;margin-bottom:6px">Benefícios</div>'
-      +'<ul style="margin:0 0 14px;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.7"><li>Terapia</li><li>Total Pass</li></ul>'
-      +'<div style="color:var(--text-3);font-size:13.5px;line-height:1.55">Estágio numa agência de marketing em crescimento, com <b style="color:var(--text)">grande possibilidade de efetivação</b>. Preferência por quem mora na zona sul de Porto Alegre.</div>'
+      +'<ul style="margin:0 0 14px;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.7">'
+        + (V.faz||[]).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('') + '</ul>'
+      +'<div style="font-weight:700;font-size:15px;margin-bottom:6px">'+(V.slug==='storymaker'?'Como funciona':'Benefícios')+'</div>'
+      +'<ul style="margin:0 0 14px;padding-left:18px;color:var(--text-2);font-size:14px;line-height:1.7">'
+        + (V.beneficios||[]).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('') + '</ul>'
+      +'<div style="color:var(--text-3);font-size:13.5px;line-height:1.55">'+(V.nota||'')+'</div>'
     +'</div>'
     +'<div style="background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px" id="vagaForm">'
       +'<div style="font-weight:800;font-size:18px">Quero me candidatar</div>'
-      +'<div style="color:var(--text-3);font-size:13px;margin-top:2px">Rapidinho, é curto e objetivo. Campos com * são obrigatórios.</div>'
+      +'<div style="color:var(--text-3);font-size:13px;margin-top:2px">É curto e objetivo, leva uns 3 minutos. Campos com * são obrigatórios.</div>'
       +'<label style="'+lbl+'">Nome completo *</label><input id="vNome" style="'+inp+'" placeholder="Seu nome" />'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="'+lbl+'">Cidade *</label><input id="vCidade" style="'+inp+'" placeholder="Porto Alegre" /></div><div><label style="'+lbl+'">Bairro *</label><input id="vBairro" style="'+inp+'" placeholder="Ex: Tristeza" /></div></div>'
-      +'<label style="'+lbl+'">WhatsApp *</label>'
-      +'<div style="display:flex;align-items:stretch;gap:8px"><span style="display:flex;align-items:center;padding:0 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;font-size:14px;font-weight:700;color:var(--text-2)">🇧🇷 +55</span><input id="vTel" inputmode="numeric" style="'+inp+'" placeholder="DDD + número (ex: 51999998888)" /></div>'
-      +'<div style="color:var(--text-3);font-size:11.5px;margin-top:5px">Só o DDD e o número — o 55 já está aí. É por onde vamos te chamar.</div>'
-      +'<label style="'+lbl+'">Link do portfólio</label><input id="vPort" style="'+inp+'" placeholder="Instagram, Behance, Drive, PDF… (opcional)" />'
-      +'<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:12px"><div><label style="'+lbl+'">Qual curso está cursando? *</label><input id="vCurso" style="'+inp+'" placeholder="Ex: Administração, Publicidade…" /></div><div><label style="'+lbl+'">Semestre *</label><input id="vSem" style="'+inp+'" placeholder="Ex: 3º" /></div></div>'
-      +'<label style="'+lbl+'">Você já teve experiência com atendimento ao cliente? Conte rapidamente. *</label><textarea id="vAtend" rows="3" style="'+inp+';resize:vertical"></textarea>'
-      +'<label style="'+lbl+'">Como você se organiza quando tem várias tarefas ao mesmo tempo? *</label><textarea id="vOrg" rows="3" style="'+inp+';resize:vertical"></textarea>'
-      +'<label style="'+lbl+'">Como você avalia sua memória pra nomes, detalhes e prazos? Dê um exemplo. *</label><textarea id="vMem" rows="3" style="'+inp+';resize:vertical"></textarea>'
-      +'<label style="'+lbl+'">Por que você quer essa vaga na Impulse One? *</label><textarea id="vMot" rows="3" style="'+inp+';resize:vertical"></textarea>'
       +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
-        +'<div><label style="'+lbl+'">Disponível das 8h às 15h?</label><select id="vDisp" style="'+inp+'"><option>Sim</option><option>Não</option><option>A combinar</option></select></div>'
-        +'<div><label style="'+lbl+'">Mora na zona sul de POA?</label><select id="vZona" style="'+inp+'"><option>Sim</option><option>Não</option></select></div>'
+        +'<div><label style="'+lbl+'">Cidade *</label><input id="vCidade" style="'+inp+'" placeholder="Porto Alegre" /></div>'
+        +'<div><label style="'+lbl+'">Bairro *</label><input id="vBairro" style="'+inp+'" placeholder="Onde você mora" /></div>'
       +'</div>'
+      +'<label style="'+lbl+'">WhatsApp *</label>'
+      +'<div style="display:flex;align-items:stretch;gap:8px"><span style="display:flex;align-items:center;padding:0 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text-3);font-size:14px">+55</span><input id="vTel" inputmode="numeric" style="'+inp+'" placeholder="51 99999 9999" /></div>'
+      +'<div style="'+dica+'">Só o DDD e o número. É por onde vamos te chamar.</div>'
+      +'<label style="'+lbl+'">'+esc(V.portfolioLabel||'Link do portfólio')+(V.portfolioObrigatorio?' *':'')+'</label>'
+      +'<input id="vPort" style="'+inp+'" placeholder="'+(V.portfolioObrigatorio?'Cole aqui o link do seu trabalho':'Instagram, Behance, Drive, PDF… (opcional)')+'" />'
+      + camposHTML
       +'<button id="vagaEnviar" class="btn btn-primary" type="button" style="width:100%;margin-top:22px;padding:14px;font-size:15px">Enviar candidatura</button>'
       +'<div id="vagaMsg" style="margin-top:12px;font-size:13px;text-align:center"></div>'
     +'</div>'
+    + (outrasVagas.length ? '<div style="margin-top:18px;text-align:center;color:var(--text-3);font-size:13px">Também estamos com vaga de '
+        + outrasVagas.map(function(o){ return '<a href="?vaga='+o.slug+'" style="color:var(--accent-2)">'+esc(o.h1)+'</a>'; }).join(' e ') + '.</div>' : '')
     +'<div style="text-align:center;color:var(--text-4,#5C5F70);font-size:11px;margin-top:26px">Impulse One · Recrutamento</div>'
     +'</div>';
+
   document.getElementById('vagaEnviar').onclick=async function(){
     const g=id=>((document.getElementById(id)||{}).value||'').trim();
     const msg=document.getElementById('vagaMsg');
+    const erro=function(txt, foco){ msg.style.color='var(--danger,#ef4444)'; msg.textContent=txt; const el=document.getElementById(foco); if(el){ el.focus(); el.scrollIntoView({block:'center',behavior:'smooth'}); } };
     const nome=g('vNome'), cidade=g('vCidade'), bairro=g('vBairro');
     const telDig=g('vTel').replace(/\D/g,'');
-    if(!nome||!cidade||!bairro){ msg.style.color='var(--danger,#ef4444)'; msg.textContent='Preencha nome, cidade e bairro.'; return; }
-    if(telDig.length<10||telDig.length>11){ msg.style.color='var(--danger,#ef4444)'; msg.textContent='Coloque o DDD + número (10 ou 11 dígitos).'; return; }
-    if(!g('vCurso')||!g('vSem')){ msg.style.color='var(--danger,#ef4444)'; msg.textContent='Informe o curso e o semestre que está cursando.'; return; }
-    if(!g('vAtend')||!g('vOrg')||!g('vMem')||!g('vMot')){ msg.style.color='var(--danger,#ef4444)'; msg.textContent='Responda todas as perguntas obrigatórias.'; return; }
+    if(!nome) return erro('Escreva seu nome.','vNome');
+    if(!cidade||!bairro) return erro('Preencha cidade e bairro.','vCidade');
+    if(telDig.length<10||telDig.length>11) return erro('Coloque o DDD + número (10 ou 11 dígitos).','vTel');
+    if(V.portfolioObrigatorio && !g('vPort')) return erro('Cole o link do seu portfólio. É o que a gente olha primeiro.','vPort');
+    const respostas = {};
+    for(const c of (V.campos||[])){
+      const val = g('vq_'+c.id);
+      if(c.req && !val) return erro('Falta responder: ' + c.label, 'vq_'+c.id);
+      respostas[c.id] = val;
+    }
     const telefone='55'+telDig;
     const btn=document.getElementById('vagaEnviar'); btn.disabled=true; btn.textContent='Enviando…';
     try{
       const { error }=await _supa.from('candidaturas').insert({
-        vaga:VAGA_ATUAL, nome, cidade, bairro, telefone, portfolio_url:g('vPort'),
-        respostas:{ curso:g('vCurso'), semestre:g('vSem'), atendimento:g('vAtend'), organizacao:g('vOrg'), memoria:g('vMem'), motivacao:g('vMot'), disponivel_8_15:g('vDisp'), zona_sul:g('vZona') },
-        status:'novo'
+        vaga:V.titulo, nome, cidade, bairro, telefone, portfolio_url:g('vPort'),
+        respostas: respostas, status:'novo'
       });
       if(error){ throw error; }
       document.getElementById('vagaForm').innerHTML='<div style="text-align:center;padding:24px">'
         +'<div style="font-size:40px">🎉</div>'
         +'<div style="font-size:20px;font-weight:800;margin-top:8px">Candidatura enviada!</div>'
-        +'<div style="color:var(--text-2);font-size:14px;margin-top:8px;line-height:1.6">Obrigado, '+nome.replace(/[<>&]/g,'')+'! Recebemos seu cadastro. Se seu perfil combinar com a vaga, a gente entra em contato pelo seu WhatsApp. 💜</div>'
+        +'<div style="color:var(--text-2);font-size:14px;margin-top:8px;line-height:1.6">Obrigado, '+esc(nome)+'! Recebemos seu cadastro. Se seu perfil combinar com a vaga, a gente entra em contato pelo WhatsApp.</div>'
         +'<div style="color:var(--text-3);font-size:13px;margin-top:20px">Enquanto isso, fica por dentro da Impulse 👇</div>'
-        +'<a href="https://instagram.com/iimpulseone" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;text-decoration:none;padding:13px 24px;border-radius:12px;font-weight:700;font-size:14.5px;color:#fff;background:linear-gradient(135deg,#FEDA75,#FA7E1E,#D62976,#962FBF,#4F5BD5);box-shadow:0 12px 30px rgba(214,41,118,.4)">📸 Seguir @iimpulseone</a>'
+        +'<a href="https://instagram.com/iimpulseone" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;margin-top:12px;text-decoration:none;padding:13px 20px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);color:var(--text)">📸 @iimpulseone</a>'
         +'</div>';
+      window.scrollTo({top:0,behavior:'smooth'});
     }catch(e){ btn.disabled=false; btn.textContent='Enviar candidatura'; msg.style.color='var(--danger,#ef4444)'; msg.textContent='Erro ao enviar: '+(e.message||'tente de novo'); if((e.message||'').toLowerCase().includes('candidaturas')||e.code==='42P01') msg.textContent='Sistema em configuração — rode o sql/74.'; }
   };
 }
@@ -20376,22 +20485,39 @@ async function abrirRecrutamento(){
   ov=document.createElement('div'); ov.id='recrutOverlay';
   ov.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 14px';
   ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
-  const link=location.origin+'/?vaga';
-  const wa='https://wa.me/?text='+encodeURIComponent('Vaga de estágio na Impulse One (Atendimento & Administrativo). Confere e se candidata: '+link);
-  ov.innerHTML='<div style="max-width:820px;width:100%;margin-top:14px;background:var(--surface);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.55);border:1px solid var(--border)" onclick="event.stopPropagation()">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid var(--border)"><div><div style="font-size:18px;font-weight:800">Recrutamento & Seleção</div><div style="font-size:12.5px;color:var(--text-3)">'+escapeHtml(VAGA_ATUAL)+'</div></div><button class="btn" type="button" onclick="document.getElementById(\'recrutOverlay\').remove()">Fechar</button></div>'
-    +'<div style="padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface-2)">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--text-2);margin-bottom:8px">📣 Divulgar a vaga</div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap"><input readonly value="'+link+'" onclick="this.select()" style="flex:1;min-width:180px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:10px;font-size:12px;color:var(--text)" />'
-      +'<button class="btn" type="button" onclick="copy(\''+link+'\',\'Link da vaga\')">Copiar</button>'
-      +'<a class="btn" href="'+wa+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">📲 WhatsApp</a></div>'
-    +'</div>'
+  if(!window._recrutVaga) window._recrutVaga = 'todas';
+  ov.innerHTML='<div style="max-width:860px;width:100%;margin-top:14px;background:var(--surface);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.55);border:1px solid var(--border)" onclick="event.stopPropagation()">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid var(--border)">'
+      +'<div><div style="font-size:18px;font-weight:800">Recrutamento &amp; Seleção</div>'
+      +'<div style="font-size:12.5px;color:var(--text-3)">Vagas abertas e candidatos</div></div>'
+      +'<button class="btn" type="button" onclick="document.getElementById(\'recrutOverlay\').remove()">Fechar</button></div>'
+    +'<div id="recrutVagas" style="padding:16px 24px;border-bottom:1px solid var(--border);background:var(--surface-2)"></div>'
     +'<div id="recrutList" style="padding:18px 24px"><div style="text-align:center;color:var(--text-3);padding:30px">Carregando candidatos…</div></div>'
     +'</div>';
   document.body.appendChild(ov);
+  _recrutPintarVagas();
   await loadCandidaturas();
 }
 window.abrirRecrutamento = abrirRecrutamento;
+
+// Cada vaga com o seu link pronto pra divulgar
+function _recrutPintarVagas(){
+  const box = document.getElementById('recrutVagas'); if(!box) return;
+  const esc = escapeHtml;
+  box.innerHTML = _vagasAtivas().map(function(V){
+    const link = location.origin + '/?vaga=' + V.slug;
+    const wa = 'https://wa.me/?text=' + encodeURIComponent('Vaga de ' + V.h1 + ' na Impulse One. Confere e se candidata: ' + link);
+    return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
+      +'<div style="flex:1;min-width:150px"><div style="font-size:13px;font-weight:700">'+esc(V.titulo)+'</div>'
+      +'<div style="font-size:11.5px;color:var(--text-3)">'+esc(V.sub)+'</div></div>'
+      +'<input readonly value="'+link+'" onclick="this.select()" style="flex:1;min-width:170px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:12px;color:var(--text-2)" />'
+      +'<button class="btn btn-sm" type="button" onclick="copy(\''+link+'\',\'Link da vaga\')">Copiar</button>'
+      +'<a class="btn btn-sm" href="'+wa+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">📲</a>'
+      +'<a class="btn btn-sm" href="'+link+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Ver</a>'
+      +'</div>';
+  }).join('');
+}
+window._recrutPintarVagas = _recrutPintarVagas;
 
 async function loadCandidaturas(){
   const el=document.getElementById('recrutList'); if(!el) return;
@@ -20399,46 +20525,117 @@ async function loadCandidaturas(){
   try{ const { data, error } = await _supa.from('candidaturas').select('*').order('created_at',{ascending:false}); if(error) throw error; list=data||[]; }
   catch(e){ console.error('[candidaturas]',e); el.innerHTML='<div style="color:var(--danger);padding:20px">Erro ao carregar. Se a tabela não existe, rode o sql/74-candidaturas.sql.</div>'; return; }
   window._candidatos=list;
-  if(!list.length){ el.innerHTML='<div style="text-align:center;color:var(--text-3);padding:34px">Nenhuma candidatura ainda.<br>Divulgue o link da vaga aí em cima 👆</div>'; return; }
-  el.innerHTML='<div style="font-size:12px;color:var(--text-3);margin-bottom:12px">'+list.length+' candidato(s)</div>'+list.map(function(c,i){
-    var tel=(c.telefone||'').replace(/\D/g,'');
-    var stMap={novo:'Novo',em_analise:'Em análise',favorito:'⭐ Favorito',descartado:'Descartado'};
-    var st=stMap[c.status||'novo']||'Novo';
-    return '<div class="card" style="padding:14px;margin-bottom:10px;border:1px solid var(--border)">'
+  _recrutPintarLista();
+}
+window.loadCandidaturas=loadCandidaturas;
+
+function _recrutFiltrar(v){ window._recrutVaga = v; _recrutPintarLista(); }
+window._recrutFiltrar = _recrutFiltrar;
+
+function _recrutPintarLista(){
+  const el=document.getElementById('recrutList'); if(!el) return;
+  const esc = escapeHtml;
+  const todos = window._candidatos || [];
+  const filtro = window._recrutVaga || 'todas';
+
+  // abas por vaga, com contagem
+  const vagasComGente = _vagasAtivas().map(function(V){
+    return {V: V, n: todos.filter(function(c){ return c.vaga === V.titulo; }).length};
+  });
+  const outros = todos.filter(function(c){ return !_vagaPorTitulo(c.vaga); }).length;
+  const chip = function(id, rot, n, ativo){
+    return '<button class="btn btn-sm" type="button" onclick="_recrutFiltrar(\''+id+'\')" style="'
+      + (ativo ? 'background:var(--accent);border-color:var(--accent);color:#fff' : '') + '">'
+      + esc(rot) + ' <span style="opacity:.75">'+n+'</span></button>';
+  };
+  const abas = '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'
+    + chip('todas','Todas', todos.length, filtro==='todas')
+    + vagasComGente.map(function(o){ return chip(o.V.slug, o.V.h1, o.n, filtro===o.V.slug); }).join('')
+    + (outros ? chip('outras','Vagas antigas', outros, filtro==='outras') : '')
+    + '</div>';
+
+  let list = todos;
+  if(filtro !== 'todas'){
+    if(filtro === 'outras') list = todos.filter(function(c){ return !_vagaPorTitulo(c.vaga); });
+    else list = todos.filter(function(c){ return c.vaga === (VAGAS[filtro]||{}).titulo; });
+  }
+
+  if(!list.length){
+    el.innerHTML = abas + '<div style="text-align:center;color:var(--text-3);padding:34px">Nenhuma candidatura ainda.<br>Divulgue o link da vaga aí em cima 👆</div>';
+    return;
+  }
+
+  el.innerHTML = abas + '<div style="font-size:12px;color:var(--text-3);margin-bottom:12px">'+list.length+' candidato(s)</div>' + list.map(function(c){
+    const i = todos.indexOf(c);
+    const tel=(c.telefone||'').replace(/\D/g,'');
+    const stMap={novo:'Novo',em_analise:'Em análise',favorito:'⭐ Favorito',descartado:'Descartado'};
+    const st=stMap[c.status||'novo']||'Novo';
+    const V = _vagaPorTitulo(c.vaga);
+    const r = c.respostas || {};
+    // resumo que decide sem abrir: os destaques da vaga
+    const destaques = V && V.destaques ? V.destaques.map(function(id){
+      const campo = (V.campos||[]).find(function(x){ return x.id === id; });
+      const val = r[id];
+      if(!val) return '';
+      const rotulo = campo && campo.tipo === 'dinheiro' ? 'R$ ' + val : val;
+      return '<span style="font-size:11px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px 9px;color:var(--text-2)">'+esc(rotulo)+'</span>';
+    }).filter(Boolean).join(' ') : '';
+    return '<div class="card" style="padding:14px;margin-bottom:10px;border:1px solid var(--border)'+(c.status==='favorito'?';border-color:var(--accent-border)':'')+'">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-        +'<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">'+escapeHtml(c.nome||'—')+' <span style="font-size:10.5px;font-weight:600;color:var(--text-3);border:1px solid var(--border);border-radius:6px;padding:1px 6px;margin-left:4px">'+st+'</span></div>'
-        +'<div style="font-size:12.5px;color:var(--text-3)">'+escapeHtml(c.cidade||'')+(c.bairro?(' · '+escapeHtml(c.bairro)):'')+' · '+new Date(c.created_at).toLocaleDateString("pt-BR")+'</div></div>'
-        +(tel?'<a class="btn btn-sm" href="https://wa.me/'+tel+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;background:#25D366;border-color:#25D366;color:#fff">📲 WhatsApp</a>':'')
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-weight:700;font-size:15px">'+esc(c.nome||'—')
+          +' <span style="font-size:10.5px;font-weight:600;color:var(--text-3);border:1px solid var(--border);border-radius:999px;padding:2px 8px;margin-left:4px">'+esc(st)+'</span></div>'
+          +'<div style="font-size:12.5px;color:var(--text-3)">'+esc(V ? V.h1 : (c.vaga||'—'))+' · '+esc(c.cidade||'')+(c.bairro?(' · '+esc(c.bairro)):'')+' · '+new Date(c.created_at).toLocaleDateString('pt-BR')+'</div>'
+        +'</div>'
+        +(c.portfolio_url?'<a class="btn btn-sm" href="'+esc(c.portfolio_url)+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none">📎 Portfólio</a>':'')
+        +(tel?'<a class="btn btn-sm" href="https://wa.me/'+tel+'" target="_blank" rel="noopener noreferrer" style="text-decoration:none;background:#25D366;border-color:#25D366;color:#fff">💬 WhatsApp</a>':'')
         +'<button class="btn btn-sm" type="button" onclick="verCandidato('+i+')">Ver respostas</button>'
       +'</div>'
+      + (destaques ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px">'+destaques+'</div>' : '')
       +'<div id="cand'+i+'" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)"></div>'
     +'</div>';
   }).join('');
 }
-window.loadCandidaturas=loadCandidaturas;
+window._recrutPintarLista = _recrutPintarLista;
 
 function verCandidato(i){
   const c=(window._candidatos||[])[i]; if(!c) return;
   const box=document.getElementById('cand'+i); if(!box) return;
   if(box.style.display==='block'){ box.style.display='none'; return; }
+  const esc = escapeHtml;
   const r=c.respostas||{};
-  function row(q,a){ return '<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--accent)">'+q+'</div><div style="font-size:13.5px;color:var(--text-2);white-space:pre-wrap">'+escapeHtml(a||'—')+'</div></div>'; }
-  var stMap={novo:'Novo',em_analise:'Em análise',favorito:'⭐ Favorito',descartado:'Descartado'};
-  box.innerHTML=
-    '<div style="font-size:13.5px;color:var(--text-2);margin-bottom:12px">🎓 <b>'+escapeHtml(r.curso||'—')+'</b>'+(r.semestre?(' · '+escapeHtml(r.semestre)+' semestre'):'')+'</div>'
-    +(c.portfolio_url?'<div style="margin-bottom:12px"><a href="'+escapeHtml(c.portfolio_url)+'" target="_blank" rel="noopener noreferrer" class="btn btn-sm">📎 Ver portfólio</a></div>':'')
-    +row('Experiência com atendimento', r.atendimento)
-    +row('Organização', r.organizacao)
-    +row('Memória', r.memoria)
-    +row('Motivação', r.motivacao)
-    +'<div style="display:flex;gap:18px;font-size:12.5px;color:var(--text-3);margin-bottom:12px"><span>Disp. 8h–15h: <b style="color:var(--text)">'+escapeHtml(r.disponivel_8_15||'—')+'</b></span><span>Zona sul: <b style="color:var(--text)">'+escapeHtml(r.zona_sul||'—')+'</b></span></div>'
-    +'<label style="font-size:12px;color:var(--text-3);margin-right:6px">Status:</label><select onchange="_candStatus(\''+c.id+'\',this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px 9px;font-size:12px;color:var(--text)">'
+  const V=_vagaPorTitulo(c.vaga);
+  function row(q,a){ return '<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--accent)">'+esc(q)+'</div><div style="font-size:13.5px;color:var(--text-2);white-space:pre-wrap;margin-top:3px">'+esc(a||'—')+'</div></div>'; }
+  const stMap={novo:'Novo',em_analise:'Em análise',favorito:'⭐ Favorito',descartado:'Descartado'};
+
+  // as perguntas vêm da receita da vaga: curtas viram linha, longas viram bloco
+  let corpo = '';
+  if(V){
+    const curtos = (V.campos||[]).filter(function(x){ return x.tipo !== 'texto_longo'; });
+    const longos = (V.campos||[]).filter(function(x){ return x.tipo === 'texto_longo'; });
+    if(curtos.length){
+      corpo += '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--text-3);margin-bottom:12px">'
+        + curtos.map(function(x){
+            const v = r[x.id]; if(!v) return '';
+            return '<span>'+esc(x.label.replace(/\?$/,''))+': <b style="color:var(--text)">'+esc(x.tipo==='dinheiro'?('R$ '+v):v)+'</b></span>';
+          }).filter(Boolean).join('') + '</div>';
+    }
+    corpo += longos.map(function(x){ return row(x.label, r[x.id]); }).join('');
+  } else {
+    // candidatura de uma vaga antiga: mostra o que tiver
+    corpo = Object.keys(r).map(function(k){ return row(k, r[k]); }).join('');
+  }
+
+  box.innerHTML =
+    (c.portfolio_url?'<div style="margin-bottom:12px"><a href="'+esc(c.portfolio_url)+'" target="_blank" rel="noopener noreferrer" class="btn btn-sm">📎 Ver portfólio</a></div>':'')
+    + corpo
+    +'<label style="font-size:12px;color:var(--text-3);margin-right:6px">Status:</label><select onchange="_candStatus(\''+c.id+'\',this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:inherit">'
       +['novo','em_analise','favorito','descartado'].map(function(s){ return '<option value="'+s+'"'+((c.status||'novo')===s?' selected':'')+'>'+stMap[s]+'</option>'; }).join('')
     +'</select>';
   box.style.display='block';
 }
 window.verCandidato=verCandidato;
-async function _candStatus(id,st){ try{ await _supa.from('candidaturas').update({status:st}).eq('id',id); const c=(window._candidatos||[]).find(function(x){return x.id===id;}); if(c) c.status=st; toast('Status atualizado','success'); }catch(e){ toast('Erro ao atualizar','info'); } }
+async function _candStatus(id,st){ try{ await _supa.from('candidaturas').update({status:st}).eq('id',id); const c=(window._candidatos||[]).find(function(x){return x.id===id;}); if(c) c.status=st; toast('Status atualizado','success'); _recrutPintarLista(); }catch(e){ toast('Erro ao atualizar','info'); } }
 window._candStatus=_candStatus;
 
 async function enviarPesquisaNr1(ev){
