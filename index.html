@@ -12248,6 +12248,13 @@ function startRealtimeSync(){
         console.log('[RT] profiles mudou');
         silentReload('profiles');
       })
+      .on('postgres_changes', {event: '*', schema: 'public', table: 'calendarios'}, ()=>{
+        // calendario montado (na mao ou pelo sistema) ja aparece como pronto no controle
+        console.log('[RT] calendarios mudou');
+        if(currentPage === 'controlecal'){
+          try{ renderControleCalendarios(document.getElementById('content')); }catch(e){}
+        }
+      })
       .on('postgres_changes', {event: '*', schema: 'public', table: 'tasks'}, ()=>{
         // tarefa criada/alterada por outra pessoa (ex: agendada no Comercial) cai no
         // checklist de quem vai fazer sem precisar recarregar a pagina
@@ -30356,7 +30363,13 @@ async function renderControleCalendarios(c){
     c.innerHTML = '<div class="empty-state" style="padding:50px"><div class="ico">🔒</div><div class="ttl">Acesso restrito</div><div class="desc">Essa área é só do Vinícius.</div></div>';
     return;
   }
-  if(!window._ctrlCalMes){ const h = new Date(); window._ctrlCalMes = { ano:h.getFullYear(), mes:h.getMonth()+1 }; }   // mes 1-12
+  // O controle so vale de outubro/2026 pra frente (antes disso a operacao era outra).
+  if(!window._ctrlCalMes){
+    const h = new Date();
+    const atual = h.getFullYear()*100 + (h.getMonth()+1);
+    const piso = _CTRL_CAL_INICIO.ano*100 + _CTRL_CAL_INICIO.mes;
+    window._ctrlCalMes = atual < piso ? { ano:_CTRL_CAL_INICIO.ano, mes:_CTRL_CAL_INICIO.mes } : { ano:h.getFullYear(), mes:h.getMonth()+1 };
+  }
   c.innerHTML = `<div style="max-width:1000px;margin:0 auto">
     <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:4px 0 16px">
       <div style="flex:1;min-width:220px">
@@ -30393,16 +30406,39 @@ async function _ctrlCalMarcar(cliId, estado){
   try { await _supa.from('app_settings').upsert({ key:'controlecal_status', value: JSON.stringify(window._ctrlCalMarcas), updated_at:new Date().toISOString() }, { onConflict:'key' }); }
   catch(e){ console.error('[ctrlcal marca]', e); try{ toast('Salvei aqui, sincronizo já já.','info'); }catch(_e){} }
 }
+// Mes minimo do controle. Antes disso nao ha o que cobrar.
+const _CTRL_CAL_INICIO = { ano: 2026, mes: 10 };
+function _ctrlCalAntesDoInicio(ano, mes){
+  return (ano*100 + mes) < (_CTRL_CAL_INICIO.ano*100 + _CTRL_CAL_INICIO.mes);
+}
 function _ctrlCalMesNav(delta){
   const s = window._ctrlCalMes; if(!s) return;
-  s.mes += delta;
-  if(s.mes < 1){ s.mes = 12; s.ano--; }
-  if(s.mes > 12){ s.mes = 1; s.ano++; }
+  let ano = s.ano, mes = s.mes + delta;
+  if(mes < 1){ mes = 12; ano--; }
+  if(mes > 12){ mes = 1; ano++; }
+  if(_ctrlCalAntesDoInicio(ano, mes)){
+    try{ toast('O controle começa em ' + (_CAL_MESES[_CTRL_CAL_INICIO.mes-1]||'') + ' de ' + _CTRL_CAL_INICIO.ano,'info'); }catch(e){}
+    return;
+  }
+  s.ano = ano; s.mes = mes;
   _ctrlCalPintar();
 }
 function _ctrlCalPintar(){
   const s = window._ctrlCalMes || {}; const cals = window._ctrlCalCache || [];
   const lbl = document.getElementById('ctrlCalMesLabel'); if(lbl) lbl.textContent = (_CAL_MESES[s.mes-1]||'') + ' ' + s.ano;
+  // desliga a seta de voltar quando ja esta no primeiro mes do controle
+  try{
+    const btnAnt = document.querySelector('button[onclick="_ctrlCalMesNav(-1)"]');
+    if(btnAnt){
+      const antMes = s.mes - 1 < 1 ? 12 : s.mes - 1;
+      const antAno = s.mes - 1 < 1 ? s.ano - 1 : s.ano;
+      const noPiso = _ctrlCalAntesDoInicio(antAno, antMes);
+      btnAnt.disabled = noPiso;
+      btnAnt.style.opacity = noPiso ? '.35' : '';
+      btnAnt.style.cursor = noPiso ? 'not-allowed' : '';
+      btnAnt.title = noPiso ? 'O controle começa em ' + (_CAL_MESES[_CTRL_CAL_INICIO.mes-1]||'') + ' de ' + _CTRL_CAL_INICIO.ano : 'Mês anterior';
+    }
+  }catch(e){}
   const marcas = window._ctrlCalMarcas || {};
   const porCli = {}; cals.forEach(cal=>{ (porCli[cal.cliente_id]=porCli[cal.cliente_id]||[]).push(cal); });
   const ativos = clients.filter(cl=> cl._dbId && !cl.oculto);
@@ -30443,7 +30479,7 @@ function _ctrlCalPintar(){
       <div style="width:9px;height:9px;border-radius:50%;background:${temAj?'#FF9100':'#34d399'};box-shadow:0 0 10px ${temAj?'#FF9100':'#34d399'};flex-shrink:0"></div>
       <div style="flex:1;min-width:130px">
         <div style="font-weight:700;font-size:14px">${escapeHtml(_nomeCli(o.cl))}</div>
-        <div class="text-xs" style="margin-top:2px;color:${temAj?'#FF9100':'var(--text-3)'};font-weight:${temAj?'700':'400'}">${manual?'✓ Marcado como pronto (manual)':temAj?`✎ ${o.aj} ${o.aj===1?'alteração pedida':'alterações pedidas'} · ${o.ok}/${o.n} aprovados`:`${o.n} ${o.n===1?'conteúdo':'conteúdos'} em ${mesNome} · ${o.ok}/${o.n} aprovados`}</div>
+        <div class="text-xs" style="margin-top:2px;color:${temAj?'#FF9100':'var(--text-3)'};font-weight:${temAj?'700':'400'}">${manual?'✓ Marcado como pronto (manual) — sem conteúdo lançado':temAj?`✎ ${o.aj} ${o.aj===1?'alteração pedida':'alterações pedidas'} · ${o.n} ${o.n===1?'conteúdo':'conteúdos'} · ${o.ok}/${o.n} aprovados`:`✓ Montado no sistema · ${o.n} ${o.n===1?'conteúdo':'conteúdos'} em ${mesNome} · ${o.ok}/${o.n} aprovados`}</div>
       </div>
       ${manual?`<button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'')" title="Desfazer">↺ Desfazer</button>`:''}
       <button class="btn" type="button" onclick="abrirCalendarioDoCliente(${o.cl.id})">✏️ Abrir</button>
@@ -30459,6 +30495,7 @@ function _ctrlCalPintar(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
       <span class="badge b-danger">🗓 ${pend.length} pra montar</span>
       <span class="badge b-success">✓ ${prontos.length} prontos</span>
+      <span class="badge b-info" title="Soma dos conteúdos lançados no mês, somando todos os clientes">📊 ${prontos.reduce((s2,o)=>s2+o.n,0)} conteúdos no mês</span>
       ${disp.length?`<span class="badge b-default">🚫 ${disp.length} dispensados</span>`:''}
       <span class="badge b-default">${ativos.length} clientes ativos</span>
     </div>
