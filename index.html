@@ -3861,7 +3861,9 @@ async function createClientInSupabase(data){
       website: data.website || null,
       plan_name: data.plan_name || '',
       plan_value: data.plan_value || null,
-      services: data.services || ['gestao_social','design'],
+      // Cliente novo entra ZERADO: só marca serviço se veio do Comercial (orçamento/card).
+      services: Array.isArray(data.services) ? data.services : [],
+      services_list: Array.isArray(data.services_list) ? data.services_list : [],
       cnpj: data.cnpj || null,
       razao_social: data.razao_social || null,
       nome_fantasia: data.nome_fantasia || null,
@@ -10089,7 +10091,13 @@ function paneConteudo(cli){
 function paneFinanceiro(cli){
   const planName = cli.planName || '';
   const planValue = parseFloat(cli.planValue) || parseFloat(cli.mrr) || 0;
-  const servicesList = Array.isArray(cli.services_list) && cli.services_list.length ? cli.services_list : (cli.services || []);
+  // Só mostra o que foi realmente marcado. Lista vazia continua vazia.
+  // A coluna antiga `services` guarda ids internos ('gestao_social', 'design') que ninguém
+  // escolheu na tela — vinham chumbados no cadastro. Eles não contam como serviço marcado.
+  const _idInterno = (x) => /^[a-z0-9]+(_[a-z0-9]+)*$/.test(String(x||''));
+  const servicesList = Array.isArray(cli.services_list) && cli.services_list.length
+    ? cli.services_list
+    : (Array.isArray(cli.services) ? cli.services.filter(x => !_idInterno(x)) : []);
   const allServices = ['Gestão de rede social','Tráfego pago','Design fixo','Branding','Vídeos','Captação','Campanhas','Consultoria'];
 
   // Cor de marca por serviço: padrão pega cor fixa por posição; custom via hash do nome (estável)
@@ -29557,6 +29565,7 @@ async function preCadastrarCliente(origem){
       contrato_url: null,
       status: 'active',
       services_list: origem.servicos || [],
+      services: origem.servicos || [],
       pre_cadastro: true,
       pre_cadastro_origem: origem.rotulo || 'comercial',
       initials: String(origem.nome).trim().split(/\s+/).map(function(w){ return w[0]||''; }).slice(0,2).join('').toUpperCase(),
