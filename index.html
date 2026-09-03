@@ -8498,8 +8498,8 @@ function openClient(id, targetPane){
       <div class="modal-tab" onclick="cliTab(this,'arquivos')">Arquivos</div>
       <div class="modal-tab" onclick="cliTab(this,'antes')">📊 Antes</div>
       <div class="modal-tab" onclick="cliTab(this,'historico')">Histórico</div>
-      <div class="modal-tab" onclick="cliTab(this,'relatorios')">📊 Relatórios</div>
       <div class="modal-tab" onclick="cliTab(this,'orcamentos')">📄 Orçamentos</div>
+      <div class="modal-tab" onclick="abrirRelatoriosDoCliente(${cli.id})" title="Abre os relatórios deste cliente na aba Relatórios">📊 Relatórios</div>
     </div>
     <div class="modal-body">
       ${paneVisao(cli)}
@@ -8511,15 +8511,13 @@ function openClient(id, targetPane){
       ${paneArquivos(cli)}
       ${paneAntes(cli)}
       ${paneHistorico(cli)}
-      ${paneRelatoriosCliente(cli)}
       ${paneOrcamentos(cli)}
     </div>
   `;
   document.getElementById('modalBg').classList.add('open');
   // Busca os orçamentos desse cliente direto no banco (não só o cache de 50)
   setTimeout(()=>{ try { if(typeof carregarOrcamentosCliente==='function') carregarOrcamentosCliente(cli); } catch(e){} }, 40);
-  // Relatórios do cliente (aba 📊) — busca direto no banco, não só o cache
-  setTimeout(()=>{ try { if(typeof carregarRelatoriosCliente==='function') carregarRelatoriosCliente(cli); } catch(e){} }, 50);
+
   // Calendário editorial (aba 🗓) — busca os calendários e o que o cliente respondeu
   setTimeout(()=>{ try { if(typeof carregarCalendariosCliente==='function') carregarCalendariosCliente(cli); } catch(e){} }, 60);
   // Abre direto numa aba específica (usado pelas pendências de cadastro)
@@ -8667,6 +8665,36 @@ function _relClienteHTML(lista, cli){
       }).join('');
   }).join('');
 }
+
+// Clique na aba 📊 do cliente: vai direto pros relatórios DELE na aba Relatórios.
+function abrirRelatoriosDoCliente(cliId){
+  const cli = (clients||[]).find(function(c){ return c.id === cliId; });
+  if(!cli){ toast('Cliente não encontrado','info'); return; }
+  const nome = cli.name;
+  closeModal();
+  goTo('relatorios');
+  const abrir = function(){
+    // o agrupamento da aba Relatórios é pelo nome da empresa do relatório
+    const lista = (typeof _relatorios !== 'undefined' ? _relatorios : []);
+    const norm = function(x){ return (x||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim(); };
+    const achou = lista.find(function(r){
+      const e = norm(r.empresa);
+      return e === norm(cli.name) || e === norm(cli.nome_social) || e === norm(cli.razao_social) || e === norm(cli.nome_fantasia);
+    });
+    if(achou){
+      _relClienteAberto = achou.empresa;
+    } else {
+      _relClienteAberto = null;
+      toast('Nenhum relatório de ' + nome + ' ainda','info');
+    }
+    try{ renderRelatorios(document.getElementById('content')); }catch(e){}
+  };
+  // espera o carregamento dos relatórios (só busca no banco se ainda não tem)
+  if(typeof _relCarregado !== 'undefined' && _relCarregado){ setTimeout(abrir, 120); }
+  else if(typeof loadRelatorios === 'function'){ loadRelatorios().then(function(){ setTimeout(abrir, 60); }); }
+  else { setTimeout(abrir, 400); }
+}
+window.abrirRelatoriosDoCliente = abrirRelatoriosDoCliente;
 
 function paneRelatoriosCliente(cli){
   const cache = (typeof _relatorios !== 'undefined' ? _relatorios : []).filter(function(r){ return _relEhDoCliente(r, cli); });
