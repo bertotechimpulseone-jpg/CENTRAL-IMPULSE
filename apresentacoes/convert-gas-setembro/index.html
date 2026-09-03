@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Calendário Editorial · Setembro 2026 — Convert Gás</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#08080C; --bg-2:#0D0D14; --card:#121219; --card-2:#16161F;
+    --ink:#FFFFFF; --ink-soft:#A6A6B4; --ink-dim:#6C6C7A;
+    --line:rgba(255,255,255,.09); --line-2:rgba(255,255,255,.16);
+    --g1:#F7941E; --g2:#EC1E79; --g3:#A23BD6; --g4:#29ABE2;
+    --grad:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2);
+    --accent:#EC1E79; --accent-soft:#F25FA8;
+    --reel:#EC1E79; --carrossel:#29ABE2; --estatico:#F7941E;
+    --ok:#2FD48B;
+    --sora:"Sora",system-ui,sans-serif;
+    --inter:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --maxw:1080px; --ease:cubic-bezier(.16,.84,.34,1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    background:
+      radial-gradient(900px 520px at 82% -6%, rgba(236,30,121,.20), transparent 60%),
+      radial-gradient(820px 460px at -8% 8%, rgba(162,59,214,.16), transparent 58%),
+      radial-gradient(700px 500px at 50% 108%, rgba(41,171,226,.12), transparent 60%),
+      var(--bg);
+    color:var(--ink);font-family:var(--inter);line-height:1.6;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden;
+  }
+  ::selection{background:var(--accent);color:#fff}
+  a{color:inherit}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  section{padding:52px 0}
+  @media(max-width:640px){section{padding:38px 0}}
+
+  h1,h2,h3,h4{font-family:var(--sora);line-height:1.08;letter-spacing:-.025em;text-wrap:balance;font-weight:800}
+  h2{font-size:clamp(1.6rem,3.3vw,2.2rem)}
+  h3{font-size:clamp(1.1rem,2vw,1.32rem);font-weight:700;letter-spacing:-.02em}
+  p{max-width:70ch}
+  strong{color:var(--ink);font-weight:600}
+  .lead{font-size:clamp(1.02rem,1.5vw,1.16rem);color:var(--ink-soft);line-height:1.6;max-width:64ch}
+  .note{font-size:.85rem;color:var(--ink-dim);max-width:74ch}
+  .mag{color:var(--accent-soft);font-weight:600}
+  .eyebrow{font-family:var(--sora);font-size:.74rem;letter-spacing:.03em;color:var(--accent-soft);font-weight:600}
+
+  .progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:80;background:var(--grad)}
+  .topbar{position:sticky;top:0;z-index:60;backdrop-filter:blur(12px);background:rgba(8,8,12,.72);border-bottom:1px solid var(--line)}
+  .topbar .row{max-width:var(--maxw);margin:0 auto;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:center;gap:11px}
+  .brand .mark{width:30px;height:30px;border-radius:8px;background:var(--grad);flex-shrink:0;box-shadow:0 4px 16px -4px rgba(236,30,121,.6)}
+  .brand .wm{font-family:var(--sora);font-weight:700;font-size:.92rem}
+  .brand .wm b{font-weight:800}
+  .topbar .tag{font-size:.72rem;color:var(--ink-dim);font-family:var(--sora)}
+  @media(max-width:560px){.topbar .tag{display:none}}
+
+  /* hero */
+  .hero{padding:64px 0 26px}
+  .hero .bar{width:64px;height:5px;border-radius:99px;background:var(--grad);margin-bottom:24px}
+  .kicker{display:inline-flex;align-items:center;gap:9px;font-family:var(--sora);font-size:.76rem;letter-spacing:.04em;color:var(--ink-soft);font-weight:600;border:1px solid var(--line-2);border-radius:999px;padding:7px 15px;margin-bottom:22px}
+  .kicker .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(236,30,121,.2)}
+  .hero h1{font-size:clamp(2.4rem,6.5vw,4.4rem);letter-spacing:-.04em;line-height:.98;margin-bottom:16px}
+  .hero .thesis{max-width:52ch;font-size:clamp(1.04rem,1.8vw,1.28rem);color:var(--ink-soft);line-height:1.5}
+  .hero .thesis b{color:var(--ink);font-weight:600}
+
+  /* strategy strip */
+  .strat{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:34px}
+  .sc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .sc .v{font-family:var(--sora);font-weight:800;font-size:1.5rem;letter-spacing:-.02em;line-height:1}
+  .sc .k{margin-top:7px;font-size:.82rem;color:var(--ink-dim);line-height:1.35}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .card.g{background:linear-gradient(150deg,rgba(236,30,121,.12),rgba(162,59,214,.06));border-color:var(--line-2)}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:760px){.grid-2{grid-template-columns:1fr}}
+
+  .ticks{list-style:none;display:flex;flex-direction:column;gap:9px}
+  .ticks li{display:flex;gap:11px;align-items:flex-start;color:var(--ink-soft);line-height:1.45;font-size:.95rem}
+  .ticks li svg{flex:0 0 auto;width:17px;height:17px;margin-top:2px;color:var(--accent-soft)}
+
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+  .lg{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;color:var(--ink-soft);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 13px}
+  .lg .sq{width:11px;height:11px;border-radius:4px}
+
+  /* content cards */
+  .feed{display:flex;flex-direction:column;gap:16px;margin-top:8px}
+  .post{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;transition:.3s var(--ease)}
+  .post:hover{border-color:var(--line-2);transform:translateY(-2px)}
+  .post .head{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .post .idx{font-family:var(--sora);font-weight:800;font-size:1.15rem;width:40px;height:40px;border-radius:11px;
+    display:grid;place-items:center;background:var(--bg-2);border:1px solid var(--line-2);flex-shrink:0;letter-spacing:-.02em}
+  .post .date{display:flex;flex-direction:column;line-height:1.2}
+  .post .date .d{font-family:var(--sora);font-weight:700;font-size:.98rem}
+  .post .date .w{font-size:.74rem;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.06em}
+  .badges{display:flex;gap:7px;margin-left:auto;flex-wrap:wrap}
+  .badge{font-family:var(--sora);font-size:.68rem;font-weight:600;padding:5px 11px;border-radius:999px;letter-spacing:.02em;white-space:nowrap}
+  .b-fmt{color:#fff}
+  .b-reel{background:rgba(236,30,121,.9)}
+  .b-carrossel{background:rgba(41,171,226,.9)}
+  .b-estatico{background:rgba(247,148,30,.92);color:#1a1206}
+  .b-destaque{background:rgba(234,179,8,.95);color:#1a1206}
+  .b-pilar{background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink-soft)}
+  .b-data{background:rgba(47,212,139,.14);color:var(--ok);border:1px solid transparent}
+  .post .body{padding:18px 20px 20px}
+  .post .theme{font-family:var(--sora);font-size:1.12rem;font-weight:700;letter-spacing:-.02em;margin-bottom:6px}
+  .post .obj{font-size:.9rem;color:var(--ink-dim);margin-bottom:16px}
+  .post .obj b{color:var(--accent-soft);font-weight:600}
+  .block{margin-top:14px}
+  .block .lb{font-family:var(--sora);font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-dim);font-weight:700;margin-bottom:7px;display:flex;align-items:center;gap:7px}
+  .hook{background:var(--bg-2);border:1px solid var(--line);border-left:0;border-radius:11px;padding:13px 16px;position:relative}
+  .hook::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:3px;background:var(--grad)}
+  .hook p{font-family:var(--sora);font-weight:600;font-size:1rem;color:var(--ink);padding-left:14px;letter-spacing:-.01em}
+  .roteiro{list-style:none;display:flex;flex-direction:column;gap:7px}
+  .roteiro li{font-size:.92rem;color:var(--ink-soft);padding-left:22px;position:relative;line-height:1.45}
+  .roteiro li .n{position:absolute;left:0;top:0;font-family:var(--sora);font-weight:700;font-size:.78rem;color:var(--accent-soft)}
+  .foot-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+  @media(max-width:560px){.foot-row{grid-template-columns:1fr}}
+  .mini{background:var(--bg-2);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .mini .lb{margin-bottom:5px}
+  .mini p{font-size:.88rem;color:var(--ink-soft);line-height:1.4}
+  .mini.cta{background:linear-gradient(150deg,rgba(236,30,121,.14),rgba(162,59,214,.05));border-color:var(--line-2)}
+  .mini.cta p{color:var(--ink)}
+
+  .divider{height:1px;background:var(--line);max-width:var(--maxw);margin:0 auto}
+  footer{border-top:1px solid var(--line);padding:44px 0 40px;margin-top:14px}
+  footer .fmeta{margin-top:20px;display:flex;flex-wrap:wrap;gap:10px 24px;font-family:var(--sora);font-size:.76rem;color:var(--ink-dim)}
+  footer .fmeta b{color:var(--ink-soft)}
+  .hash{font-family:var(--inter);font-size:.86rem;color:var(--g4)}
+
+  .reveal{opacity:0;transform:translateY(18px)}
+  .reveal.in{opacity:1;transform:none;transition:opacity .55s var(--ease),transform .55s var(--ease)}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none}}
+  @media print{.topbar,.progress{display:none}.reveal{opacity:1;transform:none}.post,.card{break-inside:avoid}section{padding:20px 0}}
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+<div class="topbar"><div class="row">
+  <div class="brand"><div class="mark"></div><div class="wm">IMPULSE <b>ONE</b></div></div>
+  <div class="tag">Calendário Editorial · Convert Gás</div>
+</div></div>
+
+<!-- HERO -->
+<header class="hero"><div class="wrap">
+  <div class="bar"></div>
+  <span class="kicker"><span class="dot"></span> Calendário Editorial · Setembro 2026</span>
+  <h1>Setembro da<br>Convert Gás</h1>
+  <p class="thesis">Dez conteúdos com um objetivo claro: <b>colocar o Pablo como rosto da marca</b>, educar síndico e morador sem falar difícil, e transformar autoridade em <b>leads pelo Instagram</b>.</p>
+  <div class="strat">
+    <div class="sc"><div class="v">10</div><div class="k">conteúdos no mês, ~2 a 3 por semana</div></div>
+    <div class="sc"><div class="v">3</div><div class="k">Reels com o Pablo (ele grava, a gente edita)</div></div>
+    <div class="sc"><div class="v">3</div><div class="k">Destaques (Stories que ficam salvos no perfil)</div></div>
+    <div class="sc"><div class="v">3+1</div><div class="k">carrosséis educativos + 1 estático de feriado</div></div>
+  </div>
+</div></header>
+
+<!-- ESTRATÉGIA -->
+<section style="padding-top:20px"><div class="wrap">
+  <div class="eyebrow reveal" style="margin-bottom:10px">A lógica do mês</div>
+  <h2 class="reveal">Um arco, não dez posts soltos</h2>
+  <p class="lead reveal" style="margin-top:10px">A sequência tem intenção: começa apresentando quem cuida do gás, educa no meio, prova com caso real, agradece no Dia do Cliente e fecha puxando o síndico pra uma conversa. Tudo curto, direto e no tom que ele pediu: <strong>sério e técnico, mas sem parecer inacessível</strong>.</p>
+
+  <div class="grid-2 reveal" style="margin-top:26px">
+    <div class="card">
+      <h3>O que cada post precisa fazer</h3>
+      <ul class="ticks" style="margin-top:14px">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Ensinar uma coisa só, bem explicada, sem textão</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Mostrar o Pablo e a empresa reais, em crescimento</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Falar com o síndico sem esquecer o morador</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Segurança sem alarde: informa, não amedronta</li>
+      </ul>
+    </div>
+    <div class="card g">
+      <h3>Legenda de formatos e pilares</h3>
+      <div class="legend" style="margin-top:14px">
+        <span class="lg"><span class="sq" style="background:var(--reel)"></span> Reel — Pablo grava</span>
+        <span class="lg"><span class="sq" style="background:#eab308"></span> Destaque — Stories salvos no perfil</span>
+        <span class="lg"><span class="sq" style="background:var(--carrossel)"></span> Carrossel — educativo</span>
+        <span class="lg"><span class="sq" style="background:var(--estatico)"></span> Estático — frase forte</span>
+      </div>
+      <div class="legend" style="margin-top:10px">
+        <span class="lg">Educação</span><span class="lg">Autoridade</span><span class="lg">Síndico</span>
+        <span class="lg">Atendimento</span><span class="lg">Conversão</span>
+      </div>
+      <p class="note" style="margin-top:14px">Captação: <strong>sem captação profissional no contrato</strong> — o Pablo grava no celular seguindo o roteiro e a Impulse edita. Roteiros pensados pra gravar em 1 ou 2 tomadas.</p>
+    </div>
+  </div>
+</div></section>
+
+<div class="divider"></div>
+
+<!-- FEED -->
+<section><div class="wrap">
+  <div class="eyebrow reveal" style="margin-bottom:10px">O calendário</div>
+  <h2 class="reveal" style="margin-bottom:22px">10 conteúdos · setembro</h2>
+
+  <div class="feed">
+
+    <!-- 01 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">01</div>
+        <div class="date"><span class="d">02 · set</span><span class="w">terça</span></div>
+        <div class="badges"><span class="badge b-fmt b-reel">Reel · Pablo</span><span class="badge b-pilar">Autoridade</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Prazer, eu sou o Pablo — e eu cuido do gás do seu prédio</div>
+        <div class="obj"><b>Objetivo:</b> abrir o mês colocando o rosto na marca. Confiança começa por saber quem é a pessoa.</div>
+        <div class="block"><div class="lb">🎬 Gancho (3s)</div><div class="hook"><p>"Você provavelmente nunca viu o rosto de quem instala o gás do seu apartamento."</p></div></div>
+        <div class="block"><div class="lb">Roteiro</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>Quem é: nome, quantos anos de gás, começou como ajudante e virou técnico.</li>
+            <li><span class="n">2.</span>O que a Convert faz em uma frase: cuida do sistema de gás de condomínios e residências.</li>
+            <li><span class="n">3.</span>Por que aparecer: "gás não é lugar pra amador — então mostro minha cara."</li>
+            <li><span class="n">4.</span>Fecha: "me segue que esse mês eu vou te ensinar a não cair em cilada."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Curta e humana. Apresentação + convite pra acompanhar a série do mês.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Segue a Convert Gás pra aprender." (autoridade, sem venda)</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 02 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">02</div>
+        <div class="date"><span class="d">04 · set</span><span class="w">sexta</span></div>
+        <div class="badges"><span class="badge b-fmt b-carrossel">Carrossel</span><span class="badge b-pilar">Educação</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Gás natural ≠ GLP: não é a mesma coisa (e não, você não precisa converter tudo)</div>
+        <div class="obj"><b>Objetivo:</b> matar a confusão nº 1 do público — a que ele citou na reunião.</div>
+        <div class="block"><div class="lb">🎬 Capa</div><div class="hook"><p>"Seu prédio trocou pra gás encanado? Calma — nem todo aparelho precisa de conversão."</p></div></div>
+        <div class="block"><div class="lb">Roteiro (telas)</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>GLP (botijão) x Gás Natural (encanado): a diferença em 1 linha.</li>
+            <li><span class="n">2.</span>O que muda na prática pro morador (chama, pressão, abastecimento).</li>
+            <li><span class="n">3.</span>Quando PRECISA converter o aparelho — e quando não precisa.</li>
+            <li><span class="n">4.</span>O erro caro: usar aparelho de GLP no gás natural sem conversão.</li>
+            <li><span class="n">5.</span>Fecha: "na dúvida, pergunta antes de trocar. É de graça."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Didática. Explica o essencial e convida a salvar o post pra não esquecer.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Salva e manda pro síndico do teu prédio."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 03 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">03</div>
+        <div class="date"><span class="d">07 · set</span><span class="w">segunda</span></div>
+        <div class="badges"><span class="badge b-data">Feriado · Independência</span><span class="badge b-fmt b-estatico">Estático</span><span class="badge b-pilar">Atendimento</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Feriado pra você. Plantão pra gente.</div>
+        <div class="obj"><b>Objetivo:</b> usar o feriadão pra provar o diferencial real — 24h que comparece, não só telefone ligado.</div>
+        <div class="block"><div class="lb">🎬 Arte</div><div class="hook"><p>"7 de setembro. Todo mundo descansando — e o gás não avisa quando vai vazar."</p></div></div>
+        <div class="block"><div class="lb">Estrutura</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>Peça estática simples, fundo escuro, foto real da equipe/veículo se tiver.</li>
+            <li><span class="n">2.</span>Mensagem central: emergência de gás não tem feriado — a Convert atende.</li>
+            <li><span class="n">3.</span>Reforço: "atender 24h é comparecer e resolver, não deixar no telefone."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Curta, institucional. Feliz feriado + estamos de plantão.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>WhatsApp de emergência fixado nos comentários / bio.</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 04 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">04</div>
+        <div class="date"><span class="d">09 · set</span><span class="w">quarta</span></div>
+        <div class="badges"><span class="badge b-fmt b-reel">Reel · Pablo</span><span class="badge b-pilar">Caso real</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Botaram o pedreiro pra economizar. Me chamaram pra consertar o vazamento.</div>
+        <div class="obj"><b>Objetivo:</b> combater a dúvida sobre experiência com um caso real — e mostrar o preço de contratar quem não é do ramo.</div>
+        <div class="block"><div class="lb">🎬 Gancho (3s)</div><div class="hook"><p>"Embutiram uma mangueira de gás na parede. Ela tem validade de 5 anos. Adivinha o que aconteceu."</p></div></div>
+        <div class="block"><div class="lb">Roteiro</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>O problema encontrado (mangueira/flexível embutido na parede).</li>
+            <li><span class="n">2.</span>Por que é grave: flexível vence, resseca e vaza — e tá emparedado.</li>
+            <li><span class="n">3.</span>O certo: tubulação adequada, componente com validade à vista.</li>
+            <li><span class="n">4.</span>A lição: barato que vira retrabalho é caro. Gás é serviço técnico.</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Tom de quem já viu de tudo. Sem debochar do cliente — educar o próximo.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Vai instalar gás? Fala com quem é do ramo antes."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 05 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">05</div>
+        <div class="date"><span class="d">11 · set</span><span class="w">sexta</span></div>
+        <div class="badges"><span class="badge b-fmt b-destaque">Destaque</span><span class="badge b-pilar">Educação</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Glossário do gás sem susto</div>
+        <div class="obj"><b>Objetivo:</b> traduzir o vocabulário técnico — conteúdo que salva, compartilha e posiciona a Convert como quem explica.</div>
+        <div class="block"><div class="lb">🎬 Capa</div><div class="hook"><p>"'Troca o flexível.' 'Fecha o registro.' Você sabe o que é cada coisa? Guarda esse post."</p></div></div>
+        <div class="block"><div class="lb">Roteiro (1 termo por tela)</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>Flexível = a mangueira do gás.</li>
+            <li><span class="n">2.</span>Registro / válvula = onde você corta o gás.</li>
+            <li><span class="n">3.</span>Central de gás = de onde o prédio distribui pra todo mundo.</li>
+            <li><span class="n">4.</span>Conversão = ajustar o aparelho pro tipo de gás certo.</li>
+            <li><span class="n">5.</span>Aquecedor mecânico x digital + litragem = "tamanho" do aquecedor.</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>"Salva aí pra na hora do orçamento você entender o que tá falando."</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Ficou com dúvida em algum termo? Comenta que eu explico."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 06 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">06</div>
+        <div class="date"><span class="d">15 · set</span><span class="w">terça</span></div>
+        <div class="badges"><span class="badge b-data">Dia do Cliente</span><span class="badge b-fmt b-destaque">Destaque</span><span class="badge b-pilar">Atendimento</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Todo dia é dia de quem confia o prédio na nossa mão</div>
+        <div class="obj"><b>Objetivo:</b> aproveitar a data pra prova social e proximidade — mostrar gente real que confia na Convert.</div>
+        <div class="block"><div class="lb">🎬 Gancho (3s)</div><div class="hook"><p>"Hoje é Dia do Cliente. E cliente, pra mim, é quem me liga às 22h e sabe que eu vou aparecer."</p></div></div>
+        <div class="block"><div class="lb">Roteiro</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>Pablo agradece de forma simples e direta (sem discurso).</li>
+            <li><span class="n">2.</span>Bastidor: um atendimento real, um síndico satisfeito, um print de conversa (com permissão).</li>
+            <li><span class="n">3.</span>Fecha: "confiança não se cobra, se conquista. Obrigado por confiar."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Gratidão genuína. Se tiver depoimento de síndico, usar em destaque.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Marca aqui o síndico ou vizinho que indica a gente."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 07 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">07</div>
+        <div class="date"><span class="d">17 · set</span><span class="w">quinta</span></div>
+        <div class="badges"><span class="badge b-fmt b-destaque">Destaque</span><span class="badge b-pilar">Síndico</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Botijão dentro do apartamento em prédio com central? Não pode — e o seguro sabe</div>
+        <div class="obj"><b>Objetivo:</b> alerta responsável pro síndico. Risco + consequência financeira (multa e perda de cobertura).</div>
+        <div class="block"><div class="lb">🎬 Gancho (3s)</div><div class="hook"><p>"Se o teu prédio tem central de gás e alguém guarda botijão no apê, o problema não é só explosão."</p></div></div>
+        <div class="block"><div class="lb">Roteiro</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>A regra: prédio com central (GLP ou natural) não comporta botijão na unidade.</li>
+            <li><span class="n">2.</span>O risco técnico: GLP é mais pesado que o ar e se acumula embaixo (nunca dispersa fácil).</li>
+            <li><span class="n">3.</span>A consequência que ninguém fala: sinistro pode gerar multa e o seguro não cobrir.</li>
+            <li><span class="n">4.</span>O papel do síndico: orientar moradores e manter a central em dia.</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Firme, sem pânico. Fato técnico + responsabilidade do síndico.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Síndico, quer uma vistoria da central? Chama no direct."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 08 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">08</div>
+        <div class="date"><span class="d">22 · set</span><span class="w">terça</span></div>
+        <div class="badges"><span class="badge b-fmt b-carrossel">Carrossel</span><span class="badge b-pilar">Síndico</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">O gás sempre falha no pior horário — e tem explicação</div>
+        <div class="obj"><b>Objetivo:</b> vender prevenção sem parecer venda. Adiar manutenção = emergência mais cara.</div>
+        <div class="block"><div class="lb">🎬 Capa</div><div class="hook"><p>"Reparou que gás só dá problema à noite, no frio ou no fim de semana? Não é azar."</p></div></div>
+        <div class="block"><div class="lb">Roteiro (telas)</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>Por que aparece no pior horário: é quando o sistema é mais exigido.</li>
+            <li><span class="n">2.</span>Emergência custa mais: deslocamento fora de hora, morador sem gás.</li>
+            <li><span class="n">3.</span>Prevenção: revisão periódica pega o problema antes de virar crise.</li>
+            <li><span class="n">4.</span>Pro condomínio: manutenção preventiva = previsível e mais barato.</li>
+            <li><span class="n">5.</span>Fecha: "manutenção não é gasto. É o que evita o gasto grande."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Racional e tranquila. Fala com o bolso do condomínio.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Quer um plano de manutenção pro teu prédio? Chama a gente."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 09 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">09</div>
+        <div class="date"><span class="d">24 · set</span><span class="w">quinta</span></div>
+        <div class="badges"><span class="badge b-fmt b-carrossel">Carrossel</span><span class="badge b-pilar">Educação</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">O chuveiro cai quando abrem a torneira da pia? É dimensionamento</div>
+        <div class="obj"><b>Objetivo:</b> demonstrar conhecimento técnico útil, atende também o morador — sem ser comercial demais.</div>
+        <div class="block"><div class="lb">🎬 Capa</div><div class="hook"><p>"Água quente que some quando alguém abre outra torneira: o aquecedor não é pequeno, é mal dimensionado."</p></div></div>
+        <div class="block"><div class="lb">Roteiro (telas)</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>Litragem = quantos pontos de água quente ao mesmo tempo.</li>
+            <li><span class="n">2.</span>Pressão da água importa tanto quanto o aquecedor.</li>
+            <li><span class="n">3.</span>Quando entra o pressurizador (e quando não resolve).</li>
+            <li><span class="n">4.</span>O erro comum: comprar aquecedor pela oferta, não pela casa.</li>
+            <li><span class="n">5.</span>Fecha: "antes de comprar, mede. Um cálculo evita banho gelado."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Prática, resolve uma dor comum. Convida a perguntar antes de comprar.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Vai trocar o aquecedor? Manda a planta que a gente calcula."</p></div>
+        </div>
+      </div>
+    </article>
+
+    <!-- 10 -->
+    <article class="post reveal">
+      <div class="head">
+        <div class="idx">10</div>
+        <div class="date"><span class="d">29 · set</span><span class="w">terça</span></div>
+        <div class="badges"><span class="badge b-fmt b-reel">Reel · Pablo</span><span class="badge b-pilar">Conversão</span></div>
+      </div>
+      <div class="body">
+        <div class="theme">Síndico: quando foi o último teste de estanqueidade do prédio?</div>
+        <div class="obj"><b>Objetivo:</b> fechar o mês puxando o síndico pra uma conversa. Autoridade (norma) + chamada direta.</div>
+        <div class="block"><div class="lb">🎬 Gancho (3s)</div><div class="hook"><p>"Se você é síndico e não sabe responder isso de cabeça, esse vídeo é pra você."</p></div></div>
+        <div class="block"><div class="lb">Roteiro</div>
+          <ul class="roteiro">
+            <li><span class="n">1.</span>O que é o teste de estanqueidade (checa se o sistema vaza) — em 1 frase.</li>
+            <li><span class="n">2.</span>Não é opcional: a norma técnica pede inspeção periódica registrada (com ART).</li>
+            <li><span class="n">3.</span>O risco de deixar vencer: segurança, e responsabilidade cai no síndico.</li>
+            <li><span class="n">4.</span>Oferta clara: "a Convert faz o diagnóstico e te diz o que o prédio precisa."</li>
+          </ul>
+        </div>
+        <div class="foot-row">
+          <div class="mini"><div class="lb">💬 Legenda</div><p>Direta ao síndico. Autoridade técnica + convite pra agir.</p></div>
+          <div class="mini cta"><div class="lb">📲 CTA</div><p>"Chama no WhatsApp e agenda o diagnóstico do teu condomínio."</p></div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div></section>
+
+<div class="divider"></div>
+
+<!-- FECHAMENTO -->
+<section><div class="wrap">
+  <div class="grid-2 reveal">
+    <div class="card g">
+      <div class="eyebrow" style="margin-bottom:10px">Como isso vira lead</div>
+      <h3>O funil do mês, em uma frase</h3>
+      <p style="color:var(--ink-soft);font-size:.96rem;margin-top:12px">Educação e caso real <strong>trazem o síndico pra dentro</strong> (autoridade), Dia do Cliente e plantão <strong>criam confiança</strong>, e os posts de prevenção e estanqueidade <strong>abrem a conversa no WhatsApp</strong>. É o caminho até o contrato recorrente de condomínio.</p>
+    </div>
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom:10px">Gravação com o Pablo</div>
+      <ul class="ticks">
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>3 Reels + 3 Destaques (Stories) — celular na vertical, boa luz, áudio limpo</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Se possível, grava 2 ou 3 de uma vez pra adiantar</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>Foto real do serviço/caso ajuda muito — manda tudo</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 6L9 17l-5-5"/></svg>A Impulse edita, legenda e agenda</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card reveal" style="margin-top:16px">
+    <div class="eyebrow" style="margin-bottom:10px">Hashtags base (usar ~5 por post, variando)</div>
+    <p class="hash">#ConvertGás · #GásComSegurança · #Condomínios · #Síndicos · #GásNatural · #GLP · #Aquecedor · #PortoAlegre · #ValeDosSinos · #ManutençãoPreventiva</p>
+    <p class="note" style="margin-top:12px">Ajustar por tema: posts de síndico levam #Condomínios/#Síndicos; posts de morador levam #Aquecedor/#GLP. Sempre localizar (região) em pelo menos uma.</p>
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  <div class="eyebrow" style="margin-bottom:12px">Próximo passo</div>
+  <h2 style="max-width:26ch">Aprova o calendário e a gente já entra em produção.</h2>
+  <p class="lead" style="margin-top:16px">Precisamos do "ok" do Pablo nos temas, e dele começar a gravar os Reels 01 e 04 (apresentação e caso real) — são os que puxam o mês. O resto a Impulse produz.</p>
+  <div class="fmeta">
+    <span><b>Impulse One</b> · Estratégia & Conteúdo</span>
+    <span>Convert Gás · Calendário de Setembro 2026</span>
+    <span>10 conteúdos · v1 para aprovação</span>
+  </div>
+</div></footer>
+
+<script>
+  (function(){var b=document.getElementById('prog');function u(){var h=document.documentElement.scrollHeight-innerHeight;b.style.width=(h>0?scrollY/h*100:0)+'%';}addEventListener('scroll',u,{passive:true});addEventListener('resize',u);u();})();
+  (function(){var r=matchMedia('(prefers-reduced-motion: reduce)').matches,e=document.querySelectorAll('.reveal');if(r||!('IntersectionObserver'in window)){e.forEach(function(x){x.classList.add('in')});return;}var io=new IntersectionObserver(function(en){en.forEach(function(x){if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}});},{threshold:.08,rootMargin:'0px 0px -6% 0px'});e.forEach(function(x){io.observe(x)});})();
+</script>
+</body>
+</html>
