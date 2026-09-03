@@ -243,6 +243,12 @@ body.public-page #lembretesWidget{display:none!important}
 .page-title{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.2;font-family:'Sora',sans-serif}
 .page-subtitle{color:var(--text-2);font-size:13px;margin-top:4px}
 .page-actions{display:flex;gap:7px;align-items:center}
+/* Apelidos: varias telas escrevem page-head / page-sub / stat-card. Sem isso o titulo
+   e os botoes ficavam empilhados no desktop e os cartoes de numero saiam sem fundo. */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:18px;flex-wrap:wrap}
+.page-sub{color:var(--text-2);font-size:13px;margin-top:4px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow-sm);transition:.18s}
+.stat-card:hover{box-shadow:var(--shadow);transform:translateY(-1px)}
 
 /* Cards */
 .card{
@@ -5523,6 +5529,7 @@ const navItems = [
     {id:'duvidas',label:'Dúvidas',icon:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>'},
     {id:'atalhos',label:'Atalhos',icon:'<path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'},
     {id:'materiais',label:'Materiais',icon:'<path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>'},
+    {id:'patrimonio',label:'Patrimônio',icon:'<path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M9 21v-6h6v6"/>',gestorOnly:true},
     {id:'pesquisa',label:'Pesquisa NR-1',icon:'<path d="M9 11H3v10h6zM21 3h-6v18h6zM15 7H9v14h6z"/>'},
     {id:'desligamento',label:'Desligamento',icon:'<path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>'},
     {id:'ponto',label:'Ponto',icon:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'},
@@ -6516,6 +6523,7 @@ function renderPage(page){
     pagamentos:renderPagamentos,
     gerador:renderGerador,
     controlecal:renderControleCalendarios,
+    patrimonio:renderPatrimonio,
   };
   c.innerHTML='';c.scrollTop=0;
   (r[page]||renderDashboard)(c);
@@ -22419,6 +22427,7 @@ const allPages = [
   {id:'financeiro',label:'Financeiro'},
   {id:'almoco',label:'Almoço (controle)'},
   {id:'i3',label:'I3 (sócios)'},
+  {id:'patrimonio',label:'Patrimônio'},
   {id:'config',label:'Configurações'},
 ];
 
@@ -26638,6 +26647,266 @@ function _i3FmtData(d, comDiaSemana){
   } catch(e){ return d; }
 }
 
+// ============ PATRIMÔNIO DA EMPRESA ============
+// Tudo que a empresa comprou e alguém usa: equipamento, móvel, licença.
+// Quem tem, onde está, quanto custou e em que estado.
+var _patrimonios = [];
+var _patCarregado = false;
+var _patFiltro = '';
+var _patCategoria = '';
+var _patVerBaixados = false;
+
+const PAT_CATEGORIAS = ['Equipamento','Computador','Celular','Câmera/Áudio','Móvel','Software/Licença','Veículo','Outro'];
+const PAT_ESTADOS = { 'novo':{rot:'Novo',cor:'var(--success-text)'}, 'bom':{rot:'Bom',cor:'var(--info-text)'},
+  'desgastado':{rot:'Desgastado',cor:'var(--warning-text)'}, 'quebrado':{rot:'Quebrado',cor:'var(--danger-text)'} };
+
+async function loadPatrimonios(){
+  if(!_supa) return;
+  try{
+    const { data, error } = await _supa.from('patrimonios').select('*').order('nome',{ascending:true});
+    if(error){ console.warn('[patrimonios]', error); _patrimonios = []; }
+    else _patrimonios = data || [];
+    _patCarregado = true;
+  }catch(e){ console.warn('[patrimonios]', e); }
+}
+
+function _patDinheiro(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+function _patNum(v){
+  const s = String(v==null?'':v).replace(/[^0-9,.-]/g,'').replace(/\.(?=.*[,.])/g,'').replace(',','.');
+  const n = parseFloat(s); return isNaN(n) ? 0 : n;
+}
+
+async function renderPatrimonio(c){
+  c.innerHTML = '<div class="empty-state"><div class="ico">⏳</div><div class="ttl">Carregando patrimônio…</div></div>';
+  if(!_patCarregado) await loadPatrimonios();
+  const esc = escapeHtml;
+  const ehGestor = (typeof isGestor === 'function') ? isGestor() : false;
+
+  const todos = _patrimonios || [];
+  const ativos = todos.filter(function(p){ return (p.status||'ativo') === 'ativo'; });
+  const baixados = todos.filter(function(p){ return (p.status||'ativo') !== 'ativo'; });
+  const base = _patVerBaixados ? baixados : ativos;
+
+  const termo = _preCadNormaliza(_patFiltro);
+  const lista = base.filter(function(p){
+    if(_patCategoria && (p.categoria||'') !== _patCategoria) return false;
+    if(!termo) return true;
+    return _preCadNormaliza([p.nome,p.categoria,p.responsavel_nome,p.local,p.numero_serie,p.descricao].join(' ')).indexOf(termo) !== -1;
+  });
+
+  const total = ativos.reduce(function(s,p){ return s + (parseFloat(p.valor)||0); }, 0);
+  const semDono = ativos.filter(function(p){ return !p.responsavel_nome; }).length;
+  const comProblema = ativos.filter(function(p){ return p.estado === 'quebrado' || p.estado === 'desgastado'; }).length;
+
+  // agrupa por quem está com o item (segue a busca/filtro, pra não confundir)
+  const porPessoa = {};
+  lista.forEach(function(p){
+    const k = p.responsavel_nome || '— sem responsável —';
+    (porPessoa[k] = porPessoa[k] || []).push(p);
+  });
+  const pessoas = Object.keys(porPessoa).sort(function(a,b){ return a.localeCompare(b,'pt-BR',{sensitivity:'base'}); });
+
+  const cartao = function(v, rot, cor){
+    return '<div class="stat-card"' + (cor?' style="border-left:3px solid '+cor+'"':'') + '><div class="stat-value">' + v + '</div><div class="stat-label">' + rot + '</div></div>';
+  };
+
+  const linha = function(p){
+    const est = PAT_ESTADOS[p.estado||'bom'] || PAT_ESTADOS['bom'];
+    return '<tr>' +
+      '<td style="padding:9px 8px"><div style="font-weight:600;font-size:12.5px">' + esc(p.nome||'—') + '</div>' +
+        (p.numero_serie ? '<div class="text-xs text-3" style="margin-top:2px">nº ' + esc(p.numero_serie) + '</div>' : '') + '</td>' +
+      '<td style="padding:9px 8px"><span class="badge b-default" style="font-size:10px">' + esc(p.categoria||'—') + '</span></td>' +
+      '<td style="padding:9px 8px;font-size:12.5px">' + esc(p.responsavel_nome || '—') + '</td>' +
+      '<td style="padding:9px 8px;font-size:12.5px">' + esc(p.local || '—') + '</td>' +
+      '<td style="padding:9px 8px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums">' + _patDinheiro(p.valor) + '</td>' +
+      '<td style="padding:9px 8px;text-align:center"><span style="font-size:11px;font-weight:700;color:' + est.cor + '">' + est.rot + '</span></td>' +
+      '<td style="padding:9px 8px;text-align:right;white-space:nowrap">' +
+        (p.nota_fiscal_url ? '<a href="' + esc(p.nota_fiscal_url) + '" target="_blank" rel="noopener" title="Nota fiscal" style="text-decoration:none;margin-right:6px">🧾</a>' : '') +
+        (ehGestor ? '<button class="btn btn-sm" onclick="openPatrimonioModal(\'' + esc(p.id) + '\')" style="padding:3px 9px;font-size:11px">Editar</button>' : '') +
+      '</td></tr>';
+  };
+
+  c.innerHTML =
+    '<div class="page-head"><div><div class="page-title">🏛 Patrimônio da empresa</div>' +
+    '<div class="page-sub">O que a empresa comprou, com quem está e em que estado</div></div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      (baixados.length ? '<button class="btn" onclick="_patVerBaixados=' + (!_patVerBaixados) + ';renderPatrimonio(document.getElementById(\'content\'))">' + (_patVerBaixados ? '← Voltar pros ativos' : '📦 Baixados (' + baixados.length + ')') + '</button>' : '') +
+      (ehGestor ? '<button class="btn btn-primary" onclick="openPatrimonioModal()">+ Novo item</button>' : '') +
+    '</div></div>' +
+
+    '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:16px">' +
+      cartao(String(ativos.length), 'itens ativos') +
+      cartao(_patDinheiro(total), 'valor total') +
+      cartao(String(semDono), 'sem responsável', semDono ? 'var(--warning)' : '') +
+      cartao(String(comProblema), 'precisam de atenção', comProblema ? 'var(--danger)' : '') +
+    '</div>' +
+
+    '<div class="card" style="margin-bottom:14px"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">' +
+      '<input class="login-input" placeholder="🔍 Buscar por nome, responsável, local ou número de série" value="' + esc(_patFiltro) + '" ' +
+        'oninput="_patFiltro=this.value;clearTimeout(window._patT);window._patT=setTimeout(function(){renderPatrimonio(document.getElementById(\'content\'))},250)" ' +
+        'style="flex:1;min-width:200px;background:var(--surface-2)" />' +
+      '<select class="login-input" onchange="_patCategoria=this.value;renderPatrimonio(document.getElementById(\'content\'))" style="background:var(--surface-2);width:auto">' +
+        '<option value="">Todas as categorias</option>' +
+        PAT_CATEGORIAS.map(function(k){ return '<option value="' + k + '"' + (_patCategoria===k?' selected':'') + '>' + k + '</option>'; }).join('') +
+      '</select></div></div>' +
+
+    (lista.length === 0
+      ? '<div class="empty-state" style="padding:44px"><div class="ico">🏛</div><div class="ttl">' +
+        (todos.length===0 ? 'Nenhum item cadastrado' : 'Nada encontrado') + '</div><div class="desc">' +
+        (todos.length===0 ? 'Cadastre notebooks, câmeras, celulares, móveis e licenças pra saber com quem está cada coisa.' : 'Tente outro termo ou limpe o filtro.') + '</div></div>'
+      : '<div class="card"><div class="card-header"><div class="card-title">' + (_patVerBaixados ? '📦 Itens baixados' : '📋 Itens') + '</div>' +
+        '<span class="badge b-default">' + lista.length + '</span></div>' +
+        '<div style="overflow-x:auto"><table style="width:100%;font-size:12.5px;min-width:620px"><thead><tr>' +
+          '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Item</th>' +
+          '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Categoria</th>' +
+          '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Com quem está</th>' +
+          '<th style="text-align:left;padding:8px;border-bottom:1px solid var(--border)">Onde</th>' +
+          '<th style="text-align:right;padding:8px;border-bottom:1px solid var(--border)">Valor</th>' +
+          '<th style="text-align:center;padding:8px;border-bottom:1px solid var(--border)">Estado</th>' +
+          '<th style="padding:8px;border-bottom:1px solid var(--border)"></th>' +
+        '</tr></thead><tbody>' + lista.map(linha).join('') + '</tbody></table></div></div>') +
+
+    (!_patVerBaixados && pessoas.length ?
+      '<div class="card" style="margin-top:16px"><div class="card-header"><div class="card-title">👤 Por pessoa</div>' +
+      '<span class="text-xs text-3">quem responde por cada item</span></div>' +
+      '<div style="display:flex;flex-direction:column;gap:8px">' +
+      pessoas.map(function(nome){
+        const itens = porPessoa[nome];
+        const soma = itens.reduce(function(s,p){ return s+(parseFloat(p.valor)||0); },0);
+        const tm = (team||[]).find(function(x){ return (x.name||'') === nome; });
+        return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px">' +
+          _avatarFoto(tm || {init: nome[0]==='—'?'?':nome[0]}, 28) +
+          '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">' + esc(nome) + '</div>' +
+          '<div class="text-xs text-3">' + itens.map(function(p){ return esc(p.nome); }).join(' · ') + '</div></div>' +
+          '<div style="text-align:right;flex-shrink:0"><div style="font-size:12.5px;font-weight:700">' + _patDinheiro(soma) + '</div>' +
+          '<div class="text-xs text-3">' + itens.length + ' item(ns)</div></div></div>';
+      }).join('') + '</div></div>' : '');
+
+  if(typeof _mobileGuardAgendar === 'function') _mobileGuardAgendar();
+}
+
+function openPatrimonioModal(id){
+  if(typeof isGestor === 'function' && !isGestor()){ toast('🔒 Só a gestão cadastra patrimônio','info'); return; }
+  const p = id ? (_patrimonios||[]).find(function(x){ return String(x.id)===String(id); }) : null;
+  const esc = escapeHtml;
+  let m = document.getElementById('patModal'); if(m) m.remove();
+  m = document.createElement('div');
+  m.id = 'patModal';
+  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px';
+  m.onclick = function(ev){ if(ev.target === m) m.remove(); };
+  const pessoas = sortAlfa((team||[]).filter(function(x){ return x.name; }), 'name');
+  m.innerHTML =
+    '<div style="background:var(--surface);border-radius:14px;max-width:620px;width:100%;max-height:90dvh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.35)">' +
+      '<div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
+        '<div style="width:38px;height:38px;border-radius:9px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:17px">🏛</div>' +
+        '<div style="flex:1"><div style="font-size:16px;font-weight:700">' + (p ? 'Editar item' : 'Novo item do patrimônio') + '</div>' +
+        '<div class="text-xs text-3">O que é, com quem está e quanto custou</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'patModal\').remove()" style="width:30px;height:30px">×</button></div>' +
+      '<div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<input type="hidden" id="patId" value="' + (p?esc(p.id):'') + '" />' +
+        '<div style="grid-column:span 2"><div class="info-label">Nome do item *</div>' +
+          '<input id="patNome" class="login-input" placeholder="ex: Notebook Dell Inspiron 15" value="' + (p?esc(p.nome||''):'') + '" style="background:var(--surface-2)" /></div>' +
+        '<div><div class="info-label">Categoria</div><select id="patCat" class="login-input" style="background:var(--surface-2)">' +
+          '<option value="">—</option>' + PAT_CATEGORIAS.map(function(k){ return '<option value="' + k + '"' + (p&&p.categoria===k?' selected':'') + '>' + k + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div><div class="info-label">Estado</div><select id="patEstado" class="login-input" style="background:var(--surface-2)">' +
+          Object.keys(PAT_ESTADOS).map(function(k){ return '<option value="' + k + '"' + ((p?p.estado:'bom')===k?' selected':'') + '>' + PAT_ESTADOS[k].rot + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div><div class="info-label">Com quem está</div><select id="patResp" class="login-input" style="background:var(--surface-2)">' +
+          '<option value="">— ninguém / na empresa —</option>' +
+          pessoas.map(function(x){ return '<option value="' + esc(x.name) + '"' + (p&&p.responsavel_nome===x.name?' selected':'') + '>' + esc(x.name) + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div><div class="info-label">Onde fica</div><input id="patLocal" class="login-input" placeholder="ex: Escritório, home office" value="' + (p?esc(p.local||''):'') + '" style="background:var(--surface-2)" /></div>' +
+        '<div><div class="info-label">Valor (R$)</div><input id="patValor" class="login-input" placeholder="0,00" value="' + (p&&p.valor?String(p.valor).replace('.',','):'') + '" style="background:var(--surface-2)" /></div>' +
+        '<div><div class="info-label">Data da compra</div><input id="patData" type="date" class="login-input" value="' + (p?esc(p.data_aquisicao||''):'') + '" style="background:var(--surface-2)" /></div>' +
+        '<div><div class="info-label">Número de série</div><input id="patSerie" class="login-input" placeholder="opcional" value="' + (p?esc(p.numero_serie||''):'') + '" style="background:var(--surface-2)" /></div>' +
+        '<div><div class="info-label">Situação</div><select id="patStatus" class="login-input" style="background:var(--surface-2)">' +
+          '<option value="ativo"' + ((p?p.status:'ativo')==='ativo'?' selected':'') + '>Ativo</option>' +
+          '<option value="baixado"' + (p&&p.status==='baixado'?' selected':'') + '>Baixado (vendido, perdido, descartado)</option>' +
+        '</select></div>' +
+        '<div style="grid-column:span 2"><div class="info-label">Nota fiscal</div>' +
+          '<div style="display:flex;gap:8px;align-items:center">' +
+          '<input id="patNF" class="login-input" placeholder="link do arquivo" value="' + (p?esc(p.nota_fiscal_url||''):'') + '" style="flex:1;background:var(--surface-2)" />' +
+          '<button class="btn btn-sm" onclick="patAnexarNF()">📎 Anexar</button></div></div>' +
+        '<div style="grid-column:span 2"><div class="info-label">Observações</div>' +
+          '<textarea id="patObs" class="login-input" style="background:var(--surface-2);min-height:64px;resize:vertical" placeholder="detalhes, defeitos, garantia...">' + (p?esc(p.observacoes||''):'') + '</textarea></div>' +
+      '</div>' +
+      '<div style="padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:space-between">' +
+        (p ? '<button class="btn" onclick="excluirPatrimonio(\'' + esc(p.id) + '\')" style="color:var(--danger)">Excluir</button>' : '<span></span>') +
+        '<div style="display:flex;gap:8px">' +
+        '<button class="btn" onclick="document.getElementById(\'patModal\').remove()">Cancelar</button>' +
+        '<button class="btn btn-primary" id="patSalvar" onclick="salvarPatrimonio()">Salvar</button></div></div>' +
+    '</div>';
+  document.body.appendChild(m);
+  setTimeout(function(){ const el = document.getElementById('patNome'); if(el) el.focus(); }, 60);
+}
+window.openPatrimonioModal = openPatrimonioModal;
+
+async function patAnexarNF(){
+  const arq = await _nfEscolherArquivo('patrimonio');
+  if(!arq || !arq.url) return;
+  const el = document.getElementById('patNF');
+  if(el) el.value = arq.url;
+  toast('📎 Nota fiscal anexada','success');
+}
+window.patAnexarNF = patAnexarNF;
+
+async function salvarPatrimonio(){
+  const g = function(id){ const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  const nome = g('patNome');
+  if(!nome){ toast('Dê um nome pro item','info'); const el=document.getElementById('patNome'); if(el) el.focus(); return; }
+  const id = g('patId');
+  const payload = {
+    nome: nome,
+    categoria: g('patCat') || null,
+    estado: g('patEstado') || 'bom',
+    responsavel_nome: g('patResp') || null,
+    local: g('patLocal') || null,
+    valor: _patNum(g('patValor')) || null,
+    data_aquisicao: g('patData') || null,
+    numero_serie: g('patSerie') || null,
+    status: g('patStatus') || 'ativo',
+    nota_fiscal_url: g('patNF') || null,
+    observacoes: g('patObs') || null,
+    updated_at: new Date().toISOString()
+  };
+  const resp = (team||[]).find(function(x){ return x.name === payload.responsavel_nome; });
+  payload.responsavel_id = resp && resp._dbId ? resp._dbId : null;
+  const btn = document.getElementById('patSalvar');
+  if(btn){ btn.disabled = true; btn.textContent = 'Salvando…'; }
+  let r;
+  if(id) r = await dbUpdate('patrimonios', id, payload);
+  else r = await dbCreate('patrimonios', payload);
+  if(btn){ btn.disabled = false; btn.textContent = 'Salvar'; }
+  if(!r) return;
+  if(id){
+    const i = (_patrimonios||[]).findIndex(function(x){ return String(x.id)===String(id); });
+    if(i >= 0) _patrimonios[i] = r;
+  } else {
+    _patrimonios.push(r);
+  }
+  const m = document.getElementById('patModal'); if(m) m.remove();
+  toast('✓ ' + nome + ' salvo','success');
+  renderPatrimonio(document.getElementById('content'));
+}
+window.salvarPatrimonio = salvarPatrimonio;
+
+async function excluirPatrimonio(id){
+  const p = (_patrimonios||[]).find(function(x){ return String(x.id)===String(id); });
+  if(!p) return;
+  if(!confirm('Excluir "' + (p.nome||'item') + '" do patrimônio?' + String.fromCharCode(10,10) + 'Se o item só saiu de uso, prefira marcar como Baixado — assim o histórico fica.')) return;
+  if(_supa){
+    const { error } = await _supa.from('patrimonios').delete().eq('id', id);
+    if(error){ toast('Não consegui excluir: ' + error.message,'info'); return; }
+  }
+  const i = (_patrimonios||[]).findIndex(function(x){ return String(x.id)===String(id); });
+  if(i >= 0) _patrimonios.splice(i,1);
+  const m = document.getElementById('patModal'); if(m) m.remove();
+  toast('Item removido','success');
+  renderPatrimonio(document.getElementById('content'));
+}
+window.excluirPatrimonio = excluirPatrimonio;
+
 // ---- I3: Painel da Equipe (roster dos sócios, espelha a planilha Operações e RH) ----
 var _i3Equipe = [];
 var _i3EquipeCarregado = false;
@@ -26654,6 +26923,53 @@ async function loadI3Equipe(){
     _i3EquipeCarregado = true;
   } catch(e){ console.warn('[loadI3Equipe]', e); _i3EquipeErro=''; }
 }
+
+// ---- I3: status da equipe POR REUNIAO ----
+// Cada reuniao mensal tem a sua avaliacao. Na pagina principal nao fica mais o status
+// "de agora": fica a MEDIA de todos os meses, que e o que mostra a tendencia.
+var _i3Farois = [];
+var _i3FaroisCarregado = false;
+const _I3_NOTA = { 'Bom':3, 'Regular':2, 'Ruim':1 };
+
+async function loadI3Farois(){
+  if(!_supa) return;
+  try{
+    const { data, error } = await _supa.from('i3_reuniao_farois').select('*');
+    if(error){ console.warn('[loadI3Farois]', error); _i3Farois = []; }
+    else _i3Farois = data || [];
+    _i3FaroisCarregado = true;
+  }catch(e){ console.warn('[loadI3Farois]', e); }
+}
+
+function _i3FarolDaReuniao(reuniaoId, equipeId){
+  const r = (_i3Farois||[]).find(x => String(x.reuniao_id)===String(reuniaoId) && String(x.equipe_id)===String(equipeId));
+  return r ? (r.farol || 'N/D') : 'N/D';
+}
+
+// Media de um colaborador em TODOS os meses avaliados
+function _i3MediaDoMembro(equipeId){
+  const notas = (_i3Farois||[])
+    .filter(x => String(x.equipe_id)===String(equipeId) && _I3_NOTA[x.farol])
+    .map(x => _I3_NOTA[x.farol]);
+  if(!notas.length) return null;
+  const media = notas.reduce((a,b)=>a+b,0) / notas.length;
+  return { media: media, meses: notas.length, rotulo: media >= 2.5 ? 'Bom' : media >= 1.75 ? 'Regular' : 'Ruim' };
+}
+
+async function setI3FarolReuniao(reuniaoId, equipeId, farol){
+  if(!_supa) return false;
+  try{
+    const { data, error } = await _supa.from('i3_reuniao_farois')
+      .upsert({reuniao_id: reuniaoId, equipe_id: equipeId, farol: farol, updated_at: new Date().toISOString()}, {onConflict:'reuniao_id,equipe_id'})
+      .select();
+    if(error){ toast('Não consegui salvar: '+error.message,'info'); return false; }
+    const linha = (data||[])[0];
+    const i = (_i3Farois||[]).findIndex(x => String(x.reuniao_id)===String(reuniaoId) && String(x.equipe_id)===String(equipeId));
+    if(i >= 0) _i3Farois[i] = linha; else _i3Farois.push(linha);
+    return true;
+  }catch(e){ console.warn('[setI3FarolReuniao]', e); return false; }
+}
+window.setI3FarolReuniao = setI3FarolReuniao;
 
 // ---- I3: Combinados & lembretes (o que ficou das reunioes: tratativa + responsavel + prazo + status) ----
 var _i3Combinados = [];
@@ -26686,21 +27002,23 @@ async function loadI3AtasAssinadas(){
 function renderI3EquipePainel(){
   const esc = escapeHtml;
   const lista = Array.isArray(_i3Equipe)?_i3Equipe:[];
+  // O status de cada mes vive na ata da reuniao. Aqui e a MEDIA de todos eles.
   const farolCount = {}; Object.keys(_I3_FAROIS).forEach(k=>farolCount[k]=0);
-  lista.forEach(m=>{ const f=m.farol||'N/D'; farolCount[f]=(farolCount[f]||0)+1; });
+  lista.forEach(m=>{ const md=_i3MediaDoMembro(m.id); const f = md ? md.rotulo : 'N/D'; farolCount[f]=(farolCount[f]||0)+1; });
   const resumo = ['Bom','Regular','Ruim'].map(k=>`<span style="display:inline-flex;align-items:center;gap:5px;font-size:11.5px;margin-right:12px"><span style="width:9px;height:9px;border-radius:50%;background:${_I3_FAROIS[k].cor}"></span>${k}: <strong>${farolCount[k]||0}</strong></span>`).join('');
   const ativosSet = new Set((typeof team!=='undefined'&&Array.isArray(team)?team:[])
     .filter(t=>t && t.name && String(t.name).trim() && t._dbId && t.active!==false && !(typeof _estaExcluido==='function'&&_estaExcluido(t.name,t._dbId)))
     .map(t=>String(t._dbId)));
   let foraCount = 0;
   const chips = lista.map(m=>{
-    const fi = _i3FarolInfo(m.farol);
+    const md = _i3MediaDoMembro(m.id);
+    const fi = _i3FarolInfo(md ? md.rotulo : 'N/D');
     const fora = m.profile_id && ativosSet.size>0 && !ativosSet.has(String(m.profile_id));
     if(fora) foraCount++;
     return `<div style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid ${fora?'#f59e0b66':'var(--border)'};border-radius:10px;padding:7px 10px${fora?';opacity:.72':''}">
-      <span onclick="event.stopPropagation();openI3FarolMenu('${esc(m.id)}', event)" title="Clique pra escolher o status" style="cursor:pointer;flex-shrink:0;width:11px;height:11px;border-radius:50%;background:${fi.cor};box-shadow:0 0 0 3px ${fi.soft}"></span>
+      <span title="${md ? 'Média de '+md.meses+' mês(es) avaliado(s)' : 'Sem avaliação ainda — avalie dentro de uma reunião'}" style="flex-shrink:0;width:11px;height:11px;border-radius:50%;background:${fi.cor};box-shadow:0 0 0 3px ${fi.soft}"></span>
       <div onclick="openI3EquipeModal('${esc(m.id)}')" title="Ver / editar" style="flex:1;min-width:0;cursor:pointer;font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.colaborador||'—')}${fora?' <span title="Não está mais na Equipe ativa — remova no × se quiser">⚠️</span>':''}</div>
-      <span onclick="event.stopPropagation();openI3FarolMenu('${esc(m.id)}', event)" title="Clique pra escolher: Bom / Regular / Ruim / N/D" style="cursor:pointer;flex-shrink:0;background:${fi.soft};color:${fi.cor};font-weight:700;font-size:9.5px;padding:2px 7px;border-radius:999px;border:1px solid ${fi.cor}55">${esc(m.farol||'N/D')} ▾</span>
+      <span title="${md ? 'Média de '+md.meses+' mês(es): '+md.media.toFixed(1)+' de 3' : 'Ainda sem avaliação em nenhuma reunião'}" style="flex-shrink:0;background:${fi.soft};color:${fi.cor};font-weight:700;font-size:9.5px;padding:2px 7px;border-radius:999px;border:1px solid ${fi.cor}55">${md ? esc(md.rotulo)+' · '+md.media.toFixed(1) : 'sem nota'}</span>
       <button onclick="event.stopPropagation();excluirI3Equipe('${esc(m.id)}')" title="Remover do painel" style="flex-shrink:0;background:none;border:none;color:var(--text-3);cursor:pointer;font-size:16px;line-height:1;padding:0;width:16px">×</button>
     </div>`;
   }).join('');
@@ -26714,7 +27032,7 @@ function renderI3EquipePainel(){
     ${_i3EquipeErro==='tabela' ? '<div style="font-size:12.5px;color:var(--warning-text);padding:8px 0">⚠ Rode o <strong>sql/69-i3-equipe-atas.sql</strong> no Supabase pra criar o painel + carregar o roster da planilha.</div>' : ''}
     ${lista.length===0 && _i3EquipeErro!=='tabela'
       ? '<div class="empty-state" style="padding:24px"><div class="ttl">Nenhum colaborador no painel</div><div class="desc">Clique em "↻ Sincronizar com a Equipe" pra puxar os ativos, ou "+ Colaborador".</div></div>'
-      : (lista.length? avisoFora + `<div style="font-size:11px;color:var(--text-3);margin:-2px 0 9px">Clique no nome pra ver/editar · no status ▾ pra escolher Bom/Regular/Ruim · no × pra remover</div>
+      : (lista.length? avisoFora + `<div style="font-size:11px;color:var(--text-3);margin:-2px 0 9px">Média de todos os meses avaliados. O status de cada mês é dado dentro da reunião · clique no nome pra ver/editar · no × pra remover</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px">${chips}</div>` : '')}
   </div>`;
 }
@@ -27175,6 +27493,7 @@ async function renderI3(c){
     await loadI3Reunioes();
     await loadI3Learning();
     await loadI3Equipe();
+    await loadI3Farois();
     await loadI3Combinados();
     await loadI3AtasAssinadas();
 
@@ -27319,6 +27638,53 @@ function _i3SecaoCard(titulo, conteudo, cor){
 }
 
 // === MODAL: Nova/Editar reuniao mensal ===
+// Painel da equipe DESTA reuniao: cada mes tem a sua avaliacao.
+function _i3PainelDaReuniaoHTML(reuniaoId){
+  const esc = escapeHtml;
+  const lista = (Array.isArray(_i3Equipe)?_i3Equipe:[]).filter(m => m.ativo !== false);
+  if(!reuniaoId){
+    return '<div style="background:var(--surface-2);border:1px dashed var(--border-strong);border-radius:10px;padding:13px 15px;margin-bottom:14px">'
+      + '<div style="font-size:12.5px;font-weight:700;margin-bottom:3px">👥 Como foi cada um neste mês</div>'
+      + '<div class="text-xs text-3">Salve a reunião primeiro. Depois você avalia a equipe aqui, e a média de todos os meses aparece no painel da página.</div></div>';
+  }
+  if(!lista.length){
+    return '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:14px">'
+      + '<div style="font-size:12.5px;font-weight:700;margin-bottom:3px">👥 Como foi cada um neste mês</div>'
+      + '<div class="text-xs text-3">Nenhum colaborador no painel. Use "↻ Sincronizar com a Equipe" na página do I3.</div></div>';
+  }
+  const opts = ['Bom','Regular','Ruim','N/D'];
+  const linhas = lista.map(function(m){
+    const atual = _i3FarolDaReuniao(reuniaoId, m.id);
+    const fi = _i3FarolInfo(atual);
+    return '<div style="display:flex;align-items:center;gap:9px;padding:7px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px">'
+      + '<span style="width:10px;height:10px;border-radius:50%;background:' + fi.cor + ';flex-shrink:0"></span>'
+      + '<span style="flex:1;min-width:0;font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(m.colaborador||'—') + '</span>'
+      + '<select onchange="i3FarolReuniaoMudou(this,\'' + esc(reuniaoId) + '\',\'' + esc(m.id) + '\')" '
+      + 'style="flex-shrink:0;background:' + fi.soft + ';color:' + fi.cor + ';border:1px solid ' + fi.cor + '55;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer">'
+      + opts.map(function(o){ return '<option value="' + o + '"' + (o===atual?' selected':'') + '>' + o + '</option>'; }).join('')
+      + '</select></div>';
+  }).join('');
+  return '<div style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:13px 15px;margin-bottom:14px">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px">'
+    + '<div style="font-size:12.5px;font-weight:700">👥 Como foi cada um neste mês</div>'
+    + '<span class="text-xs text-3" id="i3PainelAviso"></span></div>'
+    + '<div class="text-xs text-3" style="margin-bottom:9px">Vale só para esta reunião. A média de todos os meses aparece no painel da página.</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:7px">' + linhas + '</div></div>';
+}
+
+async function i3FarolReuniaoMudou(sel, reuniaoId, equipeId){
+  const farol = sel.value;
+  const ok = await setI3FarolReuniao(reuniaoId, equipeId, farol);
+  if(!ok) return;
+  const fi = _i3FarolInfo(farol);
+  sel.style.background = fi.soft; sel.style.color = fi.cor; sel.style.borderColor = fi.cor + '55';
+  const ponto = sel.parentElement && sel.parentElement.querySelector('span');
+  if(ponto) ponto.style.background = fi.cor;
+  const aviso = document.getElementById('i3PainelAviso');
+  if(aviso){ aviso.textContent = '✓ salvo'; aviso.style.color = 'var(--success-text)'; setTimeout(function(){ if(aviso) aviso.textContent=''; }, 1800); }
+}
+window.i3FarolReuniaoMudou = i3FarolReuniaoMudou;
+
 function openI3ReuniaoModal(reuniaoId){
   const r = reuniaoId ? (_i3Reunioes||[]).find(x => x.id === reuniaoId) : null;
   let modal = document.getElementById('i3RModal');
@@ -27337,6 +27703,8 @@ function openI3ReuniaoModal(reuniaoId){
       '</div>' +
 
       '<input type="hidden" id="i3rId" value="' + (r?r.id:'') + '" />' +
+
+      _i3PainelDaReuniaoHTML(r ? r.id : null) +
 
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">' +
         '<div><div class="info-label">Data da reunião</div><input type="date" id="i3rData" class="login-input" value="' + (r?r.data_reuniao:hoje) + '" style="background:var(--surface-2)" /></div>' +
