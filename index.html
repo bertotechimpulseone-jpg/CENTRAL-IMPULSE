@@ -2898,7 +2898,7 @@ async function loadDataFromSupabase(){
       _supa.from('automations').select('*'),
       _supa.from('feedbacks').select('*').order('created_at',{ascending:false}),
       _supa.from('meetings').select('*').order('scheduled_at',{ascending:true}),
-      _supa.from('tasks').select('*').order('created_at',{ascending:false})
+      _supa.from('tasks').select('*').order('created_at',{ascending:false}).limit(5000)   // o placar precisa dos meses antigos; o padrao do Supabase corta em 1000
     ]);
     // ===== CLIENTES =====
     const { data: cliData, error: cliErr } = cliRes;
@@ -7164,25 +7164,66 @@ function renderCaptacoesPrazoCard(){
     '</div></div>';
 }
 
-// ===== PLACAR DO MÊS (checklist concluído + solicitações entregues, por colaborador) =====
-// Pontos de UM mês: checklist (tarefas concluídas × 10) + feedback (média das notas do mês × 10).
-// Cada componente faz seu cálculo e soma no total.
+// ===== PLACAR DO MÊS (entrega + prazo + qualidade, por colaborador) =====
+// Não conta mais QUANTAS tarefas a pessoa fez, e sim quanto do próprio trabalho ela
+// entregou, na data combinada, e com que qualidade. Três blocos de 0 a 100:
+//   Entrega   = tarefas concluídas ÷ tarefas do mês
+//   Prazo     = entregues até a data combinada ÷ entregues que tinham data
+//   Qualidade = média do feedback do mês × 10
+// O índice é a média dos blocos QUE EXISTEM: sem nota de feedback lançada,
+// ninguém perde ponto. Quem teve menos de 5 tarefas no mês fica fora do ranking,
+// porque amostra pequena vira injustiça nos dois sentidos.
 const _PLACAR_GRAD = 'linear-gradient(90deg,#FF2E9A,#7C5CFF,#2FE3E3)';   // degradê da marca
+const _PLACAR_MIN_TAREFAS = 5;
+
+// Data no fuso de casa. done_at vem em UTC: quem fecha às 22h vira "amanhã" se
+// a gente cortar a string crua, e a entrega no dia viraria atraso.
+function _placarDiaLocal(iso){
+  if(!iso) return '';
+  try { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('sv-SE'); } catch(e){ return ''; }
+}
+// O mês de uma tarefa é o da data combinada. Sem data combinada, o de quando foi criada.
+function _placarMesDaTarefa(t){
+  if(t.due_date) return String(t.due_date).slice(0,7);
+  const d = _placarDiaLocal(t.created_at);
+  return d ? d.slice(0,7) : '';
+}
+
 function _placarPontosMes(ano, mes){
+  const chaveMes = ano + '-' + String(mes+1).padStart(2,'0');
   const ini = new Date(ano, mes, 1), fim = new Date(ano, mes+1, 1);
-  const PTS = 10;
   const tasks = (typeof window!=='undefined' && Array.isArray(window._tasksRaw)) ? window._tasksRaw : [];
   const ocult = (typeof _getChecklistOcultos==='function') ? _getChecklistOcultos() : [];
   return (team||[]).map(m => {
     const fn = (m.name||'').trim().split(/\s+/)[0];
-    const chk = tasks.filter(t => t.is_daily && t.done && t.done_at && t.assigned_to===m._dbId && new Date(t.done_at)>=ini && new Date(t.done_at)<fim).length;
+    const minhas  = tasks.filter(t => t.is_daily && t.assigned_to === m._dbId && _placarMesDaTarefa(t) === chaveMes);
+    const feitas  = minhas.filter(t => t.done);
+    const comData = feitas.filter(t => t.due_date && t.done_at);
+    const noPrazo = comData.filter(t => _placarDiaLocal(t.done_at) <= String(t.due_date).slice(0,10));
+
+    const entrega = minhas.length  ? Math.round(feitas.length  / minhas.length  * 100) : null;
+    const prazo   = comData.length ? Math.round(noPrazo.length / comData.length * 100) : null;
+
     const fbs = (typeof feedbackData!=='undefined' ? (feedbackData[m.name]||[]) : [])
       .filter(f => f.score>0 && f.date && new Date(f.date+'T12:00:00')>=ini && new Date(f.date+'T12:00:00')<fim);
-    const fbAvg = fbs.length ? fbs.reduce((s,f)=>s+f.score,0)/fbs.length : 0;
-    const ptsChk = chk*PTS;
-    const ptsFb = Math.round(fbAvg*PTS);   // média 8.7 no feedback → 87 pts
-    return { m, nome:m.name, fn, chk, ptsChk, ptsFb, pts: ptsChk+ptsFb };
-  }).filter(r => !ocult.includes(r.fn)).filter(r => r.pts > 0).sort((a,b)=> b.pts - a.pts);
+    const qualidade = fbs.length ? Math.round(fbs.reduce((s,f)=>s+f.score,0)/fbs.length*10) : null;
+
+    const blocos = [entrega, prazo, qualidade].filter(v => v !== null);
+    const pts = blocos.length ? Math.round(blocos.reduce((a,b)=>a+b,0)/blocos.length) : 0;
+    return { m, nome:m.name, fn, pts, entrega, prazo, qualidade,
+             chk: feitas.length, atrib: minhas.length, noPrazo: noPrazo.length, comData: comData.length };
+  })
+  .filter(r => !ocult.includes(r.fn))
+  .filter(r => r.atrib >= _PLACAR_MIN_TAREFAS)
+  .sort((a,b) => (b.pts - a.pts) || (b.chk - a.chk));
+}
+// Frase curta do que compõe o índice de alguém — usada embaixo da barra.
+function _placarDetalhe(r){
+  const p = [];
+  if(r.entrega   !== null && r.entrega   !== undefined) p.push('entrega ' + r.entrega + '%');
+  if(r.prazo     !== null && r.prazo     !== undefined) p.push('prazo ' + r.prazo + '%');
+  if(r.qualidade !== null && r.qualidade !== undefined) p.push('feedback ' + (r.qualidade/10).toFixed(1));
+  return p.join(' · ');
 }
 function _placarDados(){
   const h = new Date();
@@ -7195,16 +7236,23 @@ function _placarAcumulado(){
   const PTS = 10;
   // meses com atividade (task done ou feedback com nota)
   const mesesSet = {};
-  tasks.forEach(t => { if(t.is_daily && t.done && t.done_at){ const d=new Date(t.done_at); mesesSet[d.getFullYear()+'-'+d.getMonth()]=1; } });
+  tasks.forEach(t => {
+    if(!t.is_daily) return;
+    const mk = _placarMesDaTarefa(t); if(!mk) return;
+    const p = mk.split('-'); mesesSet[Number(p[0]) + '-' + (Number(p[1]) - 1)] = 1;
+  });
   if(typeof feedbackData!=='undefined') Object.values(feedbackData).forEach(l => (l||[]).forEach(f => { if(f.score>0 && f.date){ const d=new Date(f.date+'T12:00:00'); mesesSet[d.getFullYear()+'-'+d.getMonth()]=1; } }));
   const meses = Object.keys(mesesSet).map(k=>{ const p=k.split('-'); return {ano:+p[0], mes:+p[1]}; }).sort((a,b)=> (a.ano-b.ano)||(a.mes-b.mes));
   const acc = {};
   meses.forEach(({ano,mes}) => {
     _placarPontosMes(ano,mes).forEach(r => {
-      if(!acc[r.nome]) acc[r.nome] = { m:r.m, nome:r.nome, fn:r.fn, chk:0, ptsChk:0, ptsFb:0, pts:0, meses:0 };
-      acc[r.nome].chk += r.chk; acc[r.nome].ptsChk += r.ptsChk; acc[r.nome].ptsFb += r.ptsFb; acc[r.nome].pts += r.pts; acc[r.nome].meses++;
+      if(!acc[r.nome]) acc[r.nome] = { m:r.m, nome:r.nome, fn:r.fn, chk:0, atrib:0, soma:0, pts:0, meses:0 };
+      acc[r.nome].chk += r.chk; acc[r.nome].atrib += r.atrib;
+      acc[r.nome].soma += r.pts; acc[r.nome].meses++;
     });
   });
+  // Índice não se soma: o acumulado é a MÉDIA dos meses em que a pessoa entrou no ranking.
+  Object.values(acc).forEach(r => { r.pts = r.meses ? Math.round(r.soma / r.meses) : 0; });
   const desde = meses.length ? meses[0] : null;
   return { rows: Object.values(acc).filter(r=>!ocult.includes(r.fn)).sort((a,b)=>b.pts-a.pts), desde };
 }
@@ -7217,11 +7265,10 @@ function _placarAbrirAcumulado(){
   ov=document.createElement('div'); ov.id='placarAccModal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px';
   ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
-  const max = rows.length ? (rows[0].pts||1) : 1;
   ov.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:88dvh;overflow:auto;box-shadow:var(--shadow)">
       <div style="padding:16px 20px;background:${_PLACAR_GRAD};color:#fff;display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <div><div style="font-size:17px;font-weight:800">🏆 Pontos acumulados</div><div style="font-size:12px;opacity:.9;margin-top:2px">soma de todos os meses · desde ${desdeTxt} · visível só pra administração</div></div>
+        <div><div style="font-size:17px;font-weight:800">🏆 Índice acumulado</div><div style="font-size:12px;opacity:.9;margin-top:2px">média dos meses · desde ${desdeTxt} · visível só pra administração</div></div>
         <button class="btn btn-sm" style="background:rgba(255,255,255,.2);border:none;color:#fff" onclick="document.getElementById('placarAccModal').remove()">✕</button>
       </div>
       <div style="padding:16px 20px">
@@ -7233,10 +7280,10 @@ function _placarAbrirAcumulado(){
             <div style="flex:1;min-width:0">
               <div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;margin-bottom:4px">
                 <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nome)}</span>
-                <b style="flex-shrink:0;background:${_PLACAR_GRAD};-webkit-background-clip:text;background-clip:text;color:transparent">${r.pts} pts</b>
+                <b style="flex-shrink:0;background:${_PLACAR_GRAD};-webkit-background-clip:text;background-clip:text;color:transparent">${r.pts}</b>
               </div>
-              <div style="height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${Math.round((r.pts/max)*100)}%;background:${_PLACAR_GRAD};border-radius:5px"></div></div>
-              <div style="font-size:11px;color:var(--text-3);margin-top:3px">checklist ${r.ptsChk} pts · feedback ${r.ptsFb} pts · ${r.meses} m${r.meses!==1?'eses':'ês'} pontuando</div>
+              <div style="height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${Math.min(100,r.pts)}%;background:${_PLACAR_GRAD};border-radius:5px"></div></div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:3px">${r.chk} de ${r.atrib} tarefas entregues · ${r.meses} m${r.meses!==1?'eses':'ês'} no ranking</div>
             </div>
           </div>`;
         }).join('') : '<div style="color:var(--text-3);text-align:center;padding:20px">Sem pontos ainda.</div>'}
@@ -7265,7 +7312,7 @@ function _placarPopupTop3SeUltimoDia(){
         <div style="background:${_PLACAR_GRAD};color:#fff;padding:26px 20px">
           <div style="font-size:38px">🏆</div>
           <div style="font-size:21px;font-weight:800;margin-top:6px">Top 3 de ${NOMES_MES[h.getMonth()]}</div>
-          <div style="font-size:12.5px;opacity:.9;margin-top:3px">fechamento do mês · checklist + feedback</div>
+          <div style="font-size:12.5px;opacity:.9;margin-top:3px">fechamento do mês · entrega, prazo e qualidade</div>
         </div>
         <div style="padding:22px 20px 8px">
           ${rows.map((r,i)=>`
@@ -7275,7 +7322,7 @@ function _placarPopupTop3SeUltimoDia(){
               <div style="flex:1;text-align:left;min-width:0">
                 <div style="font-weight:700;font-size:${i===0?'15px':'13.5px'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nome)}</div>
               </div>
-              <b style="flex-shrink:0;font-size:${i===0?'17px':'14px'};background:${_PLACAR_GRAD};-webkit-background-clip:text;background-clip:text;color:transparent">${r.pts} pts</b>
+              <b style="flex-shrink:0;font-size:${i===0?'17px':'14px'};background:${_PLACAR_GRAD};-webkit-background-clip:text;background-clip:text;color:transparent">${r.pts}</b>
             </div>`).join('')}
         </div>
         <div style="padding:8px 20px 22px">
@@ -7309,12 +7356,12 @@ function _placarAvatar(m, size){
 function renderPlacarDashboard(){
   const rows = _placarDados();
   const nomeMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][new Date().getMonth()];
-  const max = rows.length ? (rows[0].pts||1) : 1;
   const ehAdm = (typeof isAdmin==='function') && isAdmin();
   return `
     <div class="card" style="margin-bottom:14px">
       <div class="card-header">
         <div class="card-title">🏆 Placar do mês · ${nomeMes}</div>
+        <span class="text-xs text-3" title="Entrega, prazo e qualidade, cada um de 0 a 100. O índice é a média deles." style="cursor:help">entrega · prazo · qualidade</span>
         ${ehAdm ? `<span class="card-link" onclick="_placarAbrirAcumulado()">Acumulado →</span>` : ''}
       </div>
       ${rows.length ? rows.map((r,i)=>{
@@ -7325,12 +7372,13 @@ function renderPlacarDashboard(){
           <div style="flex:1;min-width:0">
             <div style="display:flex;justify-content:space-between;gap:10px;font-size:13.5px;margin-bottom:5px">
               <span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(r.nome)}</span>
-              <b style="flex-shrink:0;font-size:14px;background:${_PLACAR_GRAD};-webkit-background-clip:text;background-clip:text;color:transparent">${r.pts} pts</b>
+              <b style="flex-shrink:0;font-size:14px;background:${_PLACAR_GRAD};-webkit-background-clip:text;background-clip:text;color:transparent">${r.pts}</b>
             </div>
-            <div style="height:9px;background:var(--surface-2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${Math.round((r.pts/max)*100)}%;background:${_PLACAR_GRAD};border-radius:5px"></div></div>
+            <div style="height:9px;background:var(--surface-2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${Math.min(100,r.pts)}%;background:${_PLACAR_GRAD};border-radius:5px"></div></div>
+            <div style="font-size:10.5px;color:var(--text-3);margin-top:4px">${_placarDetalhe(r)}</div>
           </div>
         </div>`;
-      }).join('') : '<div style="color:var(--text-3);font-size:13px;text-align:center;padding:14px">Ninguém pontuou ainda este mês.</div>'}
+      }).join('') : '<div style="color:var(--text-3);font-size:13px;text-align:center;padding:14px">Ainda não dá pra montar o placar deste mês. Ele começa a partir de 5 tarefas no mês.</div>'}
     </div>`;
 }
 window._placarAbrirAcumulado = _placarAbrirAcumulado;
