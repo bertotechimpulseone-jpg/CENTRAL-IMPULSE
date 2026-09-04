@@ -409,6 +409,99 @@ body.public-page #lembretesWidget{display:none!important}
 .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
 @media (max-width:1100px){.grid-2,.grid-2e,.grid-3,.grid-4{grid-template-columns:1fr}}
+/* ===== I3 · sub-abas e Pautas ===================================== */
+.i3-tabs{display:flex;gap:4px;padding:4px;margin:0 0 18px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;width:fit-content;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.i3-tab{position:relative;flex:0 0 auto;display:flex;align-items:center;gap:7px;padding:8px 16px;border:none;border-radius:9px;background:transparent;color:var(--text-3);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.i3-tab:hover{color:var(--text-2)}
+.i3-tab.on{color:var(--text);background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.28)}
+.i3-tab.on::after{content:'';position:absolute;left:16px;right:16px;bottom:4px;height:2px;border-radius:2px;background:var(--grad)}
+.i3-tab-n{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--border-strong,rgba(255,255,255,.14));color:var(--text-2);font-size:11px;font-weight:700}
+.i3-tab.on .i3-tab-n{background:var(--accent);color:#fff}
+
+.pauta-lista{display:grid;gap:12px}
+.pauta-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 18px;transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease);animation:pautaSobe .42s var(--ease-out) both;animation-delay:calc(var(--i,0) * 45ms)}
+.pauta-card:hover{border-color:var(--border-strong,rgba(255,255,255,.18));transform:translateY(-1px)}
+@keyframes pautaSobe{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.pauta-card-top{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}
+.pauta-titulo{margin:0;font-size:15.5px;font-weight:700;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
+.pauta-meta{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:6px;font-size:11.5px;color:var(--text-3)}
+.pauta-tag{padding:1px 8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);font-weight:600}
+.pauta-acoes{display:flex;gap:3px;flex-shrink:0}
+.pauta-itens{list-style:none;counter-reset:pt;margin:13px 0 0;padding:0;display:grid;gap:7px}
+.pauta-itens li{counter-increment:pt;display:flex;align-items:baseline;gap:10px;font-size:12.5px;color:var(--text-2);line-height:1.5}
+.pauta-itens li::before{content:counter(pt);flex-shrink:0;width:19px;height:19px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-3);font-size:10.5px;font-weight:700;display:grid;place-items:center;transform:translateY(2px)}
+.pauta-itens li.pauta-mais{color:var(--text-3);font-style:italic}
+.pauta-itens li.pauta-mais::before{content:'+';border-style:dashed}
+.pauta-item-txt{flex:1;min-width:0;overflow-wrap:anywhere}
+.pauta-item-quem{flex-shrink:0;font-size:11px;color:var(--text-3)}
+.pauta-vazia{margin:12px 0 0;font-size:12.5px;color:var(--text-3);font-style:italic}
+.pauta-rodape{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.pauta-assins{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.assin-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;background:var(--success-soft,rgba(52,211,153,.13));border:1px solid var(--success);color:var(--success-text,var(--success));font-size:11px;font-weight:600}
+.pauta-sem-ass{font-size:11.5px;color:var(--text-3)}
+.pauta-ok{font-size:12px;font-weight:600;color:var(--success-text,var(--success))}
+
+/* modal (folha) */
+.i3-ov{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);z-index:300;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow:auto;animation:pautaFade .16s var(--ease) both}
+@keyframes pautaFade{from{opacity:0}to{opacity:1}}
+.i3-sheet{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.45);margin:auto;animation:pautaEntra .26s var(--ease-out) both}
+@keyframes pautaEntra{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+.i3-sheet-top{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.i3-sheet-ico{width:38px;height:38px;border-radius:10px;background:var(--grad);color:#fff;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+.i3-sheet-ttl{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.i3-sheet-body{padding:18px 20px;display:flex;flex-direction:column;gap:13px}
+.i3-sheet-pe{padding:14px 20px 18px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.pauta-txt{margin:0;font-size:12.5px;line-height:1.6;color:var(--text-2);max-width:62ch}
+.pauta-ta{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.55;resize:vertical}
+.pauta-msg{font-size:12px;color:var(--danger);background:rgba(251,93,107,.1);border:1px solid var(--danger);border-radius:8px;padding:8px 11px;line-height:1.5}
+.pauta-aviso{font-size:12px;line-height:1.6;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:10px 13px}
+.pauta-link{align-self:flex-start;background:none;border:none;padding:0;color:var(--text-3);font-family:inherit;font-size:11.5px;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.pauta-link:hover{color:var(--text-2)}
+
+/* editor de assuntos */
+.pauta-edit-grid{display:grid;grid-template-columns:1fr 170px;gap:10px}
+.pauta-edit-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+.pauta-edit-lista{display:grid;gap:8px}
+.pauta-edit-item{display:flex;align-items:flex-start;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:9px 10px}
+.pauta-edit-handle{flex-shrink:0;width:20px;text-align:center;color:var(--text-3);font-size:14px;line-height:34px;user-select:none}
+.pauta-edit-campos{flex:1;min-width:0;display:grid;gap:7px}
+.pauta-edit-linha2{display:grid;grid-template-columns:1fr 92px;gap:7px}
+.pauta-edit-item .login-input{height:34px;font-size:12.5px}
+
+/* leitura + assinaturas */
+.pauta-ver-itens{list-style:none;counter-reset:pv;margin:0;padding:0;display:grid;gap:11px}
+.pauta-ver-itens li{counter-increment:pv;display:flex;gap:11px;align-items:baseline}
+.pauta-ver-itens li::before{content:counter(pv);flex-shrink:0;width:22px;height:22px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);font-size:11px;font-weight:700;display:grid;place-items:center}
+.pauta-ver-col{flex:1;min-width:0}
+.pauta-ver-assunto{font-size:13.5px;font-weight:600;line-height:1.45;overflow-wrap:anywhere}
+.pauta-ver-sub{font-size:11.5px;color:var(--text-3);margin-top:2px}
+.pauta-ver-obs{font-size:12.5px;line-height:1.6;color:var(--text-2);white-space:pre-wrap;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.pauta-sig{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:var(--surface-2)}
+.pauta-sig-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;font-weight:700;margin-bottom:10px}
+.pauta-sig-linha{display:flex;gap:11px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--border)}
+.pauta-sig-selo{flex-shrink:0;width:26px;height:26px;border-radius:99px;display:grid;place-items:center;font-size:12px;font-weight:700;background:rgba(52,211,153,.14);border:1px solid var(--success);color:var(--success-text,var(--success))}
+.pauta-sig-selo.alerta{background:rgba(251,191,36,.14);border-color:var(--warning);color:var(--warning-text,var(--warning))}
+.pauta-sig-nome{font-size:13px;font-weight:600}
+.pauta-sig-sub{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.pauta-sig-alerta{font-size:11px;color:var(--warning-text,var(--warning));margin-top:2px}
+.pauta-sig-pe{margin-top:11px;padding-top:9px;border-top:1px dashed var(--border);font-size:10.5px;color:var(--text-3);letter-spacing:.04em;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+
+@media (max-width:640px){
+  .i3-tabs{width:100%}
+  .i3-tab{flex:1 1 0;justify-content:center;padding:9px 10px}
+  .pauta-card{padding:14px}
+  .pauta-card-top{flex-direction:column;gap:9px}
+  .pauta-acoes{align-self:flex-end;margin-top:-38px}
+  .pauta-rodape{align-items:flex-start;flex-direction:column}
+  .pauta-edit-grid{grid-template-columns:1fr}
+  .i3-ov{padding:12px 10px}
+  .i3-sheet-body,.i3-sheet-top,.i3-sheet-pe{padding-left:15px;padding-right:15px}
+  .i3-sheet-pe .btn{flex:1 1 auto}
+}
+@media (prefers-reduced-motion:reduce){
+  .pauta-card,.i3-sheet,.i3-ov{animation:none}
+  .pauta-card:hover{transform:none}
+}
 /* ==========================================================================
    BLINDAGEM MOBILE — vale pra tela que existe hoje e pra qualquer tela nova.
    Regra da casa: no celular NADA pode empurrar a pagina pro lado. O que for
@@ -28131,6 +28224,503 @@ function verI3Ata(id){
 }
 window.verI3Ata = verI3Ata;
 
+// ============================================================
+// I3 · PAUTAS — a pauta da reunião, assinada eletronicamente
+//   A senha de assinatura é de cada admin e vive só no banco (bcrypt).
+//   Assinar não é um UPDATE: passa pela função i3_pauta_assinar(),
+//   que confere a senha e carimba nome, hora, código e o hash do
+//   conteúdo assinado. Se a pauta mudar depois, a assinatura passa a
+//   aparecer como "assinada em outra versão" em vez de sumir.
+// ============================================================
+var _i3Pautas = [];
+var _i3PautasCarregado = false;
+var _i3PautasErro = '';
+var _i3TenhoSenhaAss = null;   // null = ainda não perguntei
+
+async function loadI3Pautas(){
+  if(_i3PautasCarregado) return;
+  if(!_supa){ _i3Pautas = []; _i3PautasCarregado = true; return; }
+  try {
+    const { data, error } = await _supa.from('i3_pautas').select('*').order('data_pauta', {ascending:false, nullsFirst:false});
+    if(error){
+      console.warn('[loadI3Pautas]', error);
+      _i3Pautas = [];
+      _i3PautasErro = (error.code === '42P01' || /does not exist/i.test(error.message||'')) ? 'tabela' : (error.message||'');
+    } else { _i3Pautas = data || []; _i3PautasErro = ''; }
+  } catch(e){ console.warn('[loadI3Pautas]', e); _i3Pautas = []; }
+  _i3PautasCarregado = true;
+}
+window.loadI3Pautas = loadI3Pautas;
+
+async function _i3TenhoSenha(force){
+  if(_i3TenhoSenhaAss !== null && !force) return _i3TenhoSenhaAss;
+  if(!_supa){ _i3TenhoSenhaAss = false; return false; }
+  try {
+    const { data, error } = await _supa.rpc('i3_assinatura_tem');
+    _i3TenhoSenhaAss = error ? false : !!data;
+  } catch(e){ _i3TenhoSenhaAss = false; }
+  return _i3TenhoSenhaAss;
+}
+
+function _i3MeuEmail(){
+  return ((_currentUser && _currentUser.email) || (_currentProfile && _currentProfile.email) || '').toLowerCase();
+}
+
+// Impressão digital do que está sendo assinado. Muda a pauta, muda o hash.
+async function _i3PautaHash(p){
+  const base = [p.titulo||'', p.data_pauta||'', JSON.stringify(p.itens||[]), p.observacoes||''].join('');
+  try {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(base));
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('').slice(0,32);
+  } catch(e){
+    let h = 0; for(let i=0;i<base.length;i++){ h = ((h<<5)-h+base.charCodeAt(i))|0; }
+    return 'fb' + (h>>>0).toString(16);
+  }
+}
+
+function _i3PautaItens(p){ return Array.isArray(p && p.itens) ? p.itens : []; }
+function _i3PautaAssins(p){ return Array.isArray(p && p.assinaturas) ? p.assinaturas : []; }
+
+function _i3FmtHora(iso){
+  if(!iso) return '';
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  return m ? (m[3]+'/'+m[2]+'/'+m[1]+' às '+m[4]+':'+m[5]) : String(iso);
+}
+
+// ---------- sub-abas da I3 ----------
+function _i3AbaAtual(){ return window._i3Aba === 'pautas' ? 'pautas' : 'painel'; }
+function setI3Aba(aba){
+  window._i3Aba = (aba === 'pautas') ? 'pautas' : 'painel';
+  renderI3(document.getElementById('content'));
+}
+window.setI3Aba = setI3Aba;
+
+function _i3TabsHTML(aba){
+  const n = (_i3Pautas||[]).length;
+  const t = (id, rotulo, extra) =>
+    '<button class="i3-tab' + (aba===id?' on':'') + '" onclick="setI3Aba(\'' + id + '\')" aria-pressed="' + (aba===id) + '">' +
+      rotulo + (extra ? '<span class="i3-tab-n">' + extra + '</span>' : '') +
+    '</button>';
+  return '<div class="i3-tabs" role="group" aria-label="Seções da I3">' +
+    t('painel','Painel e atas','') +
+    t('pautas','Pautas', n ? String(n) : '') +
+  '</div>';
+}
+
+// ---------- a aba ----------
+function renderI3PautasAba(){
+  const esc = escapeHtml;
+  const lista = Array.isArray(_i3Pautas) ? _i3Pautas : [];
+  const meu = _i3MeuEmail();
+
+  if(_i3PautasErro === 'tabela'){
+    return '<div class="card"><div style="font-size:13px;color:var(--warning-text);line-height:1.6">' +
+      '⚠ Rode o <strong>sql/80-i3-pautas.sql</strong> no Supabase pra ligar as pautas e a assinatura eletrônica.</div></div>';
+  }
+  if(!lista.length){
+    return '<div class="card empty-state" style="padding:44px 22px">' +
+      '<div class="ico">🗒</div>' +
+      '<div class="ttl">Nenhuma pauta ainda</div>' +
+      '<div class="desc">Monte a pauta antes da reunião: os assuntos, quem puxa cada um e quanto tempo leva. Depois cada sócio assina com a própria senha.</div>' +
+      '<button class="btn btn-primary" style="margin-top:16px" onclick="openI3PautaModal()">Criar a primeira pauta</button>' +
+      '</div>';
+  }
+
+  return '<div class="pauta-lista">' + lista.map((p, i) => {
+    const itens = _i3PautaItens(p);
+    const ass = _i3PautaAssins(p);
+    const jaAssinei = ass.some(a => String(a.email||'').toLowerCase() === meu);
+    const encerrada = p.status === 'encerrada';
+    const tempo = itens.reduce((s,it) => s + (parseInt(it.tempo,10)||0), 0);
+    return '<article class="pauta-card" style="--i:' + i + '">' +
+      '<header class="pauta-card-top">' +
+        '<div style="min-width:0">' +
+          '<h3 class="pauta-titulo">' + esc(p.titulo || 'Pauta sem título') + '</h3>' +
+          '<div class="pauta-meta">' +
+            '<span>📅 ' + esc(_i3FmtData(p.data_pauta, true)) + '</span>' +
+            '<span>🗒 ' + itens.length + (itens.length === 1 ? ' assunto' : ' assuntos') + '</span>' +
+            (tempo ? '<span>⏱ ' + tempo + ' min</span>' : '') +
+            (encerrada ? '<span class="pauta-tag">encerrada</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="pauta-acoes">' +
+          '<button class="icon-btn" onclick="verI3Pauta(\'' + esc(p.id) + '\')" title="Ver a pauta inteira" style="width:28px;height:28px">👁️</button>' +
+          '<button class="icon-btn" onclick="openI3PautaModal(\'' + esc(p.id) + '\')" title="Editar" style="width:28px;height:28px">✏️</button>' +
+          '<button class="icon-btn" onclick="excluirI3Pauta(\'' + esc(p.id) + '\')" title="Excluir" style="width:28px;height:28px;color:var(--danger)">×</button>' +
+        '</div>' +
+      '</header>' +
+      (itens.length
+        ? '<ol class="pauta-itens">' + itens.slice(0,4).map(it =>
+            '<li><span class="pauta-item-txt">' + esc(it.assunto || '') + '</span>' +
+            (it.responsavel ? '<span class="pauta-item-quem">' + esc(it.responsavel) + '</span>' : '') + '</li>').join('') +
+          (itens.length > 4 ? '<li class="pauta-mais">mais ' + (itens.length-4) + ' na pauta completa</li>' : '') +
+          '</ol>'
+        : '<p class="pauta-vazia">Sem assuntos lançados ainda.</p>') +
+      '<footer class="pauta-rodape">' +
+        '<div class="pauta-assins">' +
+          (ass.length
+            ? ass.map(a => '<span class="assin-chip" title="' + esc(a.nome||a.email||'') + ' assinou em ' + esc(_i3FmtHora(a.assinado_em)) + '">✓ ' + esc((a.nome||a.email||'').split(' ')[0]) + '</span>').join('')
+            : '<span class="pauta-sem-ass">ninguém assinou ainda</span>') +
+        '</div>' +
+        (jaAssinei
+          ? '<span class="pauta-ok">✓ você assinou</span>'
+          : '<button class="btn btn-primary btn-sm" onclick="abrirAssinarPauta(\'' + esc(p.id) + '\')">🖊 Assinar</button>') +
+      '</footer>' +
+    '</article>';
+  }).join('') + '</div>';
+}
+window.renderI3PautasAba = renderI3PautasAba;
+
+// ---------- editor ----------
+function _i3ItemLinhaHTML(it){
+  const esc = escapeHtml; it = it || {};
+  return '<div class="pauta-edit-item">' +
+    '<div class="pauta-edit-handle">≡</div>' +
+    '<div class="pauta-edit-campos">' +
+      '<input class="login-input pauta-in-assunto" style="background:var(--surface-2)" value="' + esc(it.assunto||'') + '" placeholder="Assunto da pauta" />' +
+      '<div class="pauta-edit-linha2">' +
+        '<input class="login-input pauta-in-resp" style="background:var(--surface-2)" value="' + esc(it.responsavel||'') + '" placeholder="Quem puxa" />' +
+        '<input class="login-input pauta-in-tempo" type="number" min="0" step="5" style="background:var(--surface-2)" value="' + esc(it.tempo||'') + '" placeholder="min" />' +
+      '</div>' +
+    '</div>' +
+    '<button type="button" class="icon-btn" onclick="this.closest(\'.pauta-edit-item\').remove()" title="Tirar da pauta" style="width:28px;height:28px;color:var(--danger);flex-shrink:0">×</button>' +
+  '</div>';
+}
+function i3PautaAddItem(it){
+  const box = document.getElementById('i3PtItens');
+  if(!box) return;
+  box.insertAdjacentHTML('beforeend', _i3ItemLinhaHTML(it));
+  const ultimo = box.lastElementChild && box.lastElementChild.querySelector('.pauta-in-assunto');
+  if(ultimo && !(it && it.assunto)) ultimo.focus();
+}
+window.i3PautaAddItem = i3PautaAddItem;
+
+function openI3PautaModal(id){
+  const p = id ? (_i3Pautas||[]).find(o => String(o.id) === String(id)) : null;
+  const esc = escapeHtml;
+  const itens = _i3PautaItens(p);
+  const assinada = _i3PautaAssins(p).length;
+  let modal = document.getElementById('i3PtModal'); if(modal) modal.remove();
+  modal = document.createElement('div'); modal.id = 'i3PtModal'; modal.className = 'i3-ov';
+  modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
+  modal.innerHTML =
+    '<div class="i3-sheet" style="max-width:660px">' +
+      '<div class="i3-sheet-top">' +
+        '<div class="i3-sheet-ico">🗒</div>' +
+        '<div style="flex:1;min-width:0"><div class="i3-sheet-ttl">' + (p ? 'Editar pauta' : 'Nova pauta') + '</div>' +
+        '<div class="text-xs text-3">Os assuntos, quem puxa cada um e o tempo de cada bloco</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'i3PtModal\').remove()" style="width:30px;height:30px">×</button>' +
+      '</div>' +
+      '<div class="i3-sheet-body">' +
+        '<input type="hidden" id="i3PtId" value="' + (p ? esc(p.id) : '') + '" />' +
+        (assinada ? '<div class="pauta-aviso">🖊 Esta pauta já tem ' + assinada + ' assinatura' + (assinada>1?'s':'') + '. Se você mudar o conteúdo, elas continuam registradas, mas passam a aparecer como assinadas em outra versão.</div>' : '') +
+        '<div class="pauta-edit-grid">' +
+          '<div><div class="info-label" style="margin-bottom:4px">Título</div>' +
+            '<input id="i3PtTitulo" class="login-input" style="background:var(--surface-2)" value="' + esc(p ? (p.titulo||'') : '') + '" placeholder="ex: Pauta da reunião de outubro" /></div>' +
+          '<div><div class="info-label" style="margin-bottom:4px">Data</div>' +
+            '<input id="i3PtData" type="date" class="login-input" style="background:var(--surface-2)" value="' + esc(p ? (p.data_pauta||'') : '') + '" /></div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="pauta-edit-cab"><div class="info-label">Assuntos</div>' +
+            '<button type="button" class="btn btn-sm" onclick="i3PautaAddItem()">+ Assunto</button></div>' +
+          '<div id="i3PtItens" class="pauta-edit-lista">' + (itens.length ? itens.map(_i3ItemLinhaHTML).join('') : _i3ItemLinhaHTML()) + '</div>' +
+        '</div>' +
+        '<div><div class="info-label" style="margin-bottom:4px">Observações</div>' +
+          '<textarea id="i3PtObs" rows="3" class="pauta-ta" placeholder="O que mais precisa entrar no radar da reunião">' + esc(p ? (p.observacoes||'') : '') + '</textarea></div>' +
+        '<div><div class="info-label" style="margin-bottom:4px">Status</div>' +
+          '<select id="i3PtStatus" class="login-input" style="background:var(--surface-2)">' +
+            '<option value="aberta"' + (p && p.status === 'encerrada' ? '' : ' selected') + '>Aberta</option>' +
+            '<option value="encerrada"' + (p && p.status === 'encerrada' ? ' selected' : '') + '>Encerrada</option>' +
+          '</select></div>' +
+      '</div>' +
+      '<div class="i3-sheet-pe">' +
+        '<div>' + (p ? '<button class="btn" onclick="excluirI3Pauta(\'' + esc(p.id) + '\')" style="color:var(--danger)">🗑 Excluir</button>' : '') + '</div>' +
+        '<div style="display:flex;gap:8px">' +
+          '<button class="btn" onclick="document.getElementById(\'i3PtModal\').remove()">Cancelar</button>' +
+          '<button class="btn btn-primary" id="i3PtSave" onclick="salvarI3Pauta()">💾 Salvar pauta</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  const t = document.getElementById('i3PtTitulo'); if(t && !p) setTimeout(()=>t.focus(), 60);
+}
+window.openI3PautaModal = openI3PautaModal;
+
+function _i3LerItensDoForm(){
+  return Array.from(document.querySelectorAll('#i3PtItens .pauta-edit-item')).map(row => ({
+    assunto: (row.querySelector('.pauta-in-assunto').value||'').trim(),
+    responsavel: (row.querySelector('.pauta-in-resp').value||'').trim(),
+    tempo: (row.querySelector('.pauta-in-tempo').value||'').trim()
+  })).filter(x => x.assunto || x.responsavel);
+}
+
+async function salvarI3Pauta(){
+  if(!_supa){ toast('Banco não conectado','info'); return; }
+  const id = (document.getElementById('i3PtId').value||'').trim();
+  const titulo = (document.getElementById('i3PtTitulo').value||'').trim();
+  const data_pauta = (document.getElementById('i3PtData').value||'').trim() || null;
+  const observacoes = (document.getElementById('i3PtObs').value||'').trim() || null;
+  const status = document.getElementById('i3PtStatus').value || 'aberta';
+  const itens = _i3LerItensDoForm();
+  if(!titulo){ toast('Dê um título pra pauta','info'); const t=document.getElementById('i3PtTitulo'); if(t) t.focus(); return; }
+  const btn = document.getElementById('i3PtSave');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  try {
+    const payload = { titulo, data_pauta, observacoes, status, itens };
+    if(!id) payload.created_by_email = _i3MeuEmail() || null;
+    const res = id
+      ? await _supa.from('i3_pautas').update(payload).eq('id', id).select()
+      : await _supa.from('i3_pautas').insert(payload).select();
+    if(res.error){
+      const mm = res.error.message||'';
+      if(res.error.code === '42P01' || /does not exist/i.test(mm)) toast('⚠ Rode o sql/80-i3-pautas.sql no Supabase primeiro','info');
+      else toast('Erro ao salvar: ' + mm, 'info');
+      if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar pauta'; }
+      return;
+    }
+    toast('✓ Pauta salva','success');
+    const mo = document.getElementById('i3PtModal'); if(mo) mo.remove();
+    _i3PautasCarregado = false; await loadI3Pautas();
+    window._i3Aba = 'pautas';
+    renderI3(document.getElementById('content'));
+  } catch(e){
+    console.warn('[salvarI3Pauta]', e); toast('Erro ao salvar','info');
+    if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar pauta'; }
+  }
+}
+window.salvarI3Pauta = salvarI3Pauta;
+
+async function excluirI3Pauta(id){
+  const p = (_i3Pautas||[]).find(o => String(o.id) === String(id));
+  const ass = _i3PautaAssins(p).length;
+  const rotulo = ass ? 'pauta (tem ' + ass + ' assinatura' + (ass>1?'s':'') + ')' : 'pauta';
+  if(typeof confirmDelete === 'function'){ if(!(await confirmDelete(rotulo))) return; }
+  else if(!confirm('Excluir esta pauta?')) return;
+  if(_supa){
+    const { error } = await _supa.from('i3_pautas').delete().eq('id', id);
+    if(error){ toast('Erro: ' + error.message, 'info'); return; }
+  }
+  _i3Pautas = (_i3Pautas||[]).filter(x => String(x.id) !== String(id));
+  ['i3PtModal','i3PtVer'].forEach(k => { const m = document.getElementById(k); if(m) m.remove(); });
+  toast('Pauta excluída','success');
+  window._i3Aba = 'pautas';
+  renderI3(document.getElementById('content'));
+}
+window.excluirI3Pauta = excluirI3Pauta;
+
+// ---------- ver a pauta + as assinaturas ----------
+async function verI3Pauta(id){
+  const p = (_i3Pautas||[]).find(o => String(o.id) === String(id));
+  if(!p){ toast('Pauta não encontrada','info'); return; }
+  const esc = escapeHtml;
+  const itens = _i3PautaItens(p);
+  const ass = _i3PautaAssins(p);
+  const hashAtual = await _i3PautaHash(p);
+  const meu = _i3MeuEmail();
+  const jaAssinei = ass.some(a => String(a.email||'').toLowerCase() === meu);
+  let modal = document.getElementById('i3PtVer'); if(modal) modal.remove();
+  modal = document.createElement('div'); modal.id = 'i3PtVer'; modal.className = 'i3-ov';
+  modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
+  modal.innerHTML =
+    '<div class="i3-sheet" style="max-width:700px">' +
+      '<div class="i3-sheet-top">' +
+        '<div class="i3-sheet-ico">🗒</div>' +
+        '<div style="flex:1;min-width:0"><div class="i3-sheet-ttl">' + esc(p.titulo||'Pauta') + '</div>' +
+        '<div class="text-xs text-3">' + esc(_i3FmtData(p.data_pauta, true)) + '</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'i3PtVer\').remove()" style="width:30px;height:30px">×</button>' +
+      '</div>' +
+      '<div class="i3-sheet-body">' +
+        (itens.length
+          ? '<ol class="pauta-ver-itens">' + itens.map(it =>
+              '<li><div class="pauta-ver-col">' +
+                '<div class="pauta-ver-assunto">' + esc(it.assunto||'') + '</div>' +
+                ((it.responsavel || it.tempo)
+                  ? '<div class="pauta-ver-sub">' + (it.responsavel ? esc(it.responsavel) : '') +
+                    (it.responsavel && it.tempo ? ' · ' : '') + (it.tempo ? esc(it.tempo) + ' min' : '') + '</div>'
+                  : '') +
+              '</div></li>').join('') + '</ol>'
+          : '<p class="pauta-vazia">Sem assuntos lançados.</p>') +
+        (p.observacoes ? '<div class="pauta-ver-obs"><div class="info-label" style="margin-bottom:5px">Observações</div>' + esc(p.observacoes) + '</div>' : '') +
+        '<div class="pauta-sig">' +
+          '<div class="pauta-sig-cab"><span>🖊 Assinaturas</span><span class="text-xs text-3">' + (ass.length ? ass.length + (ass.length === 1 ? ' assinatura' : ' assinaturas') : 'nenhuma ainda') + '</span></div>' +
+          (ass.length
+            ? ass.map(a => {
+                const valida = !a.conteudo_hash || a.conteudo_hash === hashAtual;
+                return '<div class="pauta-sig-linha">' +
+                  '<div class="pauta-sig-selo' + (valida ? '' : ' alerta') + '">' + (valida ? '✓' : '!') + '</div>' +
+                  '<div style="flex:1;min-width:0">' +
+                    '<div class="pauta-sig-nome">' + esc(a.nome || a.email || '') + '</div>' +
+                    '<div class="pauta-sig-sub">' + esc(_i3FmtHora(a.assinado_em)) + ' · código ' + esc(a.codigo||'') + '</div>' +
+                    (valida ? '' : '<div class="pauta-sig-alerta">assinada antes da última edição da pauta</div>') +
+                  '</div>' +
+                '</div>';
+              }).join('')
+            : '<div class="pauta-sem-ass" style="padding:10px 0">Ninguém assinou esta pauta ainda.</div>') +
+          '<div class="pauta-sig-pe">Documento ' + esc(hashAtual.slice(0,16)) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="i3-sheet-pe">' +
+        '<button class="btn" onclick="document.getElementById(\'i3PtVer\').remove();openI3PautaModal(\'' + esc(p.id) + '\')">✏️ Editar</button>' +
+        (jaAssinei
+          ? '<span class="pauta-ok">✓ você já assinou</span>'
+          : '<button class="btn btn-primary" onclick="abrirAssinarPauta(\'' + esc(p.id) + '\')">🖊 Assinar pauta</button>') +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+}
+window.verI3Pauta = verI3Pauta;
+
+// ---------- assinar ----------
+async function abrirAssinarPauta(id){
+  const p = (_i3Pautas||[]).find(o => String(o.id) === String(id));
+  if(!p){ toast('Pauta não encontrada','info'); return; }
+  const temSenha = await _i3TenhoSenha(true);
+  if(!temSenha){ abrirSenhaAssinatura(id); return; }
+  const esc = escapeHtml;
+  let modal = document.getElementById('i3PtAss'); if(modal) modal.remove();
+  modal = document.createElement('div'); modal.id = 'i3PtAss'; modal.className = 'i3-ov';
+  modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
+  modal.innerHTML =
+    '<div class="i3-sheet" style="max-width:440px">' +
+      '<div class="i3-sheet-top">' +
+        '<div class="i3-sheet-ico">🖊</div>' +
+        '<div style="flex:1;min-width:0"><div class="i3-sheet-ttl">Assinar a pauta</div>' +
+        '<div class="text-xs text-3">' + esc(p.titulo||'') + '</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'i3PtAss\').remove()" style="width:30px;height:30px">×</button>' +
+      '</div>' +
+      '<div class="i3-sheet-body">' +
+        '<p class="pauta-txt">Digite sua senha de assinatura. Ela é só sua e não é a senha de entrar no sistema.</p>' +
+        '<input type="hidden" id="i3AsPauta" value="' + esc(p.id) + '" />' +
+        '<input id="i3AsSenha" type="password" class="login-input" style="background:var(--surface-2)" placeholder="Senha de assinatura" autocomplete="off" />' +
+        '<div id="i3AsMsg" class="pauta-msg" hidden></div>' +
+        '<button class="pauta-link" onclick="document.getElementById(\'i3PtAss\').remove();abrirSenhaAssinatura()">Trocar minha senha de assinatura</button>' +
+      '</div>' +
+      '<div class="i3-sheet-pe">' +
+        '<button class="btn" onclick="document.getElementById(\'i3PtAss\').remove()">Cancelar</button>' +
+        '<button class="btn btn-primary" id="i3AsBtn" onclick="confirmarAssinarPauta()">🖊 Assinar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  const inp = document.getElementById('i3AsSenha');
+  if(inp){ setTimeout(()=>inp.focus(), 60); inp.onkeydown = (e)=>{ if(e.key === 'Enter') confirmarAssinarPauta(); }; }
+}
+window.abrirAssinarPauta = abrirAssinarPauta;
+
+function _i3AsErro(txt){
+  const m = document.getElementById('i3AsMsg');
+  if(m){ m.textContent = txt; m.hidden = false; }
+}
+
+async function confirmarAssinarPauta(){
+  if(!_supa){ toast('Banco não conectado','info'); return; }
+  const pid = (document.getElementById('i3AsPauta').value||'').trim();
+  const senha = document.getElementById('i3AsSenha').value || '';
+  if(!senha){ _i3AsErro('Digite sua senha de assinatura.'); return; }
+  const p = (_i3Pautas||[]).find(o => String(o.id) === String(pid));
+  const btn = document.getElementById('i3AsBtn');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Assinando...'; }
+  try {
+    const hash = await _i3PautaHash(p||{});
+    const { data, error } = await _supa.rpc('i3_pauta_assinar', { p_pauta_id: pid, p_senha: senha, p_conteudo_hash: hash });
+    if(error){ _i3AsErro('Não consegui assinar agora. ' + (error.message||'')); if(btn){btn.disabled=false;btn.textContent='🖊 Assinar';} return; }
+    if(!data || !data.ok){
+      const e = data && data.erro;
+      _i3AsErro(e === 'senha' ? 'Senha de assinatura incorreta.'
+        : e === 'sem_senha' ? 'Você ainda não cadastrou sua senha de assinatura.'
+        : e === 'permissao' ? 'Só a gestão assina as pautas da I3.'
+        : 'Não consegui assinar agora.');
+      if(btn){ btn.disabled = false; btn.textContent = '🖊 Assinar'; }
+      return;
+    }
+    if(p) p.assinaturas = data.assinaturas || [];
+    const mo = document.getElementById('i3PtAss'); if(mo) mo.remove();
+    const mv = document.getElementById('i3PtVer'); if(mv) mv.remove();
+    toast('✓ Pauta assinada · código ' + ((data.assinatura&&data.assinatura.codigo)||''), 'success');
+    window._i3Aba = 'pautas';
+    renderI3(document.getElementById('content'));
+  } catch(e){
+    console.warn('[confirmarAssinarPauta]', e);
+    _i3AsErro('Não consegui assinar agora.');
+    if(btn){ btn.disabled = false; btn.textContent = '🖊 Assinar'; }
+  }
+}
+window.confirmarAssinarPauta = confirmarAssinarPauta;
+
+// ---------- cadastrar / trocar a senha de assinatura ----------
+async function abrirSenhaAssinatura(assinarDepois){
+  const temSenha = await _i3TenhoSenha(true);
+  const esc = escapeHtml;
+  let modal = document.getElementById('i3PtSenha'); if(modal) modal.remove();
+  modal = document.createElement('div'); modal.id = 'i3PtSenha'; modal.className = 'i3-ov';
+  modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
+  modal.innerHTML =
+    '<div class="i3-sheet" style="max-width:440px">' +
+      '<div class="i3-sheet-top">' +
+        '<div class="i3-sheet-ico">🔑</div>' +
+        '<div style="flex:1;min-width:0"><div class="i3-sheet-ttl">' + (temSenha ? 'Trocar senha de assinatura' : 'Criar sua senha de assinatura') + '</div>' +
+        '<div class="text-xs text-3">' + esc(_i3MeuEmail()) + '</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'i3PtSenha\').remove()" style="width:30px;height:30px">×</button>' +
+      '</div>' +
+      '<div class="i3-sheet-body">' +
+        '<p class="pauta-txt">' + (temSenha
+          ? 'Pra trocar, confirme a senha atual e escolha a nova.'
+          : 'Essa senha vale só pra assinar pauta. Ela não entra no sistema, não abre nada e ninguém consegue ver, nem os outros sócios.') + '</p>' +
+        '<input type="hidden" id="i3SnDepois" value="' + esc(assinarDepois||'') + '" />' +
+        (temSenha ? '<input id="i3SnAtual" type="password" class="login-input" style="background:var(--surface-2)" placeholder="Senha atual" autocomplete="off" />' : '') +
+        '<input id="i3SnNova" type="password" class="login-input" style="background:var(--surface-2)" placeholder="Nova senha (mínimo 6 caracteres)" autocomplete="off" />' +
+        '<input id="i3SnConf" type="password" class="login-input" style="background:var(--surface-2)" placeholder="Repita a nova senha" autocomplete="off" />' +
+        '<div id="i3SnMsg" class="pauta-msg" hidden></div>' +
+      '</div>' +
+      '<div class="i3-sheet-pe">' +
+        '<button class="btn" onclick="document.getElementById(\'i3PtSenha\').remove()">Cancelar</button>' +
+        '<button class="btn btn-primary" id="i3SnBtn" onclick="salvarSenhaAssinatura()">' + (temSenha ? 'Trocar senha' : 'Criar senha') + '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  const foco = document.getElementById(temSenha ? 'i3SnAtual' : 'i3SnNova');
+  if(foco) setTimeout(()=>foco.focus(), 60);
+}
+window.abrirSenhaAssinatura = abrirSenhaAssinatura;
+
+async function salvarSenhaAssinatura(){
+  if(!_supa){ toast('Banco não conectado','info'); return; }
+  const msg = document.getElementById('i3SnMsg');
+  const erro = (t) => { if(msg){ msg.textContent = t; msg.hidden = false; } };
+  const atualEl = document.getElementById('i3SnAtual');
+  const nova = document.getElementById('i3SnNova').value || '';
+  const conf = document.getElementById('i3SnConf').value || '';
+  if(nova.trim().length < 6){ erro('A senha precisa ter pelo menos 6 caracteres.'); return; }
+  if(nova !== conf){ erro('As duas senhas não são iguais.'); return; }
+  const btn = document.getElementById('i3SnBtn');
+  const rotulo = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
+  try {
+    const { data, error } = await _supa.rpc('i3_assinatura_definir', {
+      p_senha: nova, p_senha_atual: atualEl ? (atualEl.value||'') : null
+    });
+    if(error){ erro('Não consegui salvar agora. ' + (error.message||'')); if(btn){btn.disabled=false;btn.textContent=rotulo;} return; }
+    if(!data || !data.ok){
+      const e = data && data.erro;
+      erro(e === 'senha_atual' ? 'A senha atual não confere.'
+        : e === 'curta' ? 'A senha precisa ter pelo menos 6 caracteres.'
+        : e === 'permissao' ? 'Só a gestão assina as pautas da I3.'
+        : 'Não consegui salvar agora.');
+      if(btn){ btn.disabled = false; btn.textContent = rotulo; }
+      return;
+    }
+    _i3TenhoSenhaAss = true;
+    const depois = (document.getElementById('i3SnDepois').value||'').trim();
+    const mo = document.getElementById('i3PtSenha'); if(mo) mo.remove();
+    toast('✓ Senha de assinatura pronta','success');
+    if(depois) abrirAssinarPauta(depois);
+  } catch(e){
+    console.warn('[salvarSenhaAssinatura]', e);
+    erro('Não consegui salvar agora.');
+    if(btn){ btn.disabled = false; btn.textContent = rotulo; }
+  }
+}
+window.salvarSenhaAssinatura = salvarSenhaAssinatura;
+
 async function renderI3(c){
   try {
     if(!isGestor()){
@@ -28152,6 +28742,7 @@ async function renderI3(c){
     await loadI3Farois();
     await loadI3Combinados();
     await loadI3AtasAssinadas();
+    await loadI3Pautas();
 
     const reunioes = _i3Reunioes || [];
     const learning = _i3Learning || [];
@@ -28173,16 +28764,25 @@ async function renderI3(c){
         '</div>'
       : '';
 
+    const _aba = _i3AbaAtual();
     c.innerHTML = bannerSql +
       '<div class="page-head">' +
         '<div><div class="page-title">🏛 I3 — Combinados dos Sócios</div>' +
-        '<div class="page-sub">Atas mensais · Impulse Learning semanal · RH · Pontos de atenção</div></div>' +
-        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
-          '<button class="btn" onclick="limparEventosOrfaosI3()" title="Remove eventos do calendario que ficaram orfaos (de atas/learnings ja excluidas)" style="font-size:11.5px">🧹 Limpar órfãos</button>' +
-          '<button class="btn" onclick="openI3LearningModal()">+ Impulse Learning</button>' +
-          '<button class="btn btn-primary" onclick="openI3ReuniaoModal()">+ Nova reunião mensal</button>' +
+        '<div class="page-sub">' + (_aba === 'pautas'
+          ? 'A pauta de cada reunião, assinada eletronicamente por quem participou'
+          : 'Atas mensais · Impulse Learning semanal · RH · Pontos de atenção') + '</div></div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' + (_aba === 'pautas'
+          ? '<button class="btn" onclick="abrirSenhaAssinatura()" title="Cadastrar ou trocar sua senha de assinatura">🔑 Senha de assinatura</button>' +
+            '<button class="btn btn-primary" onclick="openI3PautaModal()">+ Nova pauta</button>'
+          : '<button class="btn" onclick="limparEventosOrfaosI3()" title="Remove eventos do calendario que ficaram orfaos (de atas/learnings ja excluidas)" style="font-size:11.5px">🧹 Limpar órfãos</button>' +
+            '<button class="btn" onclick="openI3LearningModal()">+ Impulse Learning</button>' +
+            '<button class="btn btn-primary" onclick="openI3ReuniaoModal()">+ Nova reunião mensal</button>') +
         '</div>' +
       '</div>' +
+
+      _i3TabsHTML(_aba) +
+
+      (_aba === 'pautas' ? renderI3PautasAba() : (
 
       // === PAINEL DA EQUIPE (roster dos sócios) ===
       renderI3EquipePainel() +
@@ -28278,7 +28878,7 @@ async function renderI3(c){
           })()) +
 
       // === ATAS ASSINADAS (arquivo + resumo) ===
-      renderI3AtasAssinadasBloco();
+      renderI3AtasAssinadasBloco()));
   } catch(e){
     console.error('[renderI3]', e);
     c.innerHTML = '<div class="card" style="border-left:3px solid var(--danger);padding:18px"><div style="color:var(--danger);font-weight:600">Erro ao renderizar I3</div><div class="text-xs text-3 mt-2">' + (e.message||e) + '</div></div>';
