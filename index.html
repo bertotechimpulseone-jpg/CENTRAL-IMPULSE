@@ -6978,12 +6978,14 @@ function getCaptacoesPrazoAlertas(){
 async function marcarCaptacaoEntregue(dbId){
   if(!(await confirmDelete('Marcar captacao como ENTREGUE Uma notificacao sera enviada pros admins.'))) return;
   const agora = new Date().toISOString();
+  // Entregue também fecha o status. Sem isso os dois campos vivem separados e a
+  // captação fica pra sempre como "agendada", poluindo contador e próximas captações.
   if(_supa){
-    const { error } = await _supa.from('captacoes').update({entregue: true, entregue_em: agora}).eq('id', dbId);
+    const { error } = await _supa.from('captacoes').update({entregue: true, entregue_em: agora, status: 'finalizada'}).eq('id', dbId);
     if(error){ toast('Erro: '+error.message,'info'); return; }
   }
   const cap = captacoes.find(c => c._dbId === dbId);
-  if(cap){ cap.entregue = true; cap.entregue_em = agora; }
+  if(cap){ cap.entregue = true; cap.entregue_em = agora; cap.status = 'finalizada'; }
 
   // Notificacao pros admins (Vini/Vinicius/Ederson) — cria lembretes pra cada
   try {
