@@ -7124,13 +7124,8 @@ function renderCaptacoesEntreguesCard(){
         entreguesHoje.slice(0,8).map(c => fmtLinha(c, true)).join('') +
       '</div></div>';
   }
-  if(minimizadas.length > 0){
-    html += '<details class="card" style="margin-bottom:14px;padding:12px 16px">' +
-      '<summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2);user-select:none;display:flex;align-items:center;gap:8px">✅ Entregas recentes (7 dias) <span class="badge b-default">' + minimizadas.length + '</span></summary>' +
-      '<div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">' +
-        minimizadas.slice(0,12).map(c => fmtLinha(c, false)).join('') +
-      '</div></details>';
-  }
+  // "Entregas recentes (7 dias)" saiu do dashboard: o histórico fica na aba Captação.
+  // Aqui só continua o que exige ação hoje.
   return html;
 }
 
@@ -7708,9 +7703,13 @@ function renderDashboard(c){
   // ===== Próximas reuniões (próximos 7 dias)
   const proxReunioes = (typeof meetings !== 'undefined' ? meetings : []).slice(0, 4);
 
-  // ===== Próximas captações
+  // ===== Próximas captações — só o que ainda vai acontecer, da mais próxima pra frente.
+  // Captação que já passou e ficou aberta não é "próxima": ela aparece nos alertas de prazo.
+  const _hojeCap = new Date().toLocaleDateString('sv-SE');
   const proxCaptacoes = (typeof captacoes !== 'undefined' ? captacoes : [])
     .filter(c => ['agendada','confirmada','em andamento'].includes((c.status||'').toLowerCase()))
+    .filter(c => c.date && String(c.date).slice(0,10) >= _hojeCap)
+    .sort((a,b) => String(a.date).localeCompare(String(b.date)) || String(a.time||'').localeCompare(String(b.time||'')))
     .slice(0, 4);
 
   // ===== Lembretes pendentes do usuário
