@@ -4221,6 +4221,13 @@ window.salvarDuvida=salvarDuvida; window.excluirDuvida=excluirDuvida;
 
 // ============ ATALHOS (clica → copia o link direto da aba) ============
 function renderAtalhos(c){
+  if(typeof isAdmin === 'function' && !isAdmin()){
+    c.innerHTML = '<div class="page active"><div class="page-header"><div><div class="page-title">🔗 Atalhos</div></div></div>' +
+      '<div class="card" style="text-align:center;padding:50px 20px"><div style="font-size:42px;margin-bottom:12px">🔒</div>' +
+      '<div style="font-size:15px;font-weight:600">Acesso restrito</div>' +
+      '<div class="text-sm text-mu" style="margin-top:6px">Essa área é só da administração.</div></div></div>';
+    return;
+  }
   const grupos = [
     {t:'📊 Gestão de clientes', items:[['dashboard','📊','Dashboard'],['clientes','👥','Clientes'],['relacionamento','💬','Relacionamento'],['fluxo','🧭','Fluxo & Responsáveis'],['relatorios','📄','Relatórios'],['duvidas','❓','Dúvidas'],['materiais','📦','Materiais']]},
     {t:'🎬 Produção & conteúdo', items:[['captacao','🎥','Captação'],['solicitacoes','📥','Solicitações'],['cronograma','🗓','Cronograma'],['calendario','📅','Calendário'],['operacional','✅','Checklist'],['trafego','📈','Tráfego Pago'],['texto','✨','Humanizar Texto'],['gerador','🤖','Gerador de Conteúdo']]},
@@ -5359,10 +5366,11 @@ if(typeof window!=='undefined'){
 
 function canAccess(pageId){
   if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;   // dono: todas as abas, sem exceção
-  // Desabafo (feedback anônimo), Dúvidas e Atalhos são universais: todos os autenticados acessam
+  // Desabafo (feedback anônimo) e Dúvidas são universais: todos os autenticados acessam
   if(pageId === 'desabafo') return true;
   if(pageId === 'duvidas') return true;
-  if(pageId === 'atalhos') return true;
+  // Atalhos: só a administração. Os links levam direto pra abas restritas.
+  if(pageId === 'atalhos') return (typeof isAdmin === 'function') ? isAdmin() : false;
   // Solicitações e Humanizar Texto respeitam a permissão por usuário (selecionáveis em Usuários)
   // Materiais: restrito a Vini, Haisa e Heidy (nem outros admins acessam)
   if(pageId === 'materiais') return (typeof _materiaisTemAcesso==='function') ? _materiaisTemAcesso() : false;
