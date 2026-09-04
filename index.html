@@ -5456,6 +5456,50 @@ function podeVerValores(){
 }
 
 // Retorna true se o usuario eh admin OU gestor/coordenador/gerente
+// ===== CARGOS DA IMPULSE =====
+// Cargo (position) é o que a pessoa FAZ. É diferente do papel de acesso (role),
+// que define o que ela VÊ no sistema. Lista fechada pra não nascer "Assitente"
+// e "Social Media Senior" digitados na mão, que é o que bagunçava o cronograma.
+const CARGOS_IMPULSE = [
+  'CEO',
+  'Head de Marketing',
+  'Coordenadora Executiva',
+  'Executivo Comercial',
+  'Gestor de Tráfego',
+  'Social Media',
+  'Social Media Senior',
+  'Designer',
+  'Designer Senior',
+  'Videomaker',
+  'Copy',
+  'Assistente',
+  'Estagiário'
+];
+// Monta o <select> de cargo. Se a pessoa tem um cargo antigo fora da lista,
+// ele entra como opção pra não sumir do cadastro sem ninguém perceber.
+function _cargoSelectHTML(valorAtual, onchangeJS, estilo){
+  const atual = (valorAtual||'').trim();
+  const lista = CARGOS_IMPULSE.slice();
+  if(atual && !lista.some(c => c.toLowerCase() === atual.toLowerCase())) lista.unshift(atual);
+  return '<select onchange="' + onchangeJS + '" style="' + (estilo||'') + '">' +
+    '<option value="">— sem cargo —</option>' +
+    lista.map(c => '<option value="' + escapeHtml(c) + '"' +
+      (c.toLowerCase() === atual.toLowerCase() ? ' selected' : '') + '>' + escapeHtml(c) + '</option>').join('') +
+  '</select>';
+}
+// Quem é gestor de tráfego, pelo cargo. Hoje só o André.
+function _gestoresDeTrafego(){
+  return (team||[]).filter(m => /gestor\s*de\s*tr[aá]fego/i.test(String(m.role || m.position || '')));
+}
+function _trafegoPadrao(){
+  const g = _gestoresDeTrafego();
+  return g.length ? (g[0].name||'').split(' ')[0] : 'André';
+}
+if(typeof window !== 'undefined'){
+  window.CARGOS_IMPULSE = CARGOS_IMPULSE; window._cargoSelectHTML = _cargoSelectHTML;
+  window._gestoresDeTrafego = _gestoresDeTrafego; window._trafegoPadrao = _trafegoPadrao;
+}
+
 function isGestor(){
   if(isAdmin()) return true;
   if(!_currentProfile) return false;
@@ -13501,7 +13545,7 @@ function renderEquipePerfil(){
       </div>
       <div style="flex:1">
         <input class="login-input" value="${m.name}" onblur="editProfileField(perfilId,'full_name',this.value)" style="background:transparent;border:none;font-size:22px;font-weight:700;letter-spacing:-.02em;padding:0;width:100%" />
-        <input class="login-input" value="${m.role}" onblur="editProfileField(perfilId,'position',this.value)" style="background:transparent;border:none;font-size:13px;color:var(--text-2);padding:0;width:100%;margin-top:3px" />
+        ${_cargoSelectHTML(m.role, "editProfileField(perfilId,'position',this.value)", 'background:transparent;border:none;font-size:13px;color:var(--text-2);padding:0;width:100%;margin-top:3px;font-family:inherit;cursor:pointer;outline:none')}
         <div class="profile-meta">
           <span>📅 ${months} meses na agência</span>
           <span>💼 ${m.tasks} tarefas ativas</span>
@@ -13538,7 +13582,7 @@ function renderEquipePerfil(){
             </div>
             <div class="info-item">
               <div class="info-label">Cargo</div>
-              <input class="login-input" value="${m.role||''}" onblur="editProfileField(perfilId,'position',this.value);m.role=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
+              ${_cargoSelectHTML(m.role, "editProfileField(perfilId,'position',this.value);team[perfilId].role=this.value", 'background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500;font-family:inherit;color:var(--text);cursor:pointer;outline:none')}
             </div>
             <div class="info-item">
               <div class="info-label">WhatsApp</div>
@@ -18699,7 +18743,9 @@ function renderCronograma(c){
                 const dlLabel = dl ? dl.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : 'sem data';
                 const dlSub = diff===null?'':diff===0?'HOJE':diff===1?'amanhã':diff<0?`atrasado ${Math.abs(diff)}d`:`em ${diff}d`;
                 const teamOpts = team.map(t=>`<option value="${t.name.split(' ')[0]}" ${d.designer===t.name.split(' ')[0]?'selected':''}>${t.name}</option>`).join('');
-                const teamOptsTraf = team.map(t=>`<option value="${t.name.split(' ')[0]}" ${d.trafficManager===t.name.split(' ')[0]?'selected':''}>${t.name}</option>`).join('');
+                // Tráfego é sempre o gestor de tráfego da casa. O check liga e já grava ele.
+                const trafPad = (typeof _trafegoPadrao==='function') ? _trafegoPadrao() : 'André';
+                const trafNome = d.trafficManager || trafPad;
                 return `
                   <tr data-cli="${cli.id}" id="cron-row-${cli.id}" data-status="${d.status||'planejado'}" class="cron-row-status">
                     <td><div class="cron-cli" style="position:relative">
@@ -18713,11 +18759,13 @@ function renderCronograma(c){
                         <button class="icon-btn" onclick="event.stopPropagation();puxarConteudosDoCalendario(${cli.id},${cronMonth})" title="Puxar do calendário editorial deste cliente" style="width:26px;height:26px;font-size:13px;color:var(--text-3);background:transparent;border:1px solid var(--border)">🗓</button>
                       </div>
                     </td>
-                    <td>
-                      <div style="display:flex;align-items:center;gap:5px">
-                        <input type="checkbox" ${d.hasTraffic?'checked':''} onchange="updateCronField(${cli.id},${cronMonth},'hasTraffic',this.checked);if(!this.checked){updateCronField(${cli.id},${cronMonth},'trafficManager','')}" title="Tem tráfego?" style="cursor:pointer" />
-                        ${d.hasTraffic?`<select onchange="updateCronField(${cli.id},${cronMonth},'trafficManager',this.value)" style="flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:11.5px;padding:4px 6px;color:var(--text);outline:none"><option value="">— ninguém —</option>${teamOptsTraf}</select>`:'<span class="text-3 text-xs">sem tráfego</span>'}
-                      </div>
+                    <td style="width:104px">
+                      <label style="display:flex;align-items:center;gap:6px;cursor:pointer" title="${d.hasTraffic?('Tráfego com '+trafNome):'Sem tráfego'} — clique pra mudar">
+                        <input type="checkbox" ${d.hasTraffic?'checked':''} onchange="updateCronField(${cli.id},${cronMonth},'hasTraffic',this.checked);updateCronField(${cli.id},${cronMonth},'trafficManager',this.checked?'${trafPad}':'')" style="cursor:pointer;flex-shrink:0" />
+                        ${d.hasTraffic
+                          ? `<span style="font-size:12px;font-weight:500;color:var(--text);white-space:nowrap">${escapeHtml(trafNome)}</span>`
+                          : '<span class="text-3" style="font-size:12px;white-space:nowrap">—</span>'}
+                      </label>
                     </td>
                     <td>
                       <select onchange="updateCronField(${cli.id},${cronMonth},'designer',this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:11.5px;padding:4px 6px;color:var(--text);outline:none;width:100%;max-width:160px">
