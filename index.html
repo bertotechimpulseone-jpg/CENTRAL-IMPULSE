@@ -14101,6 +14101,31 @@ function _cartQuando(iso){
   return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} às ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 function _cartMesAtual(){ const h=new Date(); return h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0'); }
+// Soma meses sem escorregar de mês: 31/01 + 1 mês vira 28/02, não 03/03.
+function _cartSomaMes(iso, n){
+  const m = String(iso||'').match(/^(\d{4})-(\d{2})-(\d{2})/); if(!m) return iso;
+  const alvo = new Date(Number(m[1]), Number(m[2]) - 1 + n, 1);
+  const ultimoDia = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  const p = x => String(x).padStart(2,'0');
+  return alvo.getFullYear() + '-' + p(alvo.getMonth()+1) + '-' + p(Math.min(Number(m[3]), ultimoDia));
+}
+// Reparte o total em N parcelas sem perder centavo: a sobra inteira vai na
+// primeira parcela, como fazem as maquininhas. Assim dá pra explicar em uma frase.
+function _cartParcelar(total, n){
+  n = Math.max(1, parseInt(n,10) || 1);
+  const cent = Math.round(Number(total||0) * 100);
+  const base = Math.floor(cent / n), resto = cent - base * n;
+  const out = []; for(let i=0;i<n;i++) out.push((base + (i === 0 ? resto : 0)) / 100);
+  return out;
+}
+function _cartEhParcelado(g){ return Number(g && g.parcelas) > 1; }
+function _cartTotalDaCompra(g){ return Number((g && (g.valor_total != null ? g.valor_total : g.valor)) || 0); }
+// Parcelas que ainda vão cair depois do mês que está na tela.
+function _cartFuturasDoCartao(cartaoId, mes){
+  return (window._cartGastos||[])
+    .filter(g => g.cartao_id === cartaoId && String(g.data_gasto||'').slice(0,7) > mes)
+    .reduce((soma,g) => soma + Number(g.valor||0), 0);
+}
 
 async function renderCartoesPane(){
   const box = document.getElementById('finGeral'); if(!box) return;
@@ -14130,9 +14155,13 @@ function _cartoesPintar(){
   const porCartao = {}; doMes.forEach(g=>{ porCartao[g.cartao_id] = (porCartao[g.cartao_id]||0) + Number(g.valor||0); });
   const [ano, mm] = mes.split('-');
   const nomeMes = (_CAL_MESES[Number(mm)-1] || '') + ' ' + ano;
+  const futuras = gastos.filter(g => String(g.data_gasto||'').slice(0,7) > mes);
+  const futurasTotal = futuras.reduce((soma,g) => soma + Number(g.valor||0), 0);
+  const futurasQtd = futuras.length;
 
   const cardsHTML = cartoes.length ? cartoes.map(ct=>{
     const tot = porCartao[ct.id] || 0;
+    const futuro = _cartFuturasDoCartao(ct.id, mes);
     return `<div class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px;min-height:150px;background:linear-gradient(140deg,var(--surface-2),var(--surface));border:1px solid var(--border-strong)">
       <div style="display:flex;align-items:flex-start;gap:10px">
         <div style="flex:1;min-width:0">
@@ -14150,6 +14179,7 @@ function _cartoesPintar(){
         <div style="text-align:right">
           <div class="text-xs text-3">${escapeHtml(nomeMes)}</div>
           <div style="font-family:'Sora',sans-serif;font-size:17px;font-weight:800;letter-spacing:-.02em">${_cartMoeda(tot)}</div>
+          ${futuro > 0 ? `<div class="text-xs text-3" style="margin-top:2px" title="Parcelas desse cartão que ainda vão cair nos próximos meses">+ ${_cartMoeda(futuro)} a vencer</div>` : ''}
         </div>
       </div>
       <button class="btn btn-sm" type="button" onclick="novoGastoCartao('${ct.id}')">+ Lançar gasto</button>
@@ -14160,9 +14190,9 @@ function _cartoesPintar(){
     const ct = cartoes.find(x=>x.id===g.cartao_id);
     return `<tr>
       <td style="white-space:nowrap"><b>${_cartDataBR(g.data_gasto)}</b></td>
-      <td>${escapeHtml(g.descricao||'')}${g.observacoes?`<div class="text-xs text-3" style="margin-top:2px">${escapeHtml(g.observacoes)}</div>`:''}</td>
+      <td>${escapeHtml(g.descricao||'')}${_cartEhParcelado(g)?` <span class="badge b-default" style="font-size:10.5px">${g.parcela_num}/${g.parcelas}</span>`:''}${g.observacoes?`<div class="text-xs text-3" style="margin-top:2px">${escapeHtml(g.observacoes)}</div>`:''}</td>
       <td style="white-space:nowrap">${ct?`•••• ${escapeHtml(ct.final||'????')}<div class="text-xs text-3">${escapeHtml(ct.responsavel||ct.apelido||'')}</div>`:'—'}</td>
-      <td style="text-align:right;white-space:nowrap"><b>${_cartMoeda(g.valor)}</b></td>
+      <td style="text-align:right;white-space:nowrap"><b>${_cartMoeda(g.valor)}</b>${_cartEhParcelado(g)?`<div class="text-xs text-3" title="Só a parcela entra no mês. O valor cheio da compra fica no registro.">parcela ${g.parcela_num} de ${g.parcelas} · compra de ${_cartMoeda(_cartTotalDaCompra(g))}</div>`:''}</td>
       <td class="text-xs text-3" style="white-space:nowrap" title="Registro de quando este gasto foi lançado no sistema">${_cartQuando(g.created_at)}${g.created_by_email?`<div>${escapeHtml(String(g.created_by_email).split('@')[0])}</div>`:''}</td>
       <td style="text-align:right"><button class="icon-btn" type="button" title="Excluir lançamento" onclick="excluirGastoCartao('${g.id}')" style="color:var(--danger)">✕</button></td>
     </tr>`;
@@ -14173,6 +14203,7 @@ function _cartoesPintar(){
       ${statCard('Gasto em '+nomeMes, _cartMoeda(totalMes), doMes.length+' lançamento(s)','M22 12h-4l-3 9L9 3l-3 9H2')}
       ${statCard('Cartões ativos', cartoes.length, 'cadastrados','M2 7h20M2 11h20')}
       ${statCard('Maior gasto do mês', doMes.length?_cartMoeda(Math.max(...doMes.map(g=>Number(g.valor||0)))):'R$ 0,00','no período','M3 3v18h18')}
+      ${statCard('Parcelas a vencer', _cartMoeda(futurasTotal), futurasQtd+' parcela(s) depois de '+nomeMes,'M12 8v4l3 3')}
     </div>
     <div class="card-header" style="margin:6px 0 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
       <div class="card-title" style="flex:1;min-width:140px">💳 Cartões</div>
@@ -14264,12 +14295,18 @@ function novoGastoCartao(cartaoId){
         </select></div>
       <div><label class="text-xs text-3">Descrição do gasto *</label>
         <input id="cgDesc" class="login-input" placeholder="Ex.: Assinatura Canva Pro" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
-      <div style="display:flex;gap:11px">
-        <div style="flex:1"><label class="text-xs text-3">Valor (R$) *</label>
-          <input id="cgValor" class="login-input" type="number" step="0.01" min="0" placeholder="0,00" style="background:var(--surface-2);width:100%;margin-top:5px;font-weight:700" /></div>
-        <div style="flex:1"><label class="text-xs text-3">Quando foi gasto *</label>
-          <input id="cgData" class="login-input" type="date" value="${hoje}" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
+      <div style="display:flex;gap:11px;flex-wrap:wrap">
+        <div style="flex:1 1 130px"><label class="text-xs text-3">Valor total da compra (R$) *</label>
+          <input id="cgValor" class="login-input" type="number" step="0.01" min="0" placeholder="0,00" oninput="_cartPreviaParcelas()" style="background:var(--surface-2);width:100%;margin-top:5px;font-weight:700" /></div>
+        <div style="flex:1 1 130px"><label class="text-xs text-3">Quando foi gasto *</label>
+          <input id="cgData" class="login-input" type="date" value="${hoje}" onchange="_cartPreviaParcelas()" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
       </div>
+      <div><label class="text-xs text-3">Parcelamento</label>
+        <select id="cgParcelas" onchange="_cartPreviaParcelas()" style="width:100%;margin-top:5px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;color:var(--text);font-family:inherit">
+          <option value="1">À vista (uma vez só)</option>
+          ${Array.from({length:23},(_,i)=>i+2).map(n=>`<option value="${n}">${n}x</option>`).join('')}
+        </select>
+        <div id="cgPrevia" class="text-xs text-3" style="margin-top:7px;line-height:1.55"></div></div>
       <div><label class="text-xs text-3">Observação (opcional)</label>
         <input id="cgObs" class="login-input" placeholder="Alguma anotação sobre este gasto" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
     </div>
@@ -14282,6 +14319,23 @@ function novoGastoCartao(cartaoId){
   setTimeout(()=>document.getElementById('cgDesc')?.focus(), 60);
 }
 
+// Mostra, antes de salvar, o que vai cair em cada mês.
+function _cartPreviaParcelas(){
+  const box = document.getElementById('cgPrevia'); if(!box) return;
+  const valor = parseFloat((document.getElementById('cgValor')||{}).value);
+  const n = parseInt((document.getElementById('cgParcelas')||{}).value, 10) || 1;
+  const data = (document.getElementById('cgData')||{}).value;
+  if(!(valor > 0) || !data){ box.textContent = n > 1 ? 'Preencha o valor total e a data pra ver as parcelas.' : ''; return; }
+  if(n === 1){ box.innerHTML = `Entra inteiro em <b>${_cartDataBR(data)}</b>.`; return; }
+  const vs = _cartParcelar(valor, n);
+  const iguais = vs[0] === vs[vs.length-1];
+  const quanto = iguais
+    ? `${n}x de <b>${_cartMoeda(vs[0])}</b>`
+    : `${n}x: a 1ª de <b>${_cartMoeda(vs[0])}</b> e as demais de <b>${_cartMoeda(vs[vs.length-1])}</b>`;
+  box.innerHTML = `${quanto} · da fatura de <b>${_cartDataBR(data)}</b> até <b>${_cartDataBR(_cartSomaMes(data, n-1))}</b>.<br>` +
+    `Cada mês recebe só a parcela. O registro guarda a compra de <b>${_cartMoeda(valor)}</b>.`;
+}
+
 async function salvarGastoCartao(){
   const cartao_id = document.getElementById('cgCartao').value;
   const descricao = (document.getElementById('cgDesc').value||'').trim();
@@ -14291,16 +14345,24 @@ async function salvarGastoCartao(){
   if(!descricao){ toast('Escreva a descrição do gasto.','info'); return; }
   if(!(valor > 0)){ toast('Informe um valor maior que zero.','info'); return; }
   if(!data_gasto){ toast('Informe quando o gasto aconteceu.','info'); return; }
-  const payload = {
-    cartao_id, descricao, valor, data_gasto,
-    observacoes: (document.getElementById('cgObs').value||'').trim() || null,
-    created_by_email: (_currentUser && _currentUser.email) || null   // created_at = agora (registro do lançamento)
-  };
+  const parcelas = Math.max(1, Math.min(24, parseInt(document.getElementById('cgParcelas').value, 10) || 1));
+  const observacoes = (document.getElementById('cgObs').value||'').trim() || null;
+  const quem = (_currentUser && _currentUser.email) || null;   // created_at = agora (registro do lançamento)
+  // Parcelado vira uma linha por mês: o mês fica com a parcela, o registro com a compra inteira.
+  const compra_id = parcelas > 1 ? ((crypto && crypto.randomUUID) ? crypto.randomUUID() : null) : null;
+  const payload = _cartParcelar(valor, parcelas).map((v, i) => ({
+    cartao_id, descricao, valor: v, valor_total: valor,
+    parcelas, parcela_num: i + 1, compra_id,
+    data_gasto: _cartSomaMes(data_gasto, i),
+    observacoes, created_by_email: quem
+  }));
   const r = await gravarSeguro({ tabela:'cartao_gastos', tipo:'insert', payload, descricao:'gasto no cartão' });
   if(!r.ok) return;
   document.getElementById('novoGastoModal')?.remove();
   window._cartMes = String(data_gasto).slice(0,7);   // pula pro mês do gasto pra ele aparecer na hora
-  toast('✓ Gasto lançado','success');
+  toast(parcelas > 1
+    ? `✓ Compra de ${_cartMoeda(valor)} lançada em ${parcelas}x de ${_cartMoeda(payload[payload.length-1].valor)}`
+    : '✓ Gasto lançado', 'success');
   renderCartoesPane();
 }
 
@@ -14313,6 +14375,21 @@ async function excluirCartao(id){
 }
 
 async function excluirGastoCartao(id){
+  const g = (window._cartGastos||[]).find(x => x.id === id);
+  if(g && g.compra_id && _cartEhParcelado(g)){
+    const ok = confirm(`Este lançamento é a parcela ${g.parcela_num} de ${g.parcelas} da compra "${g.descricao||''}" (${_cartMoeda(_cartTotalDaCompra(g))}).\n\nExcluir apaga a compra inteira, com todas as ${g.parcelas} parcelas. Continuar?`);
+    if(!ok) return;
+    try {
+      const { error } = await _supa.from('cartao_gastos').delete().eq('compra_id', g.compra_id);
+      if(error) throw error;
+    } catch(e){ mostrarManutencao(e && e.message); return; }
+    toast('Compra parcelada excluída.','success');
+    renderCartoesPane();
+    return;
+  }
+  return _excluirGastoSimples(id);
+}
+async function _excluirGastoSimples(id){
   if(!confirm('Excluir este lançamento?')) return;
   const r = await gravarSeguro({ tabela:'cartao_gastos', tipo:'delete', id, descricao:'excluir gasto do cartão' });
   if(r.ok){ toast('Lançamento excluído.','success'); renderCartoesPane(); }
@@ -14322,6 +14399,7 @@ if(typeof window!=='undefined'){
   window.renderCartoesPane=renderCartoesPane; window._cartoesPintar=_cartoesPintar; window._cartTrocarMes=_cartTrocarMes;
   window.novoCartaoModal=novoCartaoModal; window.salvarCartao=salvarCartao;
   window.novoGastoCartao=novoGastoCartao; window.salvarGastoCartao=salvarGastoCartao;
+  window._cartPreviaParcelas=_cartPreviaParcelas; window._cartParcelar=_cartParcelar; window._cartSomaMes=_cartSomaMes;
   window.excluirCartao=excluirCartao; window.excluirGastoCartao=excluirGastoCartao;
 }
 
