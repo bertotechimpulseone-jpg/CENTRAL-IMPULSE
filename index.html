@@ -5421,42 +5421,40 @@ function ehEstagiario(){
 }
 window.ehEstagiario = ehEstagiario;
 
-function isAdmin(){
-  if(!_currentUser) return false;
-  if(typeof isVini==='function' && isVini()) return true;   // dono: acesso total, sempre
-  const email = (_currentUser.email||'').toLowerCase();
-  // Lista hardcoded de admins (mesmo acesso que Vini/Ederson)
-  const ADMIN_EMAILS = ['vini@impulseone.com.br','vinicius@impulseone.com.br','edersonoliveira.eder@gmail.com'];
-  if(ADMIN_EMAILS.includes(email)) return true;
-  if(email.includes('vini@')) return true;
-  // Admins por primeiro nome (caso emails sejam diferentes)
-  const nome = (_currentProfile && _currentProfile.name ? _currentProfile.name : email.split('@')[0]).toLowerCase();
-  const primeiro = nome.split(/\s+/)[0];
-  const ADMIN_NOMES = ['vini','vinicius','ederson','heidy','heidi','haisa','haísa'];
-  if(ADMIN_NOMES.includes(primeiro)) return true;
-  return _currentProfile && _currentProfile.role === 'admin';
+// ===== QUEM É DA ADMINISTRAÇÃO =====
+// REGRA DE SEGURANÇA: acesso NUNCA por primeiro nome.
+// A regra antiga liberava acesso total pra quem se chamasse Ederson, Vinícius,
+// Heidy ou Haisa. Um colaborador chamado Ederson entrou com acesso de dono.
+// Agora só vale: e-mail exato da lista OU role = 'admin' no banco. Quem precisa
+// de acesso, ganha o papel no cadastro — não o nome certo na certidão.
+const ADMIN_EMAILS_IMPULSE = [
+  'vini@impulseone.com.br',
+  'vinicius@impulseone.com.br',
+  'edersonoliveira.eder@gmail.com'   // conta do proprietário
+];
+function _meuEmailApp(){
+  return (((typeof _currentUser !== 'undefined' && _currentUser) ? _currentUser.email : '') || '').toLowerCase().trim();
+}
+// O dono. Só por e-mail, nunca por nome.
+function _ehDono(){ return ADMIN_EMAILS_IMPULSE.indexOf(_meuEmailApp()) !== -1; }
+// Administração = dono ou quem tem role 'admin' no cadastro.
+function _ehDaAdministracao(){
+  if(typeof _currentUser === 'undefined' || !_currentUser) return false;
+  if(_ehDono()) return true;
+  const papel = String((typeof _currentProfile !== 'undefined' && _currentProfile ? _currentProfile.role : '') || '').toLowerCase().trim();
+  return papel === 'admin';
+}
+if(typeof window !== 'undefined'){
+  window.ADMIN_EMAILS_IMPULSE = ADMIN_EMAILS_IMPULSE;
+  window._ehDono = _ehDono; window._ehDaAdministracao = _ehDaAdministracao;
 }
 
-// Whitelist HARDCODED para ver valores financeiros (planos, MRR, pagamentos)
-// Independente do role no banco - apenas emails listados podem ver
+function isAdmin(){ return _ehDaAdministracao(); }
+
+// Ver valores financeiros (planos, MRR, pagamentos): mesma regra da administração.
+// Sem atalho por primeiro nome.
 function podeVerValores(){
-  if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;   // dono
-  if(!_currentUser || !_currentUser.email) return false;
-  const email = (_currentUser.email||'').toLowerCase().trim();
-  const whitelist = [
-    'vini@impulseone.com.br',
-    'vinicius@impulseone.com.br',
-    'edersonoliveira.eder@gmail.com'  // proprietario
-  ];
-  if(whitelist.includes(email)) return true;
-  if(email.includes('vini@')) return true;
-  // Tambem permite Heidy/Haisa por nome (acesso financeiro total)
-  const nome = (_currentProfile && _currentProfile.name ? _currentProfile.name : email.split('@')[0]).toLowerCase();
-  const primeiro = nome.split(/\s+/)[0];
-  const NOMES_VALORES = ['vini','vinicius','ederson','heidy','heidi','haisa','haísa'];
-  if(NOMES_VALORES.includes(primeiro)) return true;
-  console.log('[podeVerValores] BLOQUEADO para email:', email);
-  return false;
+  return _ehDaAdministracao();
 }
 
 // Retorna true se o usuario eh admin OU gestor/coordenador/gerente
@@ -5530,20 +5528,10 @@ function podeVerCredenciais(){
 if(typeof window!=='undefined'){ window.podeVerCredenciais = podeVerCredenciais; }
 
 // Acesso exclusivo do Vinicius (aba Gerador de Conteudo)
+// O dono. Por e-mail, nunca por nome: um colaborador chamado Vinícius
+// não pode virar dono do sistema por causa do primeiro nome.
 function isVini(){
-  try {
-    const _sac = s => (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
-    const email = _sac((_currentUser && _currentUser.email) || '');
-    if(email.includes('vini')) return true;
-    // Olha TODOS os campos de nome que o perfil pode ter (a coluna do banco é full_name, não name)
-    const p = (typeof _currentProfile !== 'undefined' && _currentProfile) || {};
-    const cands = [p.full_name, p.name, p.nome, (typeof getMeuNome==='function' ? getMeuNome() : ''), email.split('@')[0]];
-    for(const c of cands){
-      const primeiro = _sac(c).split(/\s+/)[0];
-      if(['vini','vinicius'].includes(primeiro)) return true;   // sem acento: pega "Vinícius" também
-    }
-    return false;
-  } catch(e){ return false; }
+  try { return _ehDono(); } catch(e){ return false; }
 }
 window.isVini = isVini;
 // Vinícius (dono) enxerga e faz TUDO — atalho usado por todas as travas de permissão.
@@ -14679,14 +14667,12 @@ function capPeriodoLabel(cap, today){
 // Quem pode VER TODAS as captacoes e tambem EDITAR (alem de gestores)
 function podeGerenciarCaptacoes(){
   try {
-    const _norm = s => (s||'').toString().normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
-    const PRIMEIROS_NOMES = ['gabi','gabriela','elen','ellen','julia','angelo','graci','graciele','gracieli','graciela'];  // adicione aqui outros nomes (sem acento)
-    const EMAILS = ['gabi@impulseone.com.br','gabriela@impulseone.com.br','elen@impulseone.com.br','ellen@impulseone.com.br','julia@impulseone.com.br','angelo@impulseone.com.br','graci@impulseone.com.br','graciele@impulseone.com.br'];  // adicione aqui outros emails
+    // Só por E-MAIL. Liberar por primeiro nome deixava qualquer pessoa com o
+    // mesmo nome herdar o acesso — adicione o e-mail aqui pra liberar alguém.
+    const EMAILS = ['gabi@impulseone.com.br','gabriela@impulseone.com.br','elen@impulseone.com.br','ellen@impulseone.com.br','julia@impulseone.com.br','angelo@impulseone.com.br','graci@impulseone.com.br','graciele@impulseone.com.br'];
     if(typeof isGestor === 'function' && isGestor()) return true;
-    const meuNome = (typeof getMeuNome === 'function' ? (getMeuNome()||'') : '').trim();
-    const meuPrimeiro = _norm(meuNome.split(/\s+/)[0]);
-    const meuEmail = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email || '').toLowerCase();
-    return PRIMEIROS_NOMES.includes(meuPrimeiro) || EMAILS.includes(meuEmail);
+    const meuEmail = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email || '').toLowerCase().trim();
+    return EMAILS.indexOf(meuEmail) !== -1;
   } catch(e){ return false; }
 }
 
@@ -27312,17 +27298,10 @@ let _almocoFiltroMes = '';
 // Whitelist de quem tem acesso a aba Almoço (alem de admins)
 function _almocoTemAcesso(){
   if(typeof isAdmin === 'function' && isAdmin()) return true;
-  const meu = (typeof getMeuNome === 'function' ? getMeuNome() : '');
-  if(!meu) return false;
-  const primeiro = meu.trim().split(/\s+/)[0].toLowerCase();
-  // Apelidos aceitos
-  const grupos = [
-    ['vini','vinicius','vinícius'],
-    ['heidi','heidy','heydi','heydy'],
-    ['haisa','haysa','haísa'],
-    ['fran','francielle','francielli','franciele']
-  ];
-  return grupos.some(g => g.includes(primeiro));
+  // Só por E-MAIL. Antes bastava se chamar Fran, Heidy ou Vini pra entrar aqui.
+  const EMAILS = ['vini@impulseone.com.br','heidy@impulseone.com.br','haisa@impulseone.com.br','fran@impulseone.com.br'];
+  const meuEmail = (typeof _currentUser !== 'undefined' && _currentUser && _currentUser.email || '').toLowerCase().trim();
+  return EMAILS.indexOf(meuEmail) !== -1;
 }
 
 async function loadAlmocos(){
@@ -29615,8 +29594,7 @@ async function renderPagamentos(c){
     const _pagScrollAntes = (c && typeof c.scrollTop === 'number') ? c.scrollTop : 0;
 
     // === WHITELIST FINANCEIRA: SO ESSES VEEM PAGAMENTOS DE TODOS ===
-    const ADMIN_FINANCEIRO_EMAILS = ['vini@impulseone.com.br','vinicius@impulseone.com.br','edersonoliveira.eder@gmail.com'];
-    const ADMIN_FINANCEIRO_NOMES = ['vini','vinicius','ederson','heidy','heidi','haisa','haísa'];
+    // quem vê os pagamentos de todo mundo: administração, pela mesma regra do resto
 
     // Resolve quem eu sou (3 fallbacks pra garantir meuDbId)
     let meuDbId = null, meuNomePrimeiro = '', meuEmail = '';
@@ -29698,7 +29676,7 @@ async function renderPagamentos(c){
     }
 
     // ehGestor financeiro: vê tudo
-    const ehGestor = ADMIN_FINANCEIRO_EMAILS.includes(meuEmail) || ADMIN_FINANCEIRO_NOMES.some(n => meuNomePrimeiro === n);
+    const ehGestor = _ehDaAdministracao();
     const _pctComissaoPadrao = ehGestor ? await _comissaoPercent() : null;
     // QUALQUER colaborador autenticado pode adicionar pagamento pra si proprio
     const podeAdicionarProprio = !ehGestor && !!_currentUser;
@@ -30255,13 +30233,7 @@ function verClientesPagamento(pagId){
 
   // Permissao: admin financeiro pode editar
   const ehAdminFin = (function(){
-    try {
-      const email = (_currentUser && _currentUser.email || '').toLowerCase();
-      const ADMIN_EMAILS = ['vini@impulseone.com.br','vinicius@impulseone.com.br','edersonoliveira.eder@gmail.com'];
-      if(ADMIN_EMAILS.includes(email)) return true;
-      const nome = (_currentProfile && _currentProfile.name ? _currentProfile.name : email.split('@')[0]).toLowerCase().split(' ')[0];
-      return ['vini','vinicius','ederson','heidy','heidi','haisa','haísa'].includes(nome);
-    } catch(e){ return false; }
+    try { return _ehDaAdministracao(); } catch(e){ return false; }
   })();
 
   const getValor = (cliId) => {
