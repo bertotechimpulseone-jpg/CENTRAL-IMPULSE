@@ -8309,12 +8309,14 @@ function _planosDoCliente(cli){
 if(typeof window !== 'undefined'){
   window._planosParse = _planosParse; window._planosDoCliente = _planosDoCliente;
 }
-// Um plano é "válido" se contém Pulse ou Impulse (cobre 'Plano Pulse', 'Combo Pulse',
-// 'Impulse + captação' etc.). 'Essencial/Crescimento/Premium/Enterprise/MIV/vazio' NÃO valem.
-function _planoValido(nome){
-  const s = (nome||'').toString().trim().toLowerCase();
-  if(!s) return false;
-  return /pulse|impulse/.test(s);
+// Um plano é "válido" quando ele EXISTE. A regra antiga exigia 'pulse' ou 'impulse'
+// no nome, e por isso quem contratou fora do catálogo (Captação + Edição de vídeos,
+// Tráfego Pago, MIV) ficava eternamente na lista de pendências mesmo com o plano
+// preenchido à mão no campo "Outro plano". Pendência é campo vazio, não plano
+// diferente. Aceita tanto a lista nova quanto o texto antigo.
+function _planoValido(nome, cli){
+  if(cli && Array.isArray(cli.plan_list) && cli.plan_list.some(p => String(p||'').trim())) return true;
+  return !!(nome||'').toString().trim();
 }
 function renderClientesPendencias(c){
   // Carrega presença de contratos em background (1ª vez)
@@ -8339,7 +8341,7 @@ function renderClientesPendencias(c){
     // Franciele cuida só do NOME e da DESCRIÇÃO do plano.
     // "Descrição do plano" = serviços contratados (o que o plano inclui).
     const plano = [];
-    if(!_planoValido(cli.planName)) plano.push('Nome do plano');
+    if(!_planoValido(cli.planName, cli)) plano.push('Nome do plano');
     const temServicos = (Array.isArray(cli.services_list)&&cli.services_list.length>0) || (Array.isArray(cli.services)&&cli.services.length>0);
     if(!temServicos) plano.push('Descrição do plano (serviços)');
     return {cli, contato, contrato, plano};
@@ -10493,7 +10495,7 @@ function paneFinanceiro(cli){
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
           <div style="flex:1;min-width:220px">
             <div class="text-xs text-3" style="text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Plano atual <span style="color:var(--danger)">*</span></div>
-            <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;color:${_planoValido(planName)?'var(--text)':'var(--danger)'};padding:2px 0">${planName?escapeHtml(planName):'— sem plano definido —'}</div>
+            <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;color:${_planoValido(planName, cli)?'var(--text)':'var(--danger)'};padding:2px 0">${planName?escapeHtml(planName):'— sem plano definido —'}</div>
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;align-items:center">
               ${(()=>{
                 const lista = _planosDoCliente(cli);
