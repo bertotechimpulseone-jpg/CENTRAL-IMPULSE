@@ -15796,6 +15796,12 @@ async function comKanbanDrop(ev, novaEtapa, col){
   }
   const rotulos = {lead:'Lead',contato:'Contato inicial',diagnostico:'Diagnóstico',proposta:'Proposta enviada',fechamento:'Fechamento',fechado:'Fechado'};
   toast('✓ '+(lead.name||'Lead')+' → '+(rotulos[novaEtapa]||novaEtapa),'success');
+  // Venda fechada é venda fechada: arrastar o card pra "Fechado" já lança a comissão.
+  // Antes só o check "aprovado" dentro do card fazia isso, e por isso venda fechada
+  // no arrasto (Acqualux, Eucassel) ficava de fora do pagamento da executiva.
+  if(_fechouAVenda(novaEtapa) && !_fechouAVenda(etapaAnterior)){
+    try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead drop]', e); }
+  }
 }
 window.comKanbanDrag = comKanbanDrag;
 window.comKanbanDragEnd = comKanbanDragEnd;
@@ -15910,7 +15916,12 @@ async function salvarLeadDetalhe(leadId){
       } else { toast('Erro: '+error.message,'info'); return; }
     }
   }
+  const _etapaAntes = lead.stage;
   Object.assign(lead, patch);
+  // Mudou a etapa pra "Fechado" aqui dentro: mesma regra do arrasto.
+  if(_fechouAVenda(patch.stage) && !_fechouAVenda(_etapaAntes)){
+    try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead etapa]', e); }
+  }
   // Orçamento acabou de virar APROVADO → gera a comissão da executiva comercial em Pagamentos
   if(patch.aprovado === true && !_aprovadoAntes){
     try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead]', e); }
@@ -30638,12 +30649,24 @@ async function revisarComissaoDesaprovada(b){
   } catch(e){ console.warn('[revisarComissaoDesaprovada]', e); }
 }
 
+// A etapa que significa "vendeu". Vale pros funis que usam outro nome.
+function _fechouAVenda(etapa){
+  const e = String(etapa||'').toLowerCase();
+  return e === 'fechado' || e === 'ganho' || e === 'fechamento_ok';
+}
+if(typeof window !== 'undefined') window._fechouAVenda = _fechouAVenda;
+
 async function gerarComissaoDoLead(lead){
   try {
     if(!_supa || !lead || !lead.id) return;
-    // dedup: se esse orçamento já gerou comissão, não duplica
+    // dedup: esse card já gerou comissão?
     const { data: jaTem } = await _supa.from('colaborador_pagamentos').select('id').like('observacoes', '%"lead_id":"' + String(lead.id) + '"%').limit(1);
     if(jaTem && jaTem.length) return;
+    // dedup 2: o orçamento que virou esse card já pagou? é a MESMA venda.
+    if(lead.origem_orcamento_id){
+      const { data: pelaOrigem } = await _supa.from('colaborador_pagamentos').select('id').like('observacoes', '%"orcamento_id":"' + String(lead.origem_orcamento_id) + '"%').limit(1);
+      if(pelaOrigem && pelaOrigem.length) return;
+    }
     const fechado = parseFloat(lead.value) || 0;
     const percent = await _comissaoPercent();
     const valor = Math.round(fechado * percent) / 100;
