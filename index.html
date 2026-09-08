@@ -5321,11 +5321,13 @@ async function loadCurrentProfile(){
       _currentProfile = data;
     } else {
       // Cria profile basico se nao existe
+      // Perfil criado sozinho no primeiro login: nasce SEM acesso a nada.
+      // Quem libera é a administração, na aba Usuários.
       const { data: created } = await _supa.from('profiles').insert({
         full_name: _currentUser.email.split('@')[0],
         email: _currentUser.email,
         role: 'colaborador',
-        permissions: ['dashboard','clientes','cronograma']
+        permissions: []
       }).select().single();
       _currentProfile = created;
     }
@@ -5385,10 +5387,11 @@ function canAccess(pageId){
   if(pageId === 'gerador') return (typeof isVini === 'function') && isVini();
   // Controle de Calendários: exclusivo do Vinícius
   if(pageId === 'controlecal') return (typeof isVini === 'function') && isVini();
-  if(!_currentProfile) return true;
-  // FORCE admin para emails admin conhecidos
-  if(_currentUser && _currentUser.email && (_currentUser.email === 'vini@impulseone.com.br' || _currentUser.email.toLowerCase().includes('vini@'))) return true;
-  if(_currentProfile.role === 'admin') return true;
+  // Sem cadastro carregado, NADA é liberado. Antes isso devolvia true e abria o
+  // sistema inteiro enquanto o perfil não carregava (ou se falhasse ao carregar).
+  if(!_currentProfile) return false;
+  // Daqui pra baixo só vale o que foi liberado na aba Usuários. Papel no cadastro
+  // não abre porta sozinho: acesso é o que está marcado, pessoa por pessoa.
   return (_currentProfile.permissions || []).includes(pageId);
 }
 
@@ -5427,22 +5430,26 @@ window.ehEstagiario = ehEstagiario;
 // Heidy ou Haisa. Um colaborador chamado Ederson entrou com acesso de dono.
 // Agora só vale: e-mail exato da lista OU role = 'admin' no banco. Quem precisa
 // de acesso, ganha o papel no cadastro — não o nome certo na certidão.
+// Os TRÊS donos da Impulse. Só eles têm acesso total ao sistema.
+// Qualquer outra pessoa, inclusive quem tiver papel administrativo, enxerga
+// apenas as áreas liberadas no cadastro dela (aba Usuários).
 const ADMIN_EMAILS_IMPULSE = [
   'vini@impulseone.com.br',
   'vinicius@impulseone.com.br',
-  'edersonoliveira.eder@gmail.com'   // conta do proprietário
+  'haisa@impulseone.com.br',
+  'heidy@impulseone.com.br',
+  'edersonoliveira.eder@gmail.com'   // conta técnica do proprietário do sistema
 ];
 function _meuEmailApp(){
   return (((typeof _currentUser !== 'undefined' && _currentUser) ? _currentUser.email : '') || '').toLowerCase().trim();
 }
 // O dono. Só por e-mail, nunca por nome.
 function _ehDono(){ return ADMIN_EMAILS_IMPULSE.indexOf(_meuEmailApp()) !== -1; }
-// Administração = dono ou quem tem role 'admin' no cadastro.
+// Administração = os donos. Papel no cadastro NÃO abre acesso total:
+// senão bastava marcar alguém como admin pra dar o sistema inteiro.
 function _ehDaAdministracao(){
   if(typeof _currentUser === 'undefined' || !_currentUser) return false;
-  if(_ehDono()) return true;
-  const papel = String((typeof _currentProfile !== 'undefined' && _currentProfile ? _currentProfile.role : '') || '').toLowerCase().trim();
-  return papel === 'admin';
+  return _ehDono();
 }
 if(typeof window !== 'undefined'){
   window.ADMIN_EMAILS_IMPULSE = ADMIN_EMAILS_IMPULSE;
@@ -6737,12 +6744,22 @@ function renderPage(page){
   // Verifica permissão — se o usuário não tem acesso, redireciona pra primeira aba acessível
   if(_currentProfile && !isAdmin() && !canAccess(page)){
     const fallback = (typeof getFirstAccessiblePage === 'function') ? getFirstAccessiblePage() : 'dashboard';
-    if(fallback !== page){
+    if(fallback !== page && canAccess(fallback)){
       console.log('[renderPage] sem acesso a', page, '— redirecionando para', fallback);
       currentPage = fallback;
       // Atualiza marcação visual do menu
       document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === fallback));
       page = fallback;
+    } else {
+      // Nada liberado pra essa pessoa: mostra a tela de acesso em vez de cair
+      // no dashboard por descuido do fallback.
+      c.innerHTML = '<div class="page active"><div class="page-head"><div class="page-title">🔒 Acesso não liberado</div></div>' +
+        '<div class="card" style="text-align:center;padding:56px 24px;max-width:560px">' +
+          '<div style="font-size:42px;margin-bottom:14px">🔒</div>' +
+          '<div style="font-size:16px;font-weight:600">Você ainda não tem acesso a esta área</div>' +
+          '<div class="text-sm text-mu" style="margin-top:8px;line-height:1.6">Cada pessoa enxerga só o que foi liberado no cadastro dela. Fale com a administração pra liberar o que você precisa.</div>' +
+        '</div></div>';
+      return;
     }
   }
   const r = {
@@ -12652,7 +12669,7 @@ async function ensureProfileInDB(member){
       vacation_used: parseInt(member.vacationUsed)||0,
       productivity: parseInt(member.prod)||85,
       enabled: true,
-      permissions: ['dashboard','clientes','cronograma','operacional','calendario']
+      permissions: []            // nasce sem acesso: liberar na aba Usuários
     }).select().single();
     if(error){ console.error('[ENSURE] erro criar:', error); return null; }
     member._dbId = created.id;
@@ -13186,7 +13203,7 @@ async function salvarNovoColaborador(){
       vacation_used: 0,
       role: 'colaborador',
       enabled: true,
-      permissions: ['dashboard','clientes','cronograma','operacional','calendario']
+      permissions: []            // nasce sem acesso: liberar na aba Usuários
     };
     const { data: created, error: insErr } = await _supa.from('profiles').insert(payload).select().single();
     if(insErr) throw insErr;
@@ -23501,16 +23518,17 @@ function openNovoUsuarioModal(){
         <div><div class="info-label" style="margin-bottom:5px">Email * <span class="text-xs text-3" style="cursor:pointer;text-decoration:underline" onclick="document.getElementById('nuEmail').value=document.getElementById('nuName').value.split(' ')[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'')+'@impulseone.com.br'">📧 gerar do nome</span></div><input id="nuEmail" class="login-input" type="email" placeholder="maria@impulseone.com.br" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Senha temporária *</div><input id="nuPwd" class="login-input" type="text" placeholder="Mínimo 6 caracteres" value="impulse2026" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Cargo</div>
-          <select id="nuRole" class="login-input" style="background:var(--surface-2)" onchange="if(this.value==='admin') document.querySelectorAll('.perm-chk').forEach(x=>x.checked=true)">
+          <select id="nuRole" class="login-input" style="background:var(--surface-2)">
             <option value="colaborador">Colaborador</option>
             <option value="gestor">Gestor</option>
-            <option value="admin">Admin (acesso total)</option>
+            <option value="admin">Administrativo</option>
           </select>
         </div>
       </div>
       <div class="section-title">Permissões de acesso</div>
+      <div class="text-xs text-3" style="margin:-6px 0 10px;line-height:1.5">Comeca sem nada marcado. Marque so as areas que essa pessoa precisa: e exatamente isso que ela vai enxergar.</div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px">
-        ${allPages.map(p=>`<label style="display:flex;gap:8px;align-items:center;padding:8px 11px;background:var(--surface-2);border-radius:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" class="perm-chk" value="${p.id}" ${['dashboard','clientes','cronograma'].includes(p.id)?'checked':''} /> ${p.label}</label>`).join('')}
+        ${allPages.map(p=>`<label style="display:flex;gap:8px;align-items:center;padding:8px 11px;background:var(--surface-2);border-radius:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" class="perm-chk" value="${p.id}" /> ${p.label}</label>`).join('')}
       </div>
       <div style="display:flex;gap:8px;margin-top:24px;justify-content:flex-end">
         <button class="btn" onclick="closeModal()">Cancelar</button>
