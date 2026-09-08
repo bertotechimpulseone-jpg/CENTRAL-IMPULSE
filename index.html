@@ -15665,7 +15665,8 @@ function renderPipelineCom(){
       stageKey: l.stage||(STAGES[0]&&STAGES[0].key)||'lead',
       funil: l.funil || 'venda',
       resp: rm ? (rm.name||'').split(' ')[0] : 'Equipe',
-      p: l.priority||'med', ap: !!l.aprovado
+      p: l.priority||'med', ap: !!l.aprovado,
+      ig: (typeof _igLimpo === 'function') ? _igLimpo(l.instagram||'') : ''
     };
   });
   const leads = _todos.filter(l=>l.funil===comFunil);
@@ -15719,7 +15720,7 @@ function renderPipelineCom(){
     return `<div class="kanban-col" ondragover="comKanbanOver(event,this)" ondragleave="comKanbanLeave(this)" ondrop="comKanbanDrop(event,'${st.key}',this)">
       <div class="kanban-head"><div class="kanban-title">${escapeHtml(st.label)} <span class="kanban-count">${list.length}</span></div></div>
       ${colSum>0?`<div style="font-size:11.5px;margin:-2px 2px 9px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 9px">R$ <strong>${colSum.toLocaleString('pt-BR')}</strong></div>`:''}
-      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div><div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
+      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div>${l.ig?`<a href="${_igLink(l.ig)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir o perfil no Instagram" style="display:inline-block;font-size:11.5px;color:var(--accent);text-decoration:none;margin-bottom:4px">@${escapeHtml(l.ig)}</a>`:''}<div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
       <div class="kanban-add" onclick="openNovoLeadModal('${st.key}')">+ Adicionar card</div></div></div>`;
   }).join('')}</div>`;
 }
@@ -15843,6 +15844,14 @@ function abrirLeadDetalhe(leadId){
         '<div><div class="info-label" style="margin-bottom:5px">Responsável</div><select id="ldResp" class="login-input" style="background:var(--surface-2)"><option value="">— Equipe —</option>' + (team||[]).filter(t=>t._dbId).map(t=>'<option value="'+t._dbId+'" '+(lead.responsible_id===t._dbId?'selected':'')+'>'+escapeHtml(t.name)+'</option>').join('') + '</select></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">WhatsApp</div><input id="ldPhone" class="login-input" value="' + escapeHtml(lead.phone||'') + '" style="background:var(--surface-2)" /></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Email</div><input id="ldEmail" class="login-input" value="' + escapeHtml(lead.email||'') + '" style="background:var(--surface-2)" /></div>' +
+        '<div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Instagram</div>' +
+          '<div style="display:flex;align-items:center;gap:8px">' +
+            '<div style="flex:1;display:flex;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding-left:11px">' +
+              '<span style="color:var(--text-3);font-size:14px">@</span>' +
+              '<input id="ldInsta" class="login-input" value="' + escapeHtml(_igLimpo(lead.instagram||'')) + '" placeholder="perfildocliente" autocapitalize="off" autocorrect="off" spellcheck="false" style="background:transparent;border:none;padding-left:4px" onblur="this.value=_igLimpo(this.value)" />' +
+            '</div>' +
+            (_igLimpo(lead.instagram||'') ? '<a href="' + _igLink(lead.instagram) + '" target="_blank" rel="noopener" class="btn btn-sm" style="text-decoration:none;white-space:nowrap">📷 Abrir</a>' : '') +
+          '</div></div>' +
       '</div>' +
       '<label style="display:flex;align-items:center;gap:9px;font-size:13px;cursor:pointer;background:var(--surface-2);padding:11px 13px;border-radius:10px;border:1px solid var(--border)"><input type="checkbox" id="ldAprovado" ' + (lead.aprovado?'checked':'') + ' style="width:16px;height:16px;accent-color:var(--success)" /> <span>Orçamento <strong>aprovado</strong> (soma no total aprovado)</span></label>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
@@ -15901,7 +15910,8 @@ async function salvarLeadDetalhe(leadId){
     value: parseFloat(document.getElementById('ldValue').value)||0,
     responsible_id: document.getElementById('ldResp').value || null,
     phone: document.getElementById('ldPhone').value.trim(),
-    email: document.getElementById('ldEmail').value.trim()
+    email: document.getElementById('ldEmail').value.trim(),
+    instagram: _igLimpo((document.getElementById('ldInsta')||{}).value) || null
   };
   const _apEl = document.getElementById('ldAprovado'); if(_apEl) patch.aprovado = _apEl.checked;
   const _svEl = document.getElementById('ldServico'); if(_svEl) patch.servico_contratado = _svEl.value.trim();
@@ -15912,7 +15922,7 @@ async function salvarLeadDetalhe(leadId){
     if(error){
       const m = (error.message||'').toLowerCase();
       if(error.code==='PGRST204' || error.code==='42703' || m.includes('column') || m.includes('aprovado') || m.includes('servico') || m.includes('valido') || m.includes('observac')){
-        const base = { stage: patch.stage, priority: patch.priority, value: patch.value, responsible_id: patch.responsible_id, phone: patch.phone, email: patch.email };
+        const base = { stage: patch.stage, priority: patch.priority, value: patch.value, responsible_id: patch.responsible_id, phone: patch.phone, email: patch.email, instagram: patch.instagram };
         const r2 = await _supa.from('leads').update(base).eq('id', leadId);
         if(r2.error){ toast('Erro: '+r2.error.message,'info'); return; }
         toast('Salvo (campos novos de serviço/observação precisam da migração SQL).','info');
@@ -23247,9 +23257,27 @@ function nlClientePick(id){
   set('nlSeg', c.segment||'');
   set('nlPhone', (c.phone||'').replace(/\D/g,''));
   set('nlEmail', c.email||'');
+  set('nlInsta', _igLimpo(c.ig || c.instagram_url || ''));
   const box=document.getElementById('nlSug'); if(box){ box.style.display='none'; box.innerHTML=''; }
 }
 if(typeof window!=='undefined'){ window.nlClienteAutocomplete=nlClienteAutocomplete; window.nlClientePick=nlClientePick; }
+
+// Aceita o que a pessoa colar: @nome, nome, instagram.com/nome, link com ?igsh.
+// Guarda sempre só o usuário, sem @, pra montar o link direito depois.
+function _igLimpo(v){
+  let x = String(v || '').trim();
+  if(!x) return '';
+  x = x.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+  x = x.replace(/^(instagram\.com|instagr\.am)\//i, '');
+  x = x.split(/[?#/]/)[0];
+  x = x.replace(/^@+/, '').trim();
+  return x.replace(/[^A-Za-z0-9._]/g, '');
+}
+function _igLink(v){
+  const u = _igLimpo(v);
+  return u ? 'https://instagram.com/' + u : '';
+}
+if(typeof window !== 'undefined'){ window._igLimpo = _igLimpo; window._igLink = _igLink; }
 
 function openNovoLeadModal(presetStage){
   // etapas do funil que está aberto (Pré-venda, Venda ou Carteira)
@@ -23269,6 +23297,13 @@ function openNovoLeadModal(presetStage){
         <div><div class="info-label" style="margin-bottom:5px">Segmento</div><input id="nlSeg" class="login-input" placeholder="Ex: Saúde" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">WhatsApp</div><input id="nlPhone" class="login-input" placeholder="11999999999" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Email</div><input id="nlEmail" class="login-input" type="email" placeholder="contato@empresa.com" style="background:var(--surface-2)" /></div>
+        <div><div class="info-label" style="margin-bottom:5px">Instagram</div>
+          <div style="display:flex;align-items:center;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding-left:11px">
+            <span style="color:var(--text-3);font-size:14px">@</span>
+            <input id="nlInsta" class="login-input" placeholder="perfildocliente" autocapitalize="off" autocorrect="off" spellcheck="false" style="background:transparent;border:none;padding-left:4px" onblur="this.value=_igLimpo(this.value)" />
+          </div>
+          <div class="text-xs text-3" style="margin-top:4px">Pode colar o link do perfil que ele arruma sozinho.</div>
+        </div>
         <div><div class="info-label" style="margin-bottom:5px">Valor estimado/mês (R$)</div><input id="nlValue" class="login-input" type="number" placeholder="3000" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Responsável</div><select id="nlResp" class="login-input" style="background:var(--surface-2)"><option value="">— Equipe —</option>${(team||[]).filter(t=>t._dbId).map(t=>`<option value="${t._dbId}">${escapeHtml(t.name)}</option>`).join('')}</select></div>
         <div><div class="info-label" style="margin-bottom:5px">Etapa</div><select id="nlStage" class="login-input" style="background:var(--surface-2)">${stages.map(s=>`<option value="${s.k}" ${s.k===stageSel?'selected':''}>${s.l}</option>`).join('')}</select></div>
@@ -23292,6 +23327,7 @@ async function salvarNovoLead(){
     name, contact_name: document.getElementById('nlContact').value.trim(),
     phone: document.getElementById('nlPhone').value.replace(/\D/g,''),
     email: document.getElementById('nlEmail').value.trim(),
+    instagram: _igLimpo((document.getElementById('nlInsta')||{}).value) || null,
     segment: document.getElementById('nlSeg').value.trim(),
     value: parseFloat(document.getElementById('nlValue').value)||0,
     stage: document.getElementById('nlStage').value,
