@@ -2946,6 +2946,7 @@ async function loadDataFromSupabase(){
           gestor_nome: cl.gestor_nome || '',
           gestor_id: cl.gestor_id || null,
           planName: cl.plan_name || '',
+          plan_list: Array.isArray(cl.plan_list) ? cl.plan_list : [],
           planValue: parseFloat(cl.plan_value) || 0,
           plan_designer: cl.plan_designer || '',
           contract_start: cl.contract_start || '',
@@ -8261,6 +8262,53 @@ async function _carregarPendContratos(){
 
 // Planos oficiais (mesmas opções do orçamento/Precificação). Cliente pode ter 1 ou mais.
 const PLANOS_IMPULSE = ['Plano Pulse','Plano Impulse','Plano Impulse + Captação'];
+// ===== PLANO DO CLIENTE =====
+// O plano é uma LISTA (clients.plan_list). plan_name segue existindo como texto
+// de exibição pras telas antigas. Guardar só o texto quebrava: 'Plano Impulse +
+// Captação' tem "+" no nome, então reabrir a tela partia o texto na vírgula, os
+// checkboxes vinham desmarcados e o save seguinte duplicava o plano.
+const _PLANO_ACENTOS = {'á':'a','à':'a','â':'a','ã':'a','ä':'a','é':'e','ê':'e','è':'e','í':'i','ì':'i','î':'i','ó':'o','ô':'o','õ':'o','ò':'o','ú':'u','ù':'u','û':'u','ü':'u','ç':'c','ñ':'n'};
+// Normaliza SEM mudar o tamanho do texto, pra poder mapear posição de volta no original.
+function _planosNorm(txt){
+  return String(txt||'').toLowerCase().split('').map(ch => _PLANO_ACENTOS[ch] || ch).join('').replace(/[,;]/g, ' ');
+}
+// Lê o texto antigo e devolve {planos:[...], outro:'...'}, aceitando vírgula
+// sobrando no meio do nome ('Plano Impulse +, Captação' vale como o plano combo).
+function _planosParse(texto){
+  const original = String(texto||'');
+  const norm = _planosNorm(original);
+  const usados = new Array(original.length).fill(false);
+  const achados = [];
+  PLANOS_IMPULSE.slice().sort((a,b) => b.length - a.length).forEach(p => {
+    const palavras = _planosNorm(p).split(/\s+/).filter(Boolean)
+      .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const re = new RegExp(palavras.join('\\s+'), 'g');
+    let m;
+    while((m = re.exec(norm)) !== null){
+      let livre = true;
+      for(let i = m.index; i < m.index + m[0].length; i++){ if(usados[i]) { livre = false; break; } }
+      if(!livre) continue;
+      for(let i = m.index; i < m.index + m[0].length; i++) usados[i] = true;
+      if(achados.indexOf(p) === -1) achados.push(p);
+      break;
+    }
+  });
+  const sobra = original.split('').map((ch, i) => usados[i] ? ' ' : ch).join('');
+  const outro = sobra.split(/[,;]/)
+    .map(x => x.replace(/^\s*\+\s*/, '').replace(/\s*\+\s*$/, '').trim())
+    .filter(x => x && x !== '+')
+    .join(', ');
+  return { planos: PLANOS_IMPULSE.filter(p => achados.indexOf(p) !== -1), outro: outro };
+}
+// A lista de planos do cliente. plan_list manda; sem ela, lê o texto antigo.
+function _planosDoCliente(cli){
+  if(cli && Array.isArray(cli.plan_list) && cli.plan_list.length) return cli.plan_list.slice();
+  const p = _planosParse(cli && cli.planName);
+  return p.planos.concat(p.outro ? p.outro.split(',').map(x=>x.trim()).filter(Boolean) : []);
+}
+if(typeof window !== 'undefined'){
+  window._planosParse = _planosParse; window._planosDoCliente = _planosDoCliente;
+}
 // Um plano é "válido" se contém Pulse ou Impulse (cobre 'Plano Pulse', 'Combo Pulse',
 // 'Impulse + captação' etc.). 'Essencial/Crescimento/Premium/Enterprise/MIV/vazio' NÃO valem.
 function _planoValido(nome){
@@ -9287,7 +9335,8 @@ async function updateClientField(cliId, field, value){
     contrato_url:'contrato_url', criativos_url:'criativos_url',
     relatorios_url:'relatorios_url', whatsapp_url:'whatsapp_url',
     observacoes:'observacoes',
-    plan_observacao:'plan_observacao'
+    plan_observacao:'plan_observacao',
+    plan_list:'plan_list'
   };
   const col = mapping[field];
   if(!col){
@@ -9335,17 +9384,24 @@ async function updateClientField(cliId, field, value){
 // Multi-seleção de planos no modal do cliente (pane plano): marca vários e só salva no botão.
 async function _salvarPlanoCliente(cliId){
   const sel = Array.from(document.querySelectorAll('.plano-cb:checked')).map(cb=>cb.value);
-  const outro = (document.getElementById('planoOutroInput')?.value||'').trim();
-  if(outro) sel.push(outro);
-  if(!sel.length){ toast('Marque ou digite ao menos um plano','info'); return; }
-  const valor = sel.join(', ');
-  const ok = await updateClientField(cliId, 'planName', valor);
-  if(ok){
-    const cli = clients.find(c=>c.id===cliId); if(cli) cli.planName = valor;
+  const outroTxt = (document.getElementById('planoOutroInput')?.value||'').replace(/^\s*\+\s*/,'').trim();
+  const extras = outroTxt ? outroTxt.split(',').map(x=>x.trim()).filter(Boolean) : [];
+  // A lista é a verdade. Sem duplicata e sem depender de partir texto por vírgula.
+  const lista = [];
+  sel.concat(extras).forEach(x => { if(!lista.some(y => _planosNorm(y).trim() === _planosNorm(x).trim())) lista.push(x); });
+  if(!lista.length){ toast('Marque ou digite ao menos um plano','info'); return; }
+  const valor = lista.join(', ');
+  const okLista = await updateClientField(cliId, 'plan_list', lista);
+  const okNome  = await updateClientField(cliId, 'planName', valor);
+  if(okLista && okNome){
+    const cli = clients.find(c=>c.id===cliId);
+    if(cli){ cli.plan_list = lista; cli.planName = valor; }
     toast('✓ Plano salvo','success');
     // re-renderiza a aba plano pra refletir o título e as bordas
     const pane = document.querySelector('.modal-pane[data-pane="plano"]');
     if(pane && cli){ pane.outerHTML = paneFinanceiro(cli); }
+  } else {
+    toast('❌ Não consegui salvar o plano. Nada foi alterado pela metade — tente de novo.','info');
   }
 }
 window._salvarPlanoCliente = _salvarPlanoCliente;
@@ -10439,7 +10495,16 @@ function paneFinanceiro(cli){
             <div class="text-xs text-3" style="text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px">Plano atual <span style="color:var(--danger)">*</span></div>
             <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;color:${_planoValido(planName)?'var(--text)':'var(--danger)'};padding:2px 0">${planName?escapeHtml(planName):'— sem plano definido —'}</div>
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;align-items:center">
-              ${(()=>{ const toks=(planName||'').split(',').map(s=>s.trim()).filter(Boolean); const lower=toks.map(s=>s.toLowerCase()); const outro=toks.filter(t=>!PLANOS_IMPULSE.some(p=>p.toLowerCase()===t.toLowerCase())).join(', '); const chks = PLANOS_IMPULSE.map(p=>{ const on = lower.includes(p.toLowerCase()); return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--surface);border:1px solid ${on?'var(--accent)':'var(--border)'};border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600"><input type="checkbox" class="plano-cb" value="${escapeHtml(p)}" ${on?'checked':''} style="width:14px;height:14px;cursor:pointer" />${p}</label>`; }).join(''); return chks + `<input id="planoOutroInput" class="login-input" value="${escapeHtml(outro)}" placeholder="+ Outro plano..." style="background:var(--surface);width:150px;font-size:12.5px;padding:6px 10px" />`; })()}
+              ${(()=>{
+                const lista = _planosDoCliente(cli);
+                const marcados = PLANOS_IMPULSE.filter(p => lista.some(x => _planosNorm(x).trim() === _planosNorm(p).trim()));
+                const outro = lista.filter(x => !PLANOS_IMPULSE.some(p => _planosNorm(x).trim() === _planosNorm(p).trim())).join(', ');
+                const chks = PLANOS_IMPULSE.map(p => {
+                  const on = marcados.indexOf(p) !== -1;
+                  return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--surface);border:1px solid ${on?'var(--accent)':'var(--border)'};border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600"><input type="checkbox" class="plano-cb" value="${escapeHtml(p)}" ${on?'checked':''} style="width:14px;height:14px;cursor:pointer" />${p}</label>`;
+                }).join('');
+                return chks + `<input id="planoOutroInput" class="login-input" value="${escapeHtml(outro)}" placeholder="Outro plano..." style="background:var(--surface);width:150px;font-size:12.5px;padding:6px 10px" />`;
+              })()}
               <button class="btn btn-sm btn-primary" onclick="_salvarPlanoCliente(${cli.id})" style="white-space:nowrap">💾 Salvar plano</button>
             </div>
             <div class="text-sm text-mu" style="margin-top:8px">Marque um ou mais e clique em <b>Salvar plano</b>. ${servicesList.length>0?'· '+servicesList.length+' serviço(s) inclusos':''}</div>
