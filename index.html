@@ -2964,6 +2964,9 @@ async function loadDataFromSupabase(){
           conhecendo_url: cl.conhecendo_url || '',
           aniversarios: Array.isArray(cl.aniversarios) ? cl.aniversarios : [],
           cnpj: cl.cnpj || '',
+          // Observação do plano: estava sendo GRAVADA no banco mas nunca lida de volta,
+          // então só quem escreveu enxergava (pelo cache local do próprio navegador).
+          plan_observacao: cl.plan_observacao || '',
           modelo_atendimento: cl.modelo_atendimento || ''
         });
       });
