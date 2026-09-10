@@ -32081,10 +32081,17 @@ function _calListaHTML(cals, cli){
       <div class="desc">Crie o primeiro calendário deste cliente e mande o link pra ele aprovar.</div>
     </div>`;
   }
+  const _AM=['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const _yyCal=new Date().getFullYear();
   return cals.map(cal=>{
     const c = _calContagem(cal);
     const pct = c.total ? Math.round(c.ok/c.total*100) : 0;
     const novid = (window._calEventosNaoLidos||[]).filter(e=>e.calendario_id===cal.id).length;
+    // meses presentes neste calendário -> um "link do mês" pra cada (abre direto no mês, setas navegam o resto)
+    const _mesesCal=[...new Set((cal.posts||[]).map(p=>{const m=String(p.data||'').match(/(\d{1,2})\/(\d{1,2})/);return m?parseInt(m[2],10):0;}).filter(Boolean))].sort((a,b)=>a-b);
+    const linksMesHTML = _mesesCal.length>1
+      ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="text-xs text-3" style="font-weight:600">🔗 Link por mês:</span>${_mesesCal.map(mm=>`<button class="btn btn-sm" type="button" onclick="copiarLinkCalendarioMes('${cal.token}',${_yyCal*100+mm})" title="Copiar o link que abre direto em ${_AM[mm]}">${_AM[mm]}</button>`).join('')}</div>`
+      : '';
     return `<div class="card" style="margin-bottom:10px;padding:14px 16px">
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:180px">
@@ -32105,6 +32112,7 @@ function _calListaHTML(cals, cli){
         ${c.pend?`<span class="badge b-default">${c.pend} pendentes</span>`:''}
         ${c.editados?`<span class="badge b-default" title="O cliente editou o texto">✏️ ${c.editados} editados</span>`:''}
       </div>
+      ${linksMesHTML}
       <div style="height:6px;border-radius:99px;background:var(--surface-2);margin-top:10px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:var(--success);transition:width .4s"></div>
       </div>
@@ -32174,6 +32182,13 @@ async function copiarLinkCalendario(token){
   try { await navigator.clipboard.writeText(url); toast('🔗 Link copiado. É só mandar pro cliente.','success'); }
   catch(e){ prompt('Copie o link do calendário:', url); }
 }
+// Link que abre DIRETO num mês específico (mesmo calendário, todos os meses navegáveis pelas setas)
+async function copiarLinkCalendarioMes(token, mesKey){
+  const url = _calLinkPublico(token) + '&mes=' + mesKey;
+  try { await navigator.clipboard.writeText(url); toast('🔗 Link do mês copiado. Abre direto nesse mês.','success'); }
+  catch(e){ prompt('Copie o link do mês:', url); }
+}
+window.copiarLinkCalendarioMes = copiarLinkCalendarioMes;
 
 /* ---------- criar calendário (colar os conteúdos) ---------- */
 /* ---- Construtor visual: monta o calendário clicando nos dias do mês ---- */
@@ -33028,7 +33043,29 @@ async function renderPublicAprovarCalendario(token){
       // Na 1ª abertura cai no mês atual — o link é o MESMO todo mês, só o conteúdo vai virando.
       if(window._calMesAtivo == null || chaves.indexOf(window._calMesAtivo) === -1){
         const h = new Date(), kHoje = h.getFullYear()*100 + (h.getMonth()+1);
-        window._calMesAtivo = chaves.indexOf(kHoje) !== -1 ? kHoje : chaves[0];
+        const _navavel = (k)=> k && chaves.indexOf(k) !== -1;
+        // 0) LINK DO MÊS: ?aprovar=<token>&mes=AAAAMM abre DIRETO naquele mês.
+        //    As setas continuam navegando os outros meses (todos conectados).
+        let _mesParam = NaN;
+        try { _mesParam = parseInt(new URLSearchParams(location.search).get('mes'), 10); } catch(e){}
+        if(!isNaN(_mesParam) && _navavel(_mesParam)){
+          window._calMesAtivo = _mesParam;
+        } else {
+          // Sem &mes: abre no mês mais antigo com post PENDENTE (o que o cliente precisa aprovar);
+          // senão no mês atual com conteúdo; senão no mais próximo à frente (ou o mais recente).
+          const comPost = Object.keys(grupos).map(Number).filter(k=>_navavel(k) && grupos[k].items.length).sort((a,b)=>a-b);
+          const pend = comPost.filter(k=> grupos[k].items.some(x=> !(x.p.status==='aprovado' || x.p.status==='ajustar')));
+          if(pend.length){
+            window._calMesAtivo = pend[0];
+          } else if(grupos[kHoje] && grupos[kHoje].items.length && _navavel(kHoje)){
+            window._calMesAtivo = kHoje;
+          } else if(comPost.length){
+            const futuros = comPost.filter(k=>k>=kHoje);
+            window._calMesAtivo = futuros.length ? futuros[0] : comPost[comPost.length-1];
+          } else {
+            window._calMesAtivo = _navavel(kHoje) ? kHoje : chaves[0];
+          }
+        }
       }
       const kAtivo = window._calMesAtivo;
       const pos = chaves.indexOf(kAtivo);
