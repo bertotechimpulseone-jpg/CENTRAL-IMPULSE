@@ -502,9 +502,25 @@ body.public-page #lembretesWidget{display:none!important}
   .pauta-card,.i3-sheet,.i3-ov{animation:none}
   .pauta-card:hover{transform:none}
 }
-/* Reordenar produtos na Precificação */
-.precif-mv{display:block;width:20px;height:15px;line-height:1;padding:0;margin:1px auto;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text-3);font-size:8px;cursor:pointer;transition:border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
-.precif-mv:hover{border-color:var(--accent);color:var(--accent)}
+/* Reordenar produtos na Precificação: pega pela alça e arrasta */
+.precif-alca-td{padding:0 2px 0 6px;width:1px;vertical-align:middle}
+.precif-alca{
+  display:grid;place-items:center;width:26px;height:30px;padding:0;
+  border:none;background:transparent;color:var(--text-3);
+  font-size:15px;line-height:1;cursor:grab;touch-action:none;
+  border-radius:7px;transition:background var(--dur) var(--ease),color var(--dur) var(--ease);
+}
+.precif-alca:hover{background:var(--surface-3);color:var(--text)}
+.precif-alca:focus-visible{outline:none;box-shadow:var(--ring);color:var(--accent)}
+.precif-alca:active{cursor:grabbing}
+tr[data-prod]{transition:background var(--dur) var(--ease)}
+tbody.precif-arrastando-modo tr[data-prod]:not(.precif-arrastando){opacity:.55}
+tr.precif-arrastando{
+  background:var(--accent-soft) !important;
+  box-shadow:0 10px 26px rgba(0,0,0,.28);
+  position:relative;z-index:2;
+}
+tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
 
 /* Lista de produtos no plano do cliente */
 .plano-lista{display:flex;flex-wrap:wrap;gap:7px;width:100%;max-height:190px;overflow:auto;padding:2px}
@@ -27313,6 +27329,99 @@ function _precifFmt(v){
   return 'R$ ' + parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
+// Mantém a lista em memória na mesma ordem da tela. Sem isso, o array fica na
+// ordem que veio do banco e qualquer mudança feita aqui se perde no próximo render.
+function _precifOrdenar(){
+  if(Array.isArray(_precifProdutos)) _precifProdutos.sort((a,b) => (a.ordem||0) - (b.ordem||0));
+}
+window._precifOrdenar = _precifOrdenar;
+
+// ===== ARRASTAR PRA REORDENAR =====
+// Pointer events em vez de drag-and-drop do HTML: funciona igual no mouse e no
+// dedo. A linha acompanha o cursor e as vizinhas abrem espaço; ao soltar, a
+// ordem que ficou na tela é gravada.
+let _precifArrasto = null;
+
+function precifPegar(ev, id){
+  if(ev.button && ev.button !== 0) return;      // só botão esquerdo
+  const tr = ev.target.closest('tr[data-prod]');
+  if(!tr) return;
+  ev.preventDefault();
+  const tbody = tr.parentElement;
+  _precifArrasto = { id, tr, tbody, moveu: false };
+  tr.classList.add('precif-arrastando');
+  tbody.classList.add('precif-arrastando-modo');
+  try { ev.target.setPointerCapture(ev.pointerId); } catch(e){}
+  document.body.style.userSelect = 'none';
+  window.addEventListener('pointermove', _precifArrastando);
+  window.addEventListener('pointerup', _precifSoltou, { once: true });
+  window.addEventListener('pointercancel', _precifSoltou, { once: true });
+}
+
+function _precifArrastando(ev){
+  const a = _precifArrasto;
+  if(!a) return;
+  const linhas = Array.from(a.tbody.querySelectorAll('tr[data-prod]'));
+  for(const alvo of linhas){
+    if(alvo === a.tr) continue;
+    const r = alvo.getBoundingClientRect();
+    if(ev.clientY < r.top || ev.clientY > r.bottom) continue;
+    const depois = ev.clientY > r.top + r.height / 2;
+    const vizinho = depois ? alvo.nextElementSibling : alvo;
+    if(vizinho !== a.tr){ a.tbody.insertBefore(a.tr, vizinho); a.moveu = true; }
+    break;
+  }
+}
+
+async function _precifSoltou(){
+  const a = _precifArrasto;
+  _precifArrasto = null;
+  window.removeEventListener('pointermove', _precifArrastando);
+  document.body.style.userSelect = '';
+  if(!a) return;
+  a.tr.classList.remove('precif-arrastando');
+  a.tbody.classList.remove('precif-arrastando-modo');
+  if(!a.moveu) return;                          // clicou sem arrastar: nada mudou
+  await _precifGravarOrdemDaTela(a.tbody);
+}
+
+// A ordem que vale é a que está na tela. Renumera tudo e grava só o que mudou.
+async function _precifGravarOrdemDaTela(tbody){
+  const ids = Array.from(tbody.querySelectorAll('tr[data-prod]')).map(tr => tr.getAttribute('data-prod'));
+  const mudaram = [];
+  ids.forEach((id, i) => {
+    const p = (_precifProdutos||[]).find(x => x.id === id);
+    if(p && p.ordem !== i + 1){ p.ordem = i + 1; mudaram.push(p); }
+  });
+  if(!mudaram.length) return;
+  _precifOrdenar();
+  if(!_supa){ toast('Ordem mudou só nesta tela: banco não conectado','info'); return; }
+  try {
+    for(const p of mudaram){
+      const { error } = await _supa.from('precificacao_produtos').update({ordem: p.ordem}).eq('id', p.id);
+      if(error) throw error;
+    }
+    toast('✓ Ordem salva','success');
+  } catch(e){
+    console.warn('[ordem da precificacao]', e);
+    toast('Não consegui salvar a ordem: ' + (e.message||''), 'info');
+  }
+}
+
+// Teclado: foca a alça e usa as setas. Serve pra quem não quer arrastar.
+function precifTecla(ev, id){
+  if(ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+  ev.preventDefault();
+  precifMover(id, ev.key === 'ArrowUp' ? -1 : 1);
+  setTimeout(function(){
+    const tr = document.querySelector('tr[data-prod="' + id + '"]');
+    const alca = tr && tr.querySelector('.precif-alca');
+    if(alca) alca.focus();
+  }, 60);
+}
+window.precifPegar = precifPegar;
+window.precifTecla = precifTecla;
+
 // Troca de lugar com o vizinho e grava a ordem nova. A ordem da Precificação
 // é a mesma que aparece no plano do cliente.
 async function precifMover(id, passo){
@@ -27326,6 +27435,7 @@ async function precifMover(id, passo){
   // Renumera tudo em sequência: evita empate de ordem herdado de dados antigos.
   lista[i] = b; lista[j] = a;
   lista.forEach((p, idx) => { p.ordem = idx + 1; });
+  _precifOrdenar();
   if(currentPage === 'comercial') renderComercial(document.getElementById('content'));
   if(!_supa) return;
   try {
@@ -27413,6 +27523,7 @@ function renderPrecificacao(){
           '<th style="padding:8px 6px;border-bottom:1px solid var(--border);width:36px"></th>' +
         '</tr></thead><tbody>';
 
+    _precifOrdenar();
     _precifProdutos.filter(p => p.ativo !== false).forEach(p => {
       const horas = parseFloat(p.horas_estimadas) || 0;
       const custo = horas * valorHora;
@@ -27431,9 +27542,11 @@ function renderPrecificacao(){
 
       html += '<tr style="border-bottom:1px solid var(--border);' + rowBg + '" data-prod="' + p.id + '">' +
         '<td style="padding:6px;text-align:center"><input type="checkbox" ' + (isSel?'checked':'') + ' onchange="precifToggleSelecao(\'' + p.id + '\',this.checked)" style="cursor:pointer;width:16px;height:16px" /></td>' +
-        '<td style="padding:2px;text-align:center;white-space:nowrap">' +
-          '<button type="button" class="precif-mv" onclick="precifMover(\'' + p.id + '\',-1)" title="Subir na lista">▲</button>' +
-          '<button type="button" class="precif-mv" onclick="precifMover(\'' + p.id + '\',1)" title="Descer na lista">▼</button>' +
+        '<td class="precif-alca-td">' +
+          '<button type="button" class="precif-alca" title="Segure e arraste pra mudar a ordem. Com o teclado: setas ↑ ↓" ' +
+            'aria-label="Mover ' + escapeHtml(p.produto||'produto') + '" ' +
+            'onpointerdown="precifPegar(event,\'' + p.id + '\')" ' +
+            'onkeydown="precifTecla(event,\'' + p.id + '\')">⠿</button>' +
         '</td>' +
         '<td style="padding:6px"><div style="display:flex;align-items:center;gap:6px"><input value="' + escapeHtml(p.produto||'') + '" onblur="precifSalvaCampo(\'' + p.id + '\',\'produto\',this.value)" style="background:transparent;border:none;flex:1;font-size:12px;font-weight:600;color:var(--text);outline:none;padding:4px" /><button onclick="precifEditarDescricao(\'' + p.id + '\')" title="' + (p.descricao ? 'Editar descrição (já cadastrada)' : 'Adicionar descrição do serviço') + '" style="background:' + (p.descricao ? 'rgba(34,197,94,.15)' : 'transparent') + ';border:1px solid ' + (p.descricao ? 'var(--success)' : 'var(--border)') + ';border-radius:5px;cursor:pointer;font-size:12px;padding:3px 6px;color:' + (p.descricao ? 'var(--success)' : 'var(--text-3)') + ';flex-shrink:0;white-space:nowrap" type="button">' + (p.descricao ? '📝 ✓' : '📝') + '</button></div><div class="text-xs text-3" style="margin-top:1px">' + escapeHtml(p.categoria||'—') + '</div></td>' +
         '<td style="padding:6px;text-align:right"><input type="number" step="0.5" min="0" value="' + horas + '" onblur="precifSalvaCampo(\'' + p.id + '\',\'horas_estimadas\',this.value)" title="Horas que este produto consome — recalcula as 3 variações" style="background:transparent;border:none;border-bottom:1.5px dashed var(--accent);width:52px;text-align:right;font-size:12px;font-weight:600;color:var(--text);outline:none;padding:4px 3px 2px" /></td>' +
