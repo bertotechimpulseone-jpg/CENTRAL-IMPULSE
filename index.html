@@ -272,6 +272,31 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-sec:first-child{margin-top:2px}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* ===== Aniversariantes em destaque ===== */
+.aniv-destaque{padding:15px 17px;margin-bottom:14px;border:1px solid var(--accent-border);background:var(--accent-soft)}
+.aniv-destaque-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
+.aniv-destaque-tit{font-family:var(--font-display),inherit;font-size:16px;font-weight:700;color:var(--text);line-height:1.25}
+.aniv-hoje-faixa{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:9px}
+.aniv-hoje-faixa .dash-aniv{margin-bottom:0;background:var(--surface)}
+.aniv-sec{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 7px}
+.aniv-prox{display:flex;flex-wrap:wrap;gap:7px}
+.aniv-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface);border:1px solid var(--border);
+  border-radius:99px;padding:5px 11px;font-size:12px;font-weight:600;color:var(--text-2)}
+.aniv-pill b{font-weight:700;color:var(--text)}
+.aniv-pill.cli{border-color:var(--accent-border)}
+.aniv-tag{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  padding:1px 6px;border-radius:5px;margin-right:5px;vertical-align:1px}
+.aniv-tag.col{background:rgba(16,185,129,.16);color:#10b981}
+.aniv-tag.cli{background:rgba(245,158,11,.18);color:#f59e0b}
+.aniv-tag.emp{background:rgba(14,165,233,.18);color:#0ea5e9}
+/* Dia de aniversário no calendário: anel pra achar de longe */
+.cal-day.cal-aniv{box-shadow:0 0 0 2px #f59e0b66, 0 4px 14px rgba(245,158,11,.22)}
+@media (max-width:768px){
+  .aniv-destaque{padding:13px 13px}
+  .aniv-destaque-tit{font-size:14.5px}
+  .aniv-hoje-faixa{grid-template-columns:1fr}
+}
+
 /* Aniversariante: foto com chapéu de festa */
 .dash-aniv{display:flex;align-items:center;gap:13px;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-bottom:8px}
 .dash-aniv.hoje{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent-border)}
@@ -2387,7 +2412,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v3.98 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v3.99 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -3026,6 +3051,7 @@ async function loadDataFromSupabase(){
           pre_cadastro_origem: cl.pre_cadastro_origem || '',
           conhecendo_url: cl.conhecendo_url || '',
           aniversarios: Array.isArray(cl.aniversarios) ? cl.aniversarios : [],
+          aniversario_empresa: cl.aniversario_empresa || '',
           cnpj: cl.cnpj || '',
           // Observação do plano: estava sendo GRAVADA no banco mas nunca lida de volta,
           // então só quem escreveu enxergava (pelo cache local do próprio navegador).
@@ -7747,21 +7773,23 @@ function abrirListaDashboard(tipo){
   else if(tipo === 'aniversarios'){
     const nasc = d.aniversariantes || [], adm = d.admissoes || [];
     const hoje = new Date().getDate();
-    titulo = '🎂 Aniversariantes do mês'; sub = (nasc.length + adm.length) + ' no total'; irPara = 'equipe';
-    const cartao = function(m, tipoAniv){
+    const daEquipe = nasc.filter(function(p){ return p.origem !== 'cliente'; }).length;
+    const deCliente = nasc.length - daEquipe;
+    titulo = '🎂 Aniversariantes do mês';
+    sub = nasc.length + ' aniversário(s)' + (deCliente ? ' · ' + daEquipe + ' da equipe e ' + deCliente + ' de cliente' : '');
+    irPara = 'calendario';
+    const cartaoAdm = function(m){
       const ehHoje = m.dia === hoje;
       return '<div class="dash-aniv' + (ehHoje ? ' hoje' : '') + '">' +
         '<div class="dash-aniv-foto">' + _avatarFoto(m, 54) + '<span class="chapeu" aria-hidden="true"></span></div>' +
         '<div class="dash-item-txt"><div class="dash-item-tit">' + esc(m.name || '') + (ehHoje ? ' <span class="dash-hoje">é hoje!</span>' : '') + '</div>' +
-        '<div class="dash-item-sub">' + (tipoAniv === 'nasc'
-            ? 'Dia ' + m.dia + (m.idade ? ' · faz ' + m.idade + ' anos' : '')
-            : 'Dia ' + m.dia + ' · ' + m.anos + ' ano(s) de Impulse') + '</div></div>' +
+        '<div class="dash-item-sub">Dia ' + m.dia + ' · ' + m.anos + ' ano(s) de Impulse</div></div>' +
         (ehHoje ? '<span class="dash-aniv-emoji">🎉</span>' : '') + '</div>';
     };
     corpo = (nasc.length || adm.length)
-      ? (nasc.length ? '<div class="dash-sec">Aniversário</div>' + nasc.map(function(m){ return cartao(m,'nasc'); }).join('') : '') +
-        (adm.length ? '<div class="dash-sec">Tempo de casa</div>' + adm.map(function(m){ return cartao(m,'adm'); }).join('') : '')
-      : _dashVazio('🎂','Ninguém faz aniversário neste mês','Cadastre a data de nascimento na aba Equipe.');
+      ? (nasc.length ? '<div class="dash-sec">Aniversário</div>' + nasc.map(function(p){ return _anivCartao(p, hoje); }).join('') : '') +
+        (adm.length ? '<div class="dash-sec">Tempo de casa</div>' + adm.map(cartaoAdm).join('') : '')
+      : _dashVazio('🎂','Ninguém faz aniversário neste mês','A data da equipe fica na aba Equipe; a do contato do cliente, no cadastro do cliente.');
   }
 
   else if(tipo === 'checklists'){
@@ -7819,19 +7847,11 @@ function renderDashboard(c){
     }
   } catch(e){}
 
-  // ===== Aniversariantes do mês (atual)
+  // ===== Aniversariantes do mês (atual) — equipe E contatos dos clientes
   const mesAtual = date.getMonth();
   const anoAtual = date.getFullYear();
-  const aniversariantes = (team||[]).filter(m => {
-    if(!m.birthday) return false;
-    const p = m.birthday.split('-');
-    return p.length === 3 && (parseInt(p[1])-1) === mesAtual;
-  }).map(m => {
-    const p = m.birthday.split('-');
-    const dia = parseInt(p[2]);
-    const ano = parseInt(p[0]);
-    return {...m, dia, idade: anoAtual - ano};
-  }).sort((a,b) => a.dia - b.dia);
+  const aniversariantes = (typeof _aniversariantesDoMes === 'function')
+    ? _aniversariantesDoMes(anoAtual, mesAtual) : [];
 
   // ===== Admissões aniversariantes do mês
   const aniversariosAdmissao = (team||[]).filter(m => {
@@ -7891,6 +7911,7 @@ function renderDashboard(c){
       ${typeof renderDeadlineBanner === 'function' ? renderDeadlineBanner() : ''}
       ${typeof renderCaptacoesPrazoCard === 'function' ? renderCaptacoesPrazoCard() : ''}
       ${typeof renderCaptacoesEntreguesCard === 'function' ? renderCaptacoesEntreguesCard() : ''}
+      ${typeof renderAniversariantesDestaque === 'function' ? renderAniversariantesDestaque() : ''}
       ${typeof renderDemandasCRMCard === 'function' ? renderDemandasCRMCard() : ''}
       ${typeof renderSolicitacoesMinhaEmpresaCard === 'function' ? renderSolicitacoesMinhaEmpresaCard() : ''}
 
@@ -8053,7 +8074,7 @@ function abrirDiaCalendario(dia, anoOpt, mesOpt){
   const hj = new Date();
   const ehHoje = hj.getFullYear()===ano && hj.getMonth()===mes && hj.getDate()===dia;
   // Cor do cabeçalho = cor do evento mais importante do dia
-  const prioridade = ['feriado','aniversario','admissao','ferias','evento','treinamento','reuniao','captacao','prazo'];
+  const prioridade = ['aniversario','feriado','admissao','ferias','evento','treinamento','reuniao','captacao','prazo'];
   let corTop = '#64748b';
   for(const t of prioridade){ const e = evs.find(x=>x.tipo===t && x.cor); if(e){ corTop = e.cor; break; } }
 
@@ -8139,7 +8160,7 @@ function renderMiniCalendarioDashboard(){
     html += '<div style="aspect-ratio:1;border-radius:6px;background:transparent"></div>';
   }
   // Dias do mes — dia com data especial fica com o quadrado INTEIRO na cor do evento
-  const prioridadeDestaque = ['feriado','aniversario','admissao','ferias','evento','treinamento'];
+  const prioridadeDestaque = ['aniversario','feriado','admissao','ferias','evento','treinamento'];
   for(let d=1; d<=diasNoMes; d++){
     const isHoje = d === hoje.getDate();
     const evs = eventos[d] || [];
@@ -8164,6 +8185,149 @@ function renderMiniCalendarioDashboard(){
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 4px 4px;font-size:10px;color:var(--text-muted);justify-content:center"><span style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:#06b6d4"></div>Férias</span><span style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:#f59e0b"></div>Aniversário</span><span style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:#10b981"></div>Admissão</span><span style="display:flex;align-items:center;gap:4px"><div style="width:6px;height:6px;border-radius:50%;background:#a855f7"></div>Feriado</span></div>';
   return html;
 }
+
+// ===== ANIVERSARIANTES: UMA LISTA SO =====
+// Colaborador e contato de cliente entram na mesma lista, do mesmo jeito. Antes
+// cada tela montava a sua e o cliente ficava de fora de quase todas.
+// Devolve [{origem:'colab'|'cliente', nome, dia, mes, idade, sub, avatar,
+//           telefone, msg, cliId, profileIdx}] ordenado por dia.
+function _aniversariantesDoMes(ano, mes){
+  const lista = [];
+  const lerData = function(txt){
+    if(!txt) return null;
+    const c = String(txt);
+    let m = c.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(m) return {ano: parseInt(m[1],10), mes: parseInt(m[2],10), dia: parseInt(m[3],10)};
+    m = c.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{4}))?/);   // DD/MM ou DD/MM/AAAA
+    if(m) return {ano: m[3] ? parseInt(m[3],10) : 0, mes: parseInt(m[2],10), dia: parseInt(m[1],10)};
+    return null;
+  };
+
+  // colaboradores
+  (typeof team !== 'undefined' ? team : []).forEach(function(m, idx){
+    if(m && m.oculto) return;
+    const d = lerData(m && m.birthday);
+    if(!d || d.mes !== mes + 1) return;
+    const idade = d.ano > 1900 ? (ano - d.ano) : 0;
+    const primeiro = String(m.name || '').split(' ')[0];
+    lista.push({
+      origem:'colab', nome: m.name || primeiro, primeiro: primeiro, dia: d.dia, mes: d.mes,
+      idade: idade, sub: 'Time Impulse' + (idade > 0 ? ' · faz ' + idade + ' anos' : ''),
+      avatar: m, telefone: m.phone || '', profileIdx: idx,
+      msg: 'Feliz aniversário, ' + primeiro + '! 🎉'
+    });
+  });
+
+  // contatos dos clientes + a propria empresa
+  (typeof clients !== 'undefined' ? clients : []).forEach(function(cl){
+    if(!cl || cl.oculto || cl.status === 'cancelado') return;
+    const nomeCli = (typeof _nomeCli === 'function') ? _nomeCli(cl) : (cl.name || '');
+    const de = lerData(cl.aniversario_empresa);
+    if(de && de.mes === mes + 1){
+      const anos = de.ano > 1800 ? (ano - de.ano) : 0;
+      lista.push({
+        origem:'empresa', nome: nomeCli, primeiro: nomeCli, dia: de.dia, mes: de.mes,
+        idade: anos, sub: 'Aniversário da empresa' + (anos > 0 ? ' · ' + anos + ' anos' : ''),
+        avatar: {init: (cl.init || nomeCli.charAt(0) || '?'), color: cl.color || '#888', name: nomeCli},
+        telefone: cl.phone || '', cliId: cl.id,
+        msg: 'Parabéns pelos ' + (anos > 0 ? anos + ' anos da ' : 'anos da ') + nomeCli + '! 🎉 Um abraço da equipe Impulse One.'
+      });
+    }
+    (Array.isArray(cl.aniversarios) ? cl.aniversarios : []).forEach(function(a){
+      const d = lerData(a && a.data);
+      if(!d || d.mes !== mes + 1) return;
+      const idade = d.ano > 1900 ? (ano - d.ano) : 0;
+      const quem = String((a && a.nome) || 'Contato');
+      const primeiro = quem.split(' ')[0];
+      lista.push({
+        origem:'cliente', nome: quem, primeiro: primeiro, dia: d.dia, mes: d.mes,
+        idade: idade, sub: nomeCli + (idade > 0 ? ' · faz ' + idade + ' anos' : ''),
+        avatar: {init: (cl.init || nomeCli.charAt(0) || '?'), color: cl.color || '#888', name: nomeCli},
+        telefone: cl.phone || '', cliId: cl.id,
+        msg: 'Feliz aniversário, ' + primeiro + '! 🎉 Um abraço da equipe Impulse One.'
+      });
+    });
+  });
+
+  return lista.sort(function(a,b){ return a.dia - b.dia || String(a.nome).localeCompare(String(b.nome)); });
+}
+window._aniversariantesDoMes = _aniversariantesDoMes;
+
+// Cartao de um aniversariante. Serve pro destaque, pra lista do mes e pro modal.
+function _anivCartao(p, hoje){
+  const ehHoje = p.dia === hoje;
+  const abrir = p.origem !== 'colab'
+    ? (p.cliId != null ? 'openClient(' + p.cliId + ')' : '')
+    : (p.profileIdx != null ? 'perfilId=' + p.profileIdx + ';goTo(\'equipe\');equipeView=\'perfil\';renderEquipe(document.getElementById(\'content\'))' : '');
+  const zap = p.telefone
+    ? '<button class="icon-btn" title="Mandar mensagem" onclick="event.stopPropagation();openWhatsAppQuick(\'' +
+      String(p.telefone).replace(/[^0-9]/g,'') + '\',\'' + String(p.msg).replace(/'/g,"\\'") + '\')">💬</button>'
+    : '';
+  return '<div class="dash-aniv' + (ehHoje ? ' hoje' : '') + '"' +
+      (abrir ? ' onclick="' + abrir + '" style="cursor:pointer"' : '') + '>' +
+      '<div class="dash-aniv-foto">' + _avatarFoto(p.avatar, 54) + '<span class="chapeu" aria-hidden="true"></span></div>' +
+      '<div class="dash-item-txt">' +
+        '<div class="dash-item-tit">' + escapeHtml(p.nome) +
+          (ehHoje ? ' <span class="dash-hoje">é hoje!</span>' : '') + '</div>' +
+        '<div class="dash-item-sub">' +
+          '<span class="aniv-tag ' + (p.origem === 'colab' ? 'col' : (p.origem === 'empresa' ? 'emp' : 'cli')) + '">' +
+            (p.origem === 'colab' ? 'Equipe' : (p.origem === 'empresa' ? 'Empresa' : 'Cliente')) + '</span> ' +
+          'Dia ' + p.dia + ' · ' + escapeHtml(p.sub) + '</div>' +
+      '</div>' +
+      (ehHoje ? '<span class="dash-aniv-emoji">🎉</span>' : '') + zap +
+    '</div>';
+}
+window._anivCartao = _anivCartao;
+
+// Faixa de destaque no topo da pagina inicial: quem faz hoje e quem faz nos
+// proximos 7 dias. Some sozinha quando nao tem ninguem.
+function renderAniversariantesDestaque(){
+  try {
+    const hoje = new Date();
+    const dia = hoje.getDate();
+    const doMes = _aniversariantesDoMes(hoje.getFullYear(), hoje.getMonth());
+    const hojeLista = doMes.filter(function(p){ return p.dia === dia; });
+    // o que ainda vem neste mes + o comecinho do mes que vem, pra virada nao
+    // deixar ninguem invisivel
+    const prox = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 1);
+    let seguintes = doMes.filter(function(p){ return p.dia > dia; });
+    const faltamNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate() - dia;
+    if(faltamNoMes <= 7){
+      const doProx = _aniversariantesDoMes(prox.getFullYear(), prox.getMonth())
+        .filter(function(p){ return p.dia <= (7 - faltamNoMes); })
+        .map(function(p){ return Object.assign({}, p, {proximoMes:true}); });
+      seguintes = seguintes.concat(doProx);
+    }
+    if(!hojeLista.length && !seguintes.length) return '';
+
+    const nomesM = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+    let corpo = '';
+    if(hojeLista.length){
+      corpo += '<div class="aniv-hoje-faixa">' +
+        hojeLista.map(function(p){ return _anivCartao(p, dia); }).join('') + '</div>';
+    }
+    if(seguintes.length){
+      corpo += (hojeLista.length ? '<div class="aniv-sec">Ainda neste mês</div>' : '') + '<div class="aniv-prox">' +
+        seguintes.map(function(p){
+          const quandoMes = p.proximoMes ? ' de ' + nomesM[prox.getMonth()] : '';
+          return '<span class="aniv-pill' + (p.origem === 'cliente' ? ' cli' : '') + '" title="' +
+            escapeHtml(p.sub) + '">🎂 ' + escapeHtml(p.primeiro) + ' <b>' + p.dia + quandoMes + '</b></span>';
+        }).join('') + '</div>';
+    }
+
+    const titulo = hojeLista.length
+      ? (hojeLista.length === 1 ? 'Hoje é aniversário de ' + escapeHtml(hojeLista[0].primeiro) + '!'
+                                : hojeLista.length + ' aniversários hoje!')
+      : (seguintes.length === 1 ? 'Aniversário de ' + escapeHtml(seguintes[0].primeiro) + ' chegando'
+                                : seguintes.length + ' aniversários neste mês');
+    return '<div class="card aniv-destaque">' +
+      '<div class="aniv-destaque-topo">' +
+        '<div class="aniv-destaque-tit">🎂 ' + titulo + '</div>' +
+        '<span class="card-link" onclick="abrirListaDashboard(\'aniversarios\')">Ver o mês</span>' +
+      '</div>' + corpo + '</div>';
+  } catch(e){ console.warn('[aniversariantes]', e); return ''; }
+}
+window.renderAniversariantesDestaque = renderAniversariantesDestaque;
 
 // Helper: abre WhatsApp Web direto com mensagem
 function openWhatsAppQuick(numero, msg){
@@ -8479,6 +8643,13 @@ function renderClientesPendencias(c){
     if(vazio(cli.phone)) contato.push('WhatsApp');
     if(vazio(cli.email)) contato.push('E-mail');
     if(vazio(cli.cnpj)) contato.push('CNPJ/CPF');
+    if(vazio(cli.aniversario_empresa)) contato.push('Aniversário da empresa');
+    // Aniversário do responsável: vale a data de quem está como contato do
+    // cliente. Se nem o contato tem nome, o que falta é o contato — a linha
+    // acima já cobre isso.
+    const anivs = (Array.isArray(cli.aniversarios) ? cli.aniversarios : [])
+      .filter(function(a){ return a && String(a.nome||'').trim() && String(a.data||'').trim(); });
+    if(!anivs.length) contato.push('Aniversário do responsável');
     const contrato = [];
     if(!(_pendContratoCache && cli._dbId && _pendContratoCache.has(cli._dbId))) contrato.push('Documento do contrato');
     if(vazio(cli.contract_start)) contrato.push('Início do contrato');
@@ -11076,7 +11247,11 @@ function blocoAniversarios(cli){
         <div class="card-title">🎂 Aniversários</div>
         ${preenchidos?`<span class="badge b-default">${preenchidos}</span>`:''}
       </div>
-      <div class="text-xs text-3" style="margin-bottom:11px;line-height:1.55">Até ${_ANIV_MAX} pessoas por cliente. Cada uma vira um lembrete na agenda, todo ano.</div>
+      <div class="text-xs text-3" style="margin-bottom:11px;line-height:1.55">A data da empresa e a de até ${_ANIV_MAX} pessoas. Cada uma vira um lembrete na agenda, todo ano.</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:11px;padding-bottom:11px;border-bottom:1px solid var(--border)">
+        <div style="flex:1;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600">🏢 Aniversário da empresa</div>
+        <input id="anivEmpresa_${cli.id}" type="date" class="login-input" value="${escapeHtml(_anivISO(cli.aniversario_empresa))}" style="background:var(--surface-2);width:160px" />
+      </div>
       <div style="display:flex;flex-direction:column;gap:7px">${linhas.join('')}</div>
       <button class="btn btn-primary" type="button" onclick="salvarAniversarios(${cli.id})" style="margin-top:12px">💾 Salvar aniversários</button>
     </div>`;
@@ -11104,10 +11279,15 @@ async function salvarAniversarios(cliId){
     if(!d){ toast('Falta a data de ' + nome,'info'); return; }
     novos.push({ nome: nome, data: d });
   }
-  const r = await gravarSeguro({ tabela:'clients', tipo:'update', id: cli._dbId, payload:{ aniversarios: novos }, descricao:'aniversários do cliente' });
+  const empresa = ((document.getElementById('anivEmpresa_'+cliId)||{}).value || '').trim();
+  const r = await gravarSeguro({ tabela:'clients', tipo:'update', id: cli._dbId,
+    payload:{ aniversarios: novos, aniversario_empresa: empresa || null },
+    descricao:'aniversários do cliente' });
   if(!r.ok) return;
   cli.aniversarios = novos;
-  toast(novos.length ? ('✓ ' + novos.length + ' aniversário(s) salvos · já aparecem na agenda') : '✓ Aniversários limpos','success');
+  cli.aniversario_empresa = empresa;
+  const qtd = novos.length + (empresa ? 1 : 0);
+  toast(qtd ? ('✓ ' + qtd + ' aniversário(s) salvos · já aparecem na agenda') : '✓ Aniversários limpos','success');
 }
 if(typeof window!=='undefined'){ window.salvarAniversarios=salvarAniversarios; window.blocoAniversarios=blocoAniversarios; }
 
@@ -12200,6 +12380,16 @@ function getEventosDoMes(){
     // Guardados em clients.aniversarios: [{nome, data:'AAAA-MM-DD' ou 'DD/MM'}]
     (typeof clients!=='undefined'?clients:[]).forEach(function(cl){
       if(!cl || cl.oculto) return;
+      // aniversário da própria empresa
+      if(cl.aniversario_empresa){
+        const pe = String(cl.aniversario_empresa).match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+        if(pe && parseInt(pe[2],10) === mes+1){
+          const nomeE = (typeof _nomeCli==='function') ? _nomeCli(cl) : (cl.name||'');
+          const anosE = ano - parseInt(pe[1],10);
+          push(parseInt(pe[3],10), {tipo:'aniversario', titulo:'🏢 ' + nomeE + (anosE>0?' · '+anosE+' anos':''),
+                                    cor:'#0ea5e9', clienteId: cl.id});
+        }
+      }
       (Array.isArray(cl.aniversarios)?cl.aniversarios:[]).forEach(function(a){
         if(!a || !a.data) return;
         const txt = String(a.data);
@@ -12383,10 +12573,12 @@ function renderCalendario(c){
     // Dots coloridos pra mobile (max 4)
     const dotsHtml = evs.slice(0,4).map(e => '<span class="cal-dot" style="background:'+e.cor+'" title="'+(e.titulo||'').replace(/"/g,'&quot;')+'"></span>').join('');
     // Destaque do dia especial: tinta suave + borda na cor do evento principal
-    const prioridadeDia = ['feriado','aniversario','admissao'];
+    // Aniversário na frente: e o que a pessoa precisa ver de longe.
+    const prioridadeDia = ['aniversario','feriado','admissao'];
     let corDia = null;
     for(const t of prioridadeDia){ const e = evs.find(x=>x.tipo===t && x.cor); if(e){ corDia = e.cor; break; } }
-    html += '<div class="cal-day '+(isHoje?'today':'')+'" onclick="abrirDiaCalendario('+d+')" style="cursor:pointer'+(corDia?';background:'+corDia+'18;border:1.5px solid '+corDia:'')+'">'+
+    const temAniv = evs.some(function(x){ return x.tipo === 'aniversario'; });
+    html += '<div class="cal-day '+(isHoje?'today':'')+(temAniv?' cal-aniv':'')+'" onclick="abrirDiaCalendario('+d+')" style="cursor:pointer'+(corDia?';background:'+corDia+'18;border:1.5px solid '+corDia:'')+'">'+
       (topEmojis ? '<div style="position:absolute;top:4px;right:6px;font-size:14px;line-height:1;letter-spacing:1px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))">'+topEmojis+'</div>' : '')+
       '<div class="cal-num"'+(corDia?' style="color:'+corDia+';font-weight:800"':'')+'>'+d+'</div>'+
       evs.slice(0,4).map((e, evIdx) => {
@@ -12528,6 +12720,27 @@ function listarProximosEventos(diasFrente){
     }
     checkData(m.birthday, 'aniversário', '🎂', '#f59e0b', 'aniversario');
     checkData(m.since, 'admissão', '🏆', '#10b981', 'admissao');
+  });
+
+  // aniversarios dos contatos dos clientes, na mesma regra dos proximos N dias
+  (typeof clients !== 'undefined' ? clients : []).forEach(function(cl){
+    if(!cl || cl.oculto || cl.status === 'cancelado') return;
+    const nomeCli = (typeof _nomeCli === 'function') ? _nomeCli(cl) : (cl.name || '');
+    (Array.isArray(cl.aniversarios) ? cl.aniversarios : []).forEach(function(a){
+      if(!a || !a.data) return;
+      const txt = String(a.data);
+      let dd = 0, mm = 0;
+      let m1 = txt.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+      if(m1){ mm = parseInt(m1[2],10); dd = parseInt(m1[3],10); }
+      else { const m2 = txt.match(/^(\d{1,2})[\/\-.](\d{1,2})/); if(m2){ dd = parseInt(m2[1],10); mm = parseInt(m2[2],10); } }
+      if(!dd || !mm) return;
+      let prox = new Date(hoje.getFullYear(), mm - 1, dd);
+      if(prox < hoje) prox = new Date(hoje.getFullYear() + 1, mm - 1, dd);
+      if(prox > limite) return;
+      const quem = String(a.nome || 'Contato').split(' ')[0];
+      lista.push({data: prox, titulo: '🎂 ' + quem + ' · ' + nomeCli, cor: '#f59e0b',
+                  tipo: 'aniversario', clienteId: cl.id});
+    });
   });
 
   return lista.sort((a,b) => a.data - b.data).slice(0, 12);
