@@ -6889,7 +6889,7 @@ function atualizarNotificacoes(){
   ].join('');
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.notif-pop')&&!e.target.closest('[title="Notificações"]'))document.getElementById('notifPop').classList.remove('open')});
-function closeModal(){document.getElementById('modalBg').classList.remove('open')}
+function closeModal(){document.getElementById('modalBg').classList.remove('open');window._cliAberto=null}
 
 function statBadge(s){
   // Compat: status antigos (onboarding/paused/late) viram active. Só active/cancelado.
@@ -8767,8 +8767,12 @@ function openClient(id, targetPane){
     </div>
   `;
   document.getElementById('modalBg').classList.add('open');
+  window._cliAberto = cli;   // quem está aberto agora, pro tempo real saber o que atualizar
   // Busca os orçamentos desse cliente direto no banco (não só o cache de 50)
   setTimeout(()=>{ try { if(typeof carregarOrcamentosCliente==='function') carregarOrcamentosCliente(cli); } catch(e){} }, 40);
+  // A observação do plano é anotação de equipe: tem que ser a do banco AGORA, não a
+  // da última vez que a página carregou. Quem deixou a aba aberta desde ontem via vazio.
+  setTimeout(()=>{ try { if(typeof _sincronizarObsPlano==='function') _sincronizarObsPlano(cli); } catch(e){} }, 60);
 
   // Calendário editorial (aba 🗓) — busca os calendários e o que o cliente respondeu
   setTimeout(()=>{ try { if(typeof carregarCalendariosCliente==='function') carregarCalendariosCliente(cli); } catch(e){} }, 60);
@@ -8958,6 +8962,22 @@ function paneRelatoriosCliente(cli){
         : '<div class="text-xs text-3" style="padding:24px;text-align:center">⏳ Carregando relatórios…</div>') + '</div>'
     + '</div>';
 }
+
+// Puxa a observação do plano direto do banco e atualiza a tela.
+// Não atropela quem está digitando: só escreve se o campo não estiver em foco.
+async function _sincronizarObsPlano(cli){
+  if(!_supa || !cli || !cli._dbId) return;
+  try {
+    const { data, error } = await _supa.from('clients').select('plan_observacao').eq('id', cli._dbId).maybeSingle();
+    if(error || !data) return;
+    const doBanco = data.plan_observacao || '';
+    cli.plan_observacao = doBanco;
+    if(typeof _cliLocalSet === 'function') _cliLocalSet(cli._dbId, 'plan_observacao', doBanco);
+    const ta = document.getElementById('planObsInput');
+    if(ta && document.activeElement !== ta && ta.value !== doBanco) ta.value = doBanco;
+  } catch(e){ console.warn('[obs do plano]', e); }
+}
+window._sincronizarObsPlano = _sincronizarObsPlano;
 
 async function carregarRelatoriosCliente(cli){
   const box = document.getElementById('relClienteLista');
@@ -12960,6 +12980,11 @@ function startRealtimeSync(){
       .on('postgres_changes', {event: '*', schema: 'public', table: 'clients'}, ()=>{
         console.log('[RT] clients mudou');
         silentReload('clients').then(()=>{
+          // Se o cadastro de um cliente está aberto, a anotação dele acompanha na hora
+          try {
+            const ta = document.getElementById('planObsInput');
+            if(ta && window._cliAberto) _sincronizarObsPlano(window._cliAberto);
+          } catch(e){}
           if(currentPage === 'clientes' || currentPage === 'dashboard') renderPage(currentPage);
         });
       })
