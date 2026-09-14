@@ -502,6 +502,47 @@ body.public-page #lembretesWidget{display:none!important}
   .pauta-card,.i3-sheet,.i3-ov{animation:none}
   .pauta-card:hover{transform:none}
 }
+/* Reordenar produtos na Precificação */
+.precif-mv{display:block;width:20px;height:15px;line-height:1;padding:0;margin:1px auto;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text-3);font-size:8px;cursor:pointer;transition:border-color var(--dur) var(--ease),color var(--dur) var(--ease)}
+.precif-mv:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Lista de produtos no plano do cliente */
+.plano-lista{display:flex;flex-wrap:wrap;gap:7px;width:100%;max-height:190px;overflow:auto;padding:2px}
+.plano-op{display:inline-flex;align-items:center;gap:7px;cursor:pointer;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12.5px;font-weight:600;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease)}
+.plano-op:hover{border-color:var(--border-strong)}
+.plano-op.on{border-color:var(--accent);background:var(--accent-soft)}
+.plano-op input{width:14px;height:14px;cursor:pointer;accent-color:var(--accent);flex:none}
+
+/* Histórico da observação do plano */
+.obs-hist{margin-top:12px;border-top:1px solid var(--border);padding-top:10px}
+.obs-hist > summary{cursor:pointer;font-size:12.5px;font-weight:600;color:var(--text-2);user-select:none;list-style:none;display:flex;align-items:center;gap:7px}
+.obs-hist > summary::-webkit-details-marker{display:none}
+.obs-hist > summary::before{content:'▸';color:var(--text-3);transition:transform var(--dur) var(--ease)}
+.obs-hist[open] > summary::before{transform:rotate(90deg)}
+.obs-hist > summary:hover{color:var(--text)}
+.obs-hist-item{padding:11px 0;border-bottom:1px solid var(--border)}
+.obs-hist-item:last-child{border-bottom:none}
+.obs-hist-cab{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px}
+.obs-hist-quem{font-size:12.5px;font-weight:600;color:var(--text)}
+.obs-hist-quando{font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+.obs-hist-atual{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--success-soft);color:var(--success-text);border:1px solid var(--success)}
+.obs-hist-txt{font-size:12.5px;line-height:1.55;color:var(--text-2);white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Tarefas dentro do cadastro do cliente */
+.tk-item{display:flex;align-items:flex-start;gap:11px;padding:11px 13px;background:var(--surface-2);border:1px solid var(--border);border-radius:11px;margin-bottom:8px}
+.tk-item.feita{opacity:.6}
+.tk-item.feita .tk-tit{text-decoration:line-through}
+.tk-marca{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;background:var(--surface);border:1px solid var(--border)}
+.tk-item.feita .tk-marca{background:var(--success-soft);border-color:var(--success);color:var(--success-text)}
+.tk-tit{font-size:13.5px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+.tk-sub{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:3px;font-size:11.5px;color:var(--text-3)}
+
+/* Responsáveis da tarefa: pílula que marca/desmarca */
+.ntk-quem{display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--border);border-radius:999px;background:var(--surface);font-size:12.5px;font-weight:600;cursor:pointer;transition:border-color var(--dur) var(--ease),background var(--dur) var(--ease);white-space:nowrap}
+.ntk-quem:hover{border-color:var(--border-strong)}
+.ntk-quem:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.ntk-quem input{width:15px;height:15px;cursor:pointer;accent-color:var(--accent)}
+
 /* ==========================================================================
    BLINDAGEM MOBILE — vale pra tela que existe hoje e pra qualquer tela nova.
    Regra da casa: no celular NADA pode empurrar a pagina pro lado. O que for
@@ -3402,7 +3443,11 @@ async function dbCreate(table, data){
   console.log('[dbCreate] ' + table, data);
   if(!_supa){ toast('⚠ Banco nao conectado (Supabase)', 'info'); console.warn('[dbCreate] _supa undefined'); return null; }
   try {
-    const { data: r, error } = await _supa.from(table).insert(data).select().single();
+    // Lista = várias linhas de uma vez (ex: a mesma tarefa pra vários responsáveis).
+    // .single() explode com mais de uma linha, então só usa quando é uma só.
+    const emLote = Array.isArray(data);
+    const q = _supa.from(table).insert(data).select();
+    const { data: r, error } = emLote ? await q : await q.single();
     if(error) throw error;
     console.log('[dbCreate] ✓ ' + table, r);
     return r;
@@ -8303,7 +8348,37 @@ async function _carregarPendContratos(){
 }
 
 // Planos oficiais (mesmas opções do orçamento/Precificação). Cliente pode ter 1 ou mais.
-const PLANOS_IMPULSE = ['Plano Pulse','Plano Impulse','Plano Impulse + Captação'];
+// Os três clássicos ficam como rede de segurança: se a Precificação ainda não
+// carregou (ou a tabela não existe), o cadastro do cliente não fica sem opção.
+const PLANOS_BASE = ['Plano Pulse','Plano Impulse','Plano Impulse + Captação'];
+
+// A lista de verdade é a da Precificação do Comercial. Mudou lá, muda aqui:
+// não existe segunda lista pra manter em dia.
+function _planosDisponiveis(cli){
+  const norm = x => _planosNorm(x).trim();
+  const prods = (typeof _precifProdutos !== 'undefined' && Array.isArray(_precifProdutos)) ? _precifProdutos : [];
+  const ativos = prods.filter(p => p.ativo !== false && String(p.produto||'').trim())
+                      .sort((a,b) => (a.ordem||0) - (b.ordem||0))
+                      .map(p => String(p.produto).trim());
+  // A lista junta três coisas, sem repetir: os produtos da Precificação (na ordem
+  // de lá), os planos clássicos e o que ESTE cliente já tem contratado. O nome na
+  // Precificação nem sempre bate com o que está no cadastro antigo do cliente
+  // ('PLANO IMPULSE+' x 'Plano Impulse'), e nenhum dos dois pode sumir da tela.
+  const out = [];
+  const juntar = (arr) => (arr||[]).forEach(x => {
+    const nome = String(x||'').trim();
+    if(nome && !out.some(y => norm(y) === norm(nome))) out.push(nome);
+  });
+  juntar(ativos);
+  juntar(PLANOS_BASE);
+  if(cli) juntar(Array.isArray(cli.plan_list) && cli.plan_list.length
+    ? cli.plan_list
+    : _planosParse(cli.planName).planos);
+  return out;
+}
+// Compatibilidade: onde o código já usava PLANOS_IMPULSE como lista fixa.
+Object.defineProperty(window, 'PLANOS_IMPULSE', { get: _planosDisponiveis, configurable: true });
+const PLANOS_IMPULSE_FALLBACK = PLANOS_BASE;
 // ===== PLANO DO CLIENTE =====
 // O plano é uma LISTA (clients.plan_list). plan_name segue existindo como texto
 // de exibição pras telas antigas. Guardar só o texto quebrava: 'Plano Impulse +
@@ -8317,6 +8392,7 @@ function _planosNorm(txt){
 // Lê o texto antigo e devolve {planos:[...], outro:'...'}, aceitando vírgula
 // sobrando no meio do nome ('Plano Impulse +, Captação' vale como o plano combo).
 function _planosParse(texto){
+  const PLANOS_IMPULSE = _planosDisponiveis();
   const original = String(texto||'');
   const norm = _planosNorm(original);
   const usados = new Array(original.length).fill(false);
@@ -8345,6 +8421,7 @@ function _planosParse(texto){
 // A lista de planos do cliente. plan_list manda; sem ela, lê o texto antigo.
 function _planosDoCliente(cli){
   if(cli && Array.isArray(cli.plan_list) && cli.plan_list.length) return cli.plan_list.slice();
+  const PLANOS_IMPULSE = PLANOS_BASE;
   const p = _planosParse(cli && cli.planName);
   return p.planos.concat(p.outro ? p.outro.split(',').map(x=>x.trim()).filter(Boolean) : []);
 }
@@ -8783,6 +8860,7 @@ function openClient(id, targetPane){
       <div class="modal-tab" onclick="cliTab(this,'jornada')">Jornada</div>
       <div class="modal-tab" onclick="cliTab(this,'briefing')">Briefing</div>
       <div class="modal-tab" onclick="cliTab(this,'calendario')">🗓 Calendário</div>
+      <div class="modal-tab" onclick="cliTab(this,'tarefas')">✅ Tarefas</div>
       <div class="modal-tab" onclick="cliTab(this,'plano')">Plano</div>
       <div class="modal-tab" onclick="cliTab(this,'arquivos')">Arquivos</div>
       <div class="modal-tab" onclick="cliTab(this,'antes')">📊 Antes</div>
@@ -8796,6 +8874,7 @@ function openClient(id, targetPane){
       ${paneJornada(cli)}
       ${paneBriefing(cli)}
       ${paneCalendario(cli)}
+      ${paneTarefasCliente(cli)}
       ${paneFinanceiro(cli)}
       ${paneArquivos(cli)}
       ${paneAntes(cli)}
@@ -8810,6 +8889,21 @@ function openClient(id, targetPane){
   // A observação do plano é anotação de equipe: tem que ser a do banco AGORA, não a
   // da última vez que a página carregou. Quem deixou a aba aberta desde ontem via vazio.
   setTimeout(()=>{ try { if(typeof _sincronizarObsPlano==='function') _sincronizarObsPlano(cli); } catch(e){} }, 60);
+  setTimeout(()=>{ try { if(typeof carregarTarefasCliente==='function') carregarTarefasCliente(cli); } catch(e){} }, 70);
+  setTimeout(()=>{ try { if(typeof carregarHistObsPlano==='function') carregarHistObsPlano(cli); } catch(e){} }, 80);
+  // A lista de produtos do plano vem da Precificação. Se ela ainda não foi
+  // carregada nesta sessão, busca agora e repinta a aba Plano com a lista cheia.
+  setTimeout(async ()=>{
+    try {
+      if(typeof _precifProdutos !== 'undefined' && !_precifProdutos.length && typeof loadPrecificacao === 'function'){
+        await loadPrecificacao();
+        if(_precifProdutos.length){
+          const pane = document.querySelector('.modal-pane[data-pane="plano"]');
+          if(pane) pane.outerHTML = paneFinanceiro(cli);
+        }
+      }
+    } catch(e){ console.warn('[precificacao no plano]', e); }
+  }, 90);
 
   // Calendário editorial (aba 🗓) — busca os calendários e o que o cliente respondeu
   setTimeout(()=>{ try { if(typeof carregarCalendariosCliente==='function') carregarCalendariosCliente(cli); } catch(e){} }, 60);
@@ -9022,6 +9116,47 @@ function _obsPlanoRodapeHTML(cli){
 }
 if(typeof window !== 'undefined') window._obsPlanoRodapeHTML = _obsPlanoRodapeHTML;
 
+// O histórico da anotação do plano. Nunca apaga nada: cada salvamento vira
+// uma linha, com quem escreveu e quando.
+function _obsHistQuando(iso){
+  if(!iso) return '';
+  try {
+    const d = new Date(iso), p = n => String(n).padStart(2,'0');
+    return p(d.getDate()) + '/' + p(d.getMonth()+1) + '/' + d.getFullYear() + ' às ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  } catch(e){ return ''; }
+}
+async function carregarHistObsPlano(cli){
+  const box = document.getElementById('planObsHistLista');
+  if(!box || !_supa || !cli || !cli._dbId) return;
+  try {
+    const { data, error } = await _supa.from('plan_observacao_hist')
+      .select('*').eq('client_id', cli._dbId).order('criado_em', {ascending:false}).limit(60);
+    if(error) throw error;
+    const lista = data || [];
+    const qtd = document.getElementById('planObsHistQtd');
+    if(qtd) qtd.textContent = lista.length ? '· ' + lista.length + ' versão' + (lista.length>1?'ões':'') : '';
+    if(!lista.length){
+      box.innerHTML = '<div class="text-xs text-3" style="padding:12px 0">Ainda não há alterações registradas. A partir de agora, toda vez que alguém mudar essa anotação, a versão anterior fica guardada aqui.</div>';
+      return;
+    }
+    box.innerHTML = lista.map(function(h, i){
+      const texto = (h.texto||'').trim();
+      return '<div class="obs-hist-item">' +
+        '<div class="obs-hist-cab">' +
+          '<span class="obs-hist-quem">' + escapeHtml((h.autor||'').split(' ')[0] || 'alguém') + '</span>' +
+          '<span class="obs-hist-quando">' + escapeHtml(_obsHistQuando(h.criado_em)) + '</span>' +
+          (i === 0 ? '<span class="obs-hist-atual">versão atual</span>' : '') +
+        '</div>' +
+        '<div class="obs-hist-txt">' + (texto ? escapeHtml(texto) : '<em class="text-3">(anotação apagada nesta versão)</em>') + '</div>' +
+      '</div>';
+    }).join('');
+  } catch(e){
+    console.warn('[hist obs]', e);
+    box.innerHTML = '<div class="text-xs text-3" style="padding:12px 0">Não consegui carregar o histórico agora.</div>';
+  }
+}
+window.carregarHistObsPlano = carregarHistObsPlano;
+
 async function _sincronizarObsPlano(cli){
   if(!_supa || !cli || !cli._dbId) return;
   try {
@@ -9059,11 +9194,150 @@ async function carregarRelatoriosCliente(cli){
 window.paneRelatoriosCliente = paneRelatoriosCliente;
 window.carregarRelatoriosCliente = carregarRelatoriosCliente;
 
+// ===== TAREFAS DO CLIENTE =====
+// Tudo que a equipe abriu pra esse cliente, do mais recente pro mais antigo.
+// A fonte é a própria tabela de tarefas: nada é duplicado aqui.
+function _tkQuem(t){
+  const m = (team||[]).find(x => x._dbId === t.assigned_to);
+  return m ? (m.name||'').split(' ')[0] : '';
+}
+function _tkDataBR(d){
+  if(!d) return '';
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? (m[3] + '/' + m[2]) : '';
+}
+function _tarefasClienteHTML(lista, cli){
+  const esc = escapeHtml;
+  if(!lista.length){
+    return '<div class="empty-state" style="padding:30px 16px"><div class="ico">✅</div>'
+      + '<div class="ttl">Nenhuma tarefa ainda</div>'
+      + '<div class="desc">Toda tarefa aberta com ' + esc(_nomeCli(cli)) + ' como cliente aparece aqui, de quem for o responsável.</div>'
+      + '<button class="btn btn-primary" style="margin-top:14px" onclick="novaTarefaDoCliente(\'' + esc(cli._dbId||'') + '\')">+ Criar tarefa</button></div>';
+  }
+  const abertas = lista.filter(t => !t.done);
+  const feitas  = lista.filter(t => t.done);
+  const linha = (t) => {
+    const quem = _tkQuem(t);
+    const quando = _tkDataBR(t.due_date);
+    const prio = {urgent:'🔴', high:'🟠', med:'🔵', low:'⚪'}[t.priority||'med'] || '🔵';
+    return '<div class="tk-item' + (t.done ? ' feita' : '') + '">' +
+      '<div class="tk-marca">' + (t.done ? '✓' : prio) + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="tk-tit">' + esc(t.title||'') + '</div>' +
+        '<div class="tk-sub">' +
+          (quem ? '<span>👤 ' + esc(quem) + '</span>' : '<span class="text-3">sem responsável</span>') +
+          (quando ? '<span>📅 ' + esc(quando) + '</span>' : '') +
+          (t.tag ? '<span>🏷 ' + esc(t.tag) + '</span>' : '') +
+          (t.grupo_id ? '<span title="Essa tarefa foi criada pra mais de uma pessoa">👥 em equipe</span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  };
+  let html = '';
+  if(abertas.length){
+    html += '<div class="info-label" style="margin:2px 0 8px">Em aberto · ' + abertas.length + '</div>'
+         + abertas.map(linha).join('');
+  }
+  if(feitas.length){
+    html += '<div class="info-label" style="margin:16px 0 8px">Concluídas · ' + feitas.length + '</div>'
+         + feitas.slice(0, 30).map(linha).join('');
+    if(feitas.length > 30) html += '<div class="text-xs text-3" style="margin-top:8px">mostrando as 30 mais recentes de ' + feitas.length + '</div>';
+  }
+  return html;
+}
+
+function paneTarefasCliente(cli){
+  return '<div class="modal-pane" data-pane="tarefas">'
+    + '<div class="card-header" style="margin-bottom:4px"><div class="card-title">✅ Tarefas do cliente</div>'
+    + '<div style="display:flex;gap:8px;align-items:center"><span class="badge b-default" id="tkCliCount">—</span>'
+    + '<button class="btn btn-sm btn-primary" onclick="novaTarefaDoCliente(\'' + escapeHtml(cli._dbId||'') + '\')">+ Nova tarefa</button></div></div>'
+    + '<div class="text-xs text-3" style="margin-bottom:10px">Tudo que a equipe abriu pra ' + escapeHtml(_nomeCli(cli)) + ', de qualquer responsável.</div>'
+    + '<div id="tkCliLista"><div class="text-xs text-3" style="padding:24px;text-align:center">⏳ Carregando tarefas…</div></div>'
+    + '</div>';
+}
+
+async function carregarTarefasCliente(cli){
+  const box = document.getElementById('tkCliLista');
+  if(!box || !cli || !cli._dbId) return;
+  try {
+    let lista = [];
+    if(_supa){
+      const { data, error } = await _supa.from('tasks').select('*')
+        .eq('client_id', cli._dbId).order('due_date', {ascending:false});
+      if(error) throw error;
+      lista = data || [];
+    } else {
+      lista = (window._tasksRaw||[]).filter(t => t.client_id === cli._dbId);
+    }
+    box.innerHTML = _tarefasClienteHTML(lista, cli);
+    const cnt = document.getElementById('tkCliCount');
+    if(cnt) cnt.textContent = lista.filter(t=>!t.done).length + ' em aberto';
+  } catch(e){
+    console.warn('[tarefas do cliente]', e);
+    box.innerHTML = '<div class="text-xs text-3" style="padding:20px;text-align:center">Não consegui carregar as tarefas agora.</div>';
+  }
+}
+
+// Abre o modal de nova tarefa já com esse cliente escolhido
+function novaTarefaDoCliente(dbId){
+  const cli = (clients||[]).find(c => c._dbId === dbId);
+  closeModal();
+  setTimeout(()=>{ openNovaTarefaModal({preset_client: dbId}); }, 180);
+}
+window.paneTarefasCliente = paneTarefasCliente;
+window.carregarTarefasCliente = carregarTarefasCliente;
+window.novaTarefaDoCliente = novaTarefaDoCliente;
+
+// Leva pro Comercial já na aba de orçamento, com esse cliente preenchido.
+function fazerOrcamentoDoCliente(dbId){
+  const cli = (clients||[]).find(c => c._dbId === dbId);
+  if(!cli){ toast('Cliente não encontrado','info'); return; }
+  window._orcClientePreset = {
+    client_id: cli._dbId,
+    nome: (typeof _nomeCli === 'function') ? _nomeCli(cli) : cli.name,
+    telefone: cli.phone || '',
+    email: cli.email || '',
+    cnpj: cli.cnpj || '',
+    razao_social: cli.razao_social || ''
+  };
+  closeModal();
+  if(typeof comTab !== 'undefined') comTab = 'orcamento';
+  goTo('comercial');
+  setTimeout(function(){
+    try { if(typeof _orcAplicarPreset === 'function') _orcAplicarPreset(); } catch(e){}
+  }, 420);
+  toast('📄 Orçamento novo pra ' + window._orcClientePreset.nome, 'success');
+}
+window.fazerOrcamentoDoCliente = fazerOrcamentoDoCliente;
+
+// Preenche o cliente no orçamento aberto (usado logo depois de trocar de tela)
+function _orcAplicarPreset(){
+  const pre = window._orcClientePreset;
+  if(!pre) return;
+  try {
+    if(typeof orcamento !== 'undefined' && orcamento){
+      orcamento.cliente = orcamento.cliente || {};
+      orcamento.cliente.nome = pre.nome;
+      orcamento.cliente.telefone = pre.telefone;
+      orcamento.cliente.email = pre.email;
+      orcamento.cliente.client_id = pre.client_id;
+      if(typeof renderComercial === 'function') renderComercial(document.getElementById('content'));
+    }
+  } catch(e){ console.warn('[preset do orcamento]', e); }
+  window._orcClientePreset = null;
+}
+window._orcAplicarPreset = _orcAplicarPreset;
+
 function paneOrcamentos(cli){
   const cacheB = (typeof orcamentosSalvos!=='undefined' ? orcamentosSalvos : []).filter(b => _orcEhDoCliente(b, cli));
   const leads = _orcClienteLeads(cli);
   return `<div class="modal-pane" data-pane="orcamentos">
-    <div class="card-header" style="margin-bottom:12px"><div class="card-title">📄 Orçamentos & pipeline</div><span class="badge b-default" id="orcClienteCount">${cacheB.length+leads.length}</span></div>
+    <div class="card-header" style="margin-bottom:12px"><div class="card-title">📄 Orçamentos & pipeline</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge b-default" id="orcClienteCount">${cacheB.length+leads.length}</span>
+        <button class="btn btn-sm btn-primary" onclick="fazerOrcamentoDoCliente('${escapeHtml(cli._dbId||'')}')" title="Abre o Comercial já com este cliente preenchido">+ Fazer orçamento</button>
+      </div>
+    </div>
     <div id="orcClienteLista">${(cacheB.length+leads.length) ? _orcClienteHTML(cacheB, leads, cli) : '<div class="text-xs text-3" style="padding:24px;text-align:center">⏳ Carregando orçamentos e negociações...</div>'}</div>
   </div>`;
 }
@@ -9469,8 +9743,19 @@ async function updateClientField(cliId, field, value){
     }
     _cliLocalSet(cli._dbId, field, value);   // sucesso REAL → sincroniza o cache local com o banco
     if(col === 'plan_observacao'){
+      // Toda versão vira histórico. Nada é apagado: se alguém sobrescrever a
+      // anotação de outra pessoa, o texto anterior continua registrado.
+      try {
+        await _supa.from('plan_observacao_hist').insert({
+          client_id: cli._dbId,
+          texto: value || '',
+          autor: payload.plan_observacao_por || null,
+          autor_email: (_currentUser && _currentUser.email) || null
+        });
+      } catch(e){ console.warn('[historico da observacao]', e); }
       const rod = document.getElementById('planObsRodape');
       if(rod && typeof _obsPlanoRodapeHTML === 'function') rod.innerHTML = _obsPlanoRodapeHTML(cli);
+      try { if(typeof carregarHistObsPlano === 'function') carregarHistObsPlano(cli); } catch(e){}
     }
     toast('✓ Salvo','success');
     return true;
@@ -9483,6 +9768,31 @@ async function updateClientField(cliId, field, value){
 }
 
 // Multi-seleção de planos no modal do cliente (pane plano): marca vários e só salva no botão.
+// Filtra a lista de produtos do plano enquanto a pessoa digita.
+function _planoFiltrar(termo){
+  const q = _planosNorm(termo || '').trim();
+  const box = document.getElementById('planoLista');
+  if(!box) return;
+  let visiveis = 0;
+  Array.from(box.querySelectorAll('.plano-op')).forEach(function(el){
+    const nome = _planosNorm(el.getAttribute('data-nome') || '');
+    const mostra = !q || nome.indexOf(q) !== -1 || el.querySelector('input').checked;
+    el.style.display = mostra ? '' : 'none';
+    if(mostra) visiveis++;
+  });
+  let vazio = box.querySelector('.plano-vazio');
+  if(!visiveis){
+    if(!vazio){
+      vazio = document.createElement('div');
+      vazio.className = 'plano-vazio text-xs text-3';
+      vazio.style.cssText = 'padding:10px 2px';
+      box.appendChild(vazio);
+    }
+    vazio.textContent = 'Nenhum produto com esse nome. Use o campo "Outro" abaixo.';
+  } else if(vazio){ vazio.remove(); }
+}
+window._planoFiltrar = _planoFiltrar;
+
 async function _salvarPlanoCliente(cliId){
   const sel = Array.from(document.querySelectorAll('.plano-cb:checked')).map(cb=>cb.value);
   const outroTxt = (document.getElementById('planoOutroInput')?.value||'').replace(/^\s*\+\s*/,'').trim();
@@ -10597,14 +10907,22 @@ function paneFinanceiro(cli){
             <div style="font-size:20px;font-weight:700;letter-spacing:-.02em;color:${_planoValido(planName, cli)?'var(--text)':'var(--danger)'};padding:2px 0">${planName?escapeHtml(planName):'— sem plano definido —'}</div>
             <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;align-items:center">
               ${(()=>{
+                const eIgual = (a,b) => _planosNorm(a).trim() === _planosNorm(b).trim();
                 const lista = _planosDoCliente(cli);
-                const marcados = PLANOS_IMPULSE.filter(p => lista.some(x => _planosNorm(x).trim() === _planosNorm(p).trim()));
-                const outro = lista.filter(x => !PLANOS_IMPULSE.some(p => _planosNorm(x).trim() === _planosNorm(p).trim())).join(', ');
-                const chks = PLANOS_IMPULSE.map(p => {
-                  const on = marcados.indexOf(p) !== -1;
-                  return `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--surface);border:1px solid ${on?'var(--accent)':'var(--border)'};border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600"><input type="checkbox" class="plano-cb" value="${escapeHtml(p)}" ${on?'checked':''} style="width:14px;height:14px;cursor:pointer" />${p}</label>`;
+                const todos = _planosDisponiveis(cli);
+                // O que o cliente já tem aparece primeiro, pra não ter que caçar na lista.
+                const disp = todos.filter(p => lista.some(x => eIgual(x,p)))
+                             .concat(todos.filter(p => !lista.some(x => eIgual(x,p))));
+                const outro = lista.filter(x => !disp.some(p => eIgual(x,p))).join(', ');
+                const chks = disp.map(p => {
+                  const on = lista.some(x => eIgual(x,p));
+                  return `<label class="plano-op${on?' on':''}" data-nome="${escapeHtml(p.toLowerCase())}"><input type="checkbox" class="plano-cb" value="${escapeHtml(p)}" ${on?'checked':''} onchange="this.closest('.plano-op').classList.toggle('on',this.checked)" />${escapeHtml(p)}</label>`;
                 }).join('');
-                return chks + `<input id="planoOutroInput" class="login-input" value="${escapeHtml(outro)}" placeholder="Outro plano..." style="background:var(--surface);width:150px;font-size:12.5px;padding:6px 10px" />`;
+                return `<input id="planoBusca" class="login-input" placeholder="🔎 Buscar produto..." oninput="_planoFiltrar(this.value)" style="background:var(--surface);width:100%;font-size:12.5px;padding:7px 11px;margin-bottom:9px" />
+                  <div class="plano-lista" id="planoLista">${chks}</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:9px;width:100%">
+                    <input id="planoOutroInput" class="login-input" value="${escapeHtml(outro)}" placeholder="Outro, fora da lista..." style="background:var(--surface);flex:1;min-width:150px;font-size:12.5px;padding:6px 10px" />
+                  </div>`;
               })()}
               <button class="btn btn-sm btn-primary" onclick="_salvarPlanoCliente(${cli.id})" style="white-space:nowrap">💾 Salvar plano</button>
             </div>
@@ -10621,6 +10939,10 @@ function paneFinanceiro(cli){
           placeholder="Anotações sobre o plano deste cliente — combinados, exceções, detalhes de cobrança, o que precisar lembrar..."
           style="width:100%;min-height:96px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:13.5px;color:var(--text);font-family:inherit;resize:vertical;line-height:1.55">${escapeHtml(cli.plan_observacao||'')}</textarea>
         <div class="text-xs text-3" style="margin-top:6px" id="planObsRodape">${_obsPlanoRodapeHTML(cli)}</div>
+        <details class="obs-hist" id="planObsHistBox">
+          <summary>🕓 Histórico de alterações <span class="text-xs text-3" id="planObsHistQtd"></span></summary>
+          <div id="planObsHistLista"><div class="text-xs text-3" style="padding:12px 0">Carregando…</div></div>
+        </details>
       </div>
 
       ${blocoAniversarios(cli)}
@@ -23466,8 +23788,13 @@ function openNovaTarefaModal(opts){
     <div class="modal-body">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Título *</div><input id="ntkTitle" class="login-input" placeholder="Ex: Editar reels da semana" autofocus style="background:var(--surface-2)" /></div>
-        <div><div class="info-label" style="margin-bottom:5px">Responsável</div><select id="ntkAss" class="login-input" style="background:var(--surface-2)"><option value="">— ninguém —</option>${team.map(t=>`<option value="${t._dbId||''}" ${presetAssDbId===t._dbId?'selected':''}>${t.name}</option>`).join('')}</select></div>
-        <div><div class="info-label" style="margin-bottom:5px">Cliente</div><select id="ntkCli" class="login-input" style="background:var(--surface-2)"><option value="">Geral / Interno</option>${sortAlfa(clients, 'name').map(c=>`<option value="${c._dbId}">${c.name}</option>`).join('')}</select></div>
+        <div style="grid-column:span 2">
+          <div class="info-label" style="margin-bottom:5px">Responsáveis <span class="text-xs text-3" style="font-weight:400;text-transform:none;letter-spacing:0">· marque quantos precisar, cada um recebe no próprio checklist</span></div>
+          <div id="ntkAssBox" style="display:flex;flex-wrap:wrap;gap:7px;max-height:132px;overflow:auto;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">
+            ${(team||[]).filter(t=>t._dbId).map(t=>`<label class="ntk-quem"><input type="checkbox" class="ntk-ass" value="${t._dbId}" ${presetAssDbId===t._dbId?'checked':''} />${escapeHtml((t.name||'').split(' ')[0])}</label>`).join('') || '<span class="text-xs text-3">Nenhum colaborador cadastrado</span>'}
+          </div>
+        </div>
+        <div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Cliente <span class="text-xs text-3" style="font-weight:400;text-transform:none;letter-spacing:0">· a tarefa aparece na aba Tarefas do cadastro dele</span></div><select id="ntkCli" class="login-input" style="background:var(--surface-2)"><option value="">Geral / Interno (sem cliente)</option>${sortAlfa(clients, 'name').map(c=>`<option value="${c._dbId}" ${opts.preset_client===c._dbId?'selected':''}>${escapeHtml(_nomeCli ? _nomeCli(c) : c.name)}</option>`).join('')}</select></div>
         <div><div class="info-label" style="margin-bottom:5px">Prioridade</div><select id="ntkPrio" class="login-input" style="background:var(--surface-2)"><option value="urgent">🔴 Urgente</option><option value="high">🟠 Alta</option><option value="med" selected>🔵 Média</option><option value="low">⚪ Baixa</option></select></div>
         <div><div class="info-label" style="margin-bottom:5px">Status</div><select id="ntkStatus" class="login-input" style="background:var(--surface-2)"><option value="todo" ${presetStatus==='todo'?'selected':''}>📋 A fazer</option><option value="doing" ${presetStatus==='doing'?'selected':''}>🎬 Em andamento</option><option value="review" ${presetStatus==='review'?'selected':''}>👁 Em revisão</option><option value="done" ${presetStatus==='done'?'selected':''}>✅ Concluída</option></select></div>
         <div><div class="info-label" style="margin-bottom:5px">Horário</div><input id="ntkTime" class="login-input" type="time" value="09:00" style="background:var(--surface-2)" /></div>
@@ -23475,7 +23802,7 @@ function openNovaTarefaModal(opts){
         <div><div class="info-label" style="margin-bottom:5px">Tag (opcional)</div><input id="ntkTag" class="login-input" placeholder="Conteúdo / Design / Vídeo..." style="background:var(--surface-2)" /></div>
         <div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Descrição (opcional)</div><textarea id="ntkDesc" class="login-input" rows="2" placeholder="Detalhes adicionais..." style="background:var(--surface-2);resize:vertical;min-height:60px"></textarea></div>
       </div>
-      <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:12.5px"><input type="checkbox" id="ntkDaily" checked /> Adicionar ao checklist diário do responsável</label>
+      <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:12.5px"><input type="checkbox" id="ntkDaily" checked /> Adicionar ao checklist diário de cada responsável</label>
       <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
         <button class="btn" onclick="closeModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarNovaTarefa()" id="ntkBtn">➕ Criar tarefa</button>
@@ -23489,7 +23816,10 @@ function openNovaTarefaModal(opts){
 async function salvarNovaTarefa(){
   const title = document.getElementById('ntkTitle').value.trim();
   if(!title){ toast('Informe o título','info'); return; }
-  const assId = document.getElementById('ntkAss').value || null;
+  // Cada responsável ganha a SUA tarefa: o checklist é individual e cada um
+  // marca o seu. O grupo_id liga todas, pra saber que nasceram do mesmo pedido.
+  const quems = Array.from(document.querySelectorAll('.ntk-ass:checked')).map(x=>x.value).filter(Boolean);
+  const assId = quems[0] || null;
   const cliId = document.getElementById('ntkCli').value || null;
   const status = document.getElementById('ntkStatus')?.value || 'todo';
   const tag = document.getElementById('ntkTag').value.trim();
@@ -23507,29 +23837,36 @@ async function salvarNovaTarefa(){
 
   // Atualiza local IMEDIATAMENTE (pra Gabi ver na hora, mesmo sem banco)
   try {
-    if(assId){
-      const member = team.find(t => t._dbId === assId);
+    const cli = clients.find(c => c._dbId === cliId);
+    const clientName = cli ? (typeof _nomeCli==='function' ? _nomeCli(cli) : cli.name) : 'Geral';
+    quems.forEach(q => {
+      const member = team.find(t => t._dbId === q);
       const collabName = member ? member.name.split(' ')[0] : null;
-      const cli = clients.find(c => c._dbId === cliId);
-      const clientName = cli ? cli.name : 'Geral';
-      if(collabName){
-        if(!dailyChecklists[collabName]) dailyChecklists[collabName] = [];
-        dailyChecklists[collabName].push({
-          t: title,
-          p: data.priority,
-          time: data.scheduled_time,
-          client: clientName,
-          done: false,
-          _dbId: null  // será preenchido se o save no banco der certo
-        });
-      }
-    }
+      if(!collabName) return;
+      if(!dailyChecklists[collabName]) dailyChecklists[collabName] = [];
+      dailyChecklists[collabName].push({
+        t: title,
+        p: data.priority,
+        time: data.scheduled_time,
+        client: clientName,
+        done: false,
+        _dbId: null  // será preenchido se o save no banco der certo
+      });
+    });
   } catch(e){ console.warn(e); }
 
   // Persiste no banco (se rolar)
-  const r = await dbCreate('tasks', data);
+  // Sem ninguém marcado, cria uma tarefa solta. Com vários, uma por pessoa.
+  const grupo = quems.length > 1 ? ((crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now())) : null;
+  const payload = quems.length
+    ? quems.map(q => Object.assign({}, data, {assigned_to: q, grupo_id: grupo}))
+    : data;
+  const r = await dbCreate('tasks', payload);
   if(r){
-    toast('✓ Tarefa criada','success');
+    const nomes = quems.map(q => { const m = (team||[]).find(x=>x._dbId===q); return m ? (m.name||'').split(' ')[0] : ''; }).filter(Boolean);
+    toast(quems.length > 1
+      ? '✓ Tarefa criada pra ' + nomes.join(', ')
+      : '✓ Tarefa criada','success');
     closeModal();
     await loadDataFromSupabase();
     renderOperacional(document.getElementById('content'));
@@ -26976,6 +27313,33 @@ function _precifFmt(v){
   return 'R$ ' + parseFloat(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
+// Troca de lugar com o vizinho e grava a ordem nova. A ordem da Precificação
+// é a mesma que aparece no plano do cliente.
+async function precifMover(id, passo){
+  const lista = (_precifProdutos||[]).filter(p => p.ativo !== false)
+    .sort((a,b) => (a.ordem||0) - (b.ordem||0));
+  const i = lista.findIndex(p => p.id === id);
+  if(i === -1) return;
+  const j = i + passo;
+  if(j < 0 || j >= lista.length) return;   // já está na ponta
+  const a = lista[i], b = lista[j];
+  // Renumera tudo em sequência: evita empate de ordem herdado de dados antigos.
+  lista[i] = b; lista[j] = a;
+  lista.forEach((p, idx) => { p.ordem = idx + 1; });
+  if(currentPage === 'comercial') renderComercial(document.getElementById('content'));
+  if(!_supa) return;
+  try {
+    for(const p of [a, b]){
+      const { error } = await _supa.from('precificacao_produtos').update({ordem: p.ordem}).eq('id', p.id);
+      if(error) throw error;
+    }
+  } catch(e){
+    console.warn('[precifMover]', e);
+    toast('Não consegui salvar a ordem: ' + (e.message||''), 'info');
+  }
+}
+window.precifMover = precifMover;
+
 function renderPrecificacao(){
   try {
     if(!isAdmin()){
@@ -27037,6 +27401,7 @@ function renderPrecificacao(){
       '<span class="text-xs text-3">✓ Marque, escolha faixa e desconto · valores recalculam automaticamente</span></div>' +
       '<div style="overflow-x:auto"><table style="width:100%;font-size:12px;min-width:1000px;border-collapse:collapse">' +
         '<thead><tr style="background:var(--surface-2)">' +
+          '<th style="width:1px"></th>' +
           '<th style="text-align:center;padding:8px 6px;border-bottom:1px solid var(--border);width:32px"></th>' +
           '<th style="text-align:left;padding:8px 6px;border-bottom:1px solid var(--border);font-weight:600">Produto</th>' +
           '<th style="text-align:right;padding:8px 6px;border-bottom:1px solid var(--border);font-weight:600" title="Quantas horas o produto consome — define as 3 variações">⏱ Horas</th>' +
@@ -27064,8 +27429,12 @@ function renderPrecificacao(){
       const precoBase = faixa === 'm' ? precoM : (faixa === 'gg' ? precoGG : precoG);
       const rowBg = isSel ? 'background:rgba(34,197,94,.04)' : '';
 
-      html += '<tr style="border-bottom:1px solid var(--border);' + rowBg + '">' +
+      html += '<tr style="border-bottom:1px solid var(--border);' + rowBg + '" data-prod="' + p.id + '">' +
         '<td style="padding:6px;text-align:center"><input type="checkbox" ' + (isSel?'checked':'') + ' onchange="precifToggleSelecao(\'' + p.id + '\',this.checked)" style="cursor:pointer;width:16px;height:16px" /></td>' +
+        '<td style="padding:2px;text-align:center;white-space:nowrap">' +
+          '<button type="button" class="precif-mv" onclick="precifMover(\'' + p.id + '\',-1)" title="Subir na lista">▲</button>' +
+          '<button type="button" class="precif-mv" onclick="precifMover(\'' + p.id + '\',1)" title="Descer na lista">▼</button>' +
+        '</td>' +
         '<td style="padding:6px"><div style="display:flex;align-items:center;gap:6px"><input value="' + escapeHtml(p.produto||'') + '" onblur="precifSalvaCampo(\'' + p.id + '\',\'produto\',this.value)" style="background:transparent;border:none;flex:1;font-size:12px;font-weight:600;color:var(--text);outline:none;padding:4px" /><button onclick="precifEditarDescricao(\'' + p.id + '\')" title="' + (p.descricao ? 'Editar descrição (já cadastrada)' : 'Adicionar descrição do serviço') + '" style="background:' + (p.descricao ? 'rgba(34,197,94,.15)' : 'transparent') + ';border:1px solid ' + (p.descricao ? 'var(--success)' : 'var(--border)') + ';border-radius:5px;cursor:pointer;font-size:12px;padding:3px 6px;color:' + (p.descricao ? 'var(--success)' : 'var(--text-3)') + ';flex-shrink:0;white-space:nowrap" type="button">' + (p.descricao ? '📝 ✓' : '📝') + '</button></div><div class="text-xs text-3" style="margin-top:1px">' + escapeHtml(p.categoria||'—') + '</div></td>' +
         '<td style="padding:6px;text-align:right"><input type="number" step="0.5" min="0" value="' + horas + '" onblur="precifSalvaCampo(\'' + p.id + '\',\'horas_estimadas\',this.value)" title="Horas que este produto consome — recalcula as 3 variações" style="background:transparent;border:none;border-bottom:1.5px dashed var(--accent);width:52px;text-align:right;font-size:12px;font-weight:600;color:var(--text);outline:none;padding:4px 3px 2px" /></td>' +
         '<td style="padding:6px;text-align:center;background:rgba(34,197,94,.04);font-weight:700;color:#16a34a">' + _precifFmt(precoM) + '</td>' +
