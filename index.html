@@ -9402,8 +9402,6 @@ function paneVisao(cli){
         ${qa('💬','WhatsApp','whatsapp_url',cli.whatsapp_url || (cli.phone?'https://wa.me/'+cli.phone.replace(/\D/g,''):''),cli.phone?`whatsApp('${cli.phone}','${cli.name}')`:null)}
         ${qa('📷','Instagram','instagram_url',cli.instagram_url || (cli.ig?'https://instagram.com/'+cli.ig.replace('@',''):''))}
         ${qa('📁','Google Drive','drive_url',cli.drive_url)}
-        ${qa('📹','Google Meet','meet_url',cli.meet_url||'https://meet.google.com/new')}
-        ${qa('📅','MLABS','mlabs_url',cli.mlabs_url||'https://app.mlabs.com.br')}
         ${qa('🌐','Site','site_url',cli.site_url || (cli.site?'https://'+cli.site:''))}
         ${podeContrato ? `<div class="qa-wrap" style="position:relative">
           <button class="qa" onclick="${cli._dbId ? `openLinksManager('client-${cli._dbId}-contrato', '📄 Contrato - ${escapeHtml(cli.name).replace(/'/g,"\\'")}','')` : `toast('Cliente sem ID no banco — sincronize antes de anexar contrato','info')`}" title="Múltiplos contratos / aditivos · restrito a gestores">
@@ -9411,8 +9409,8 @@ function paneVisao(cli){
             <span><div style="font-weight:600">Contrato <span style="font-size:9px;background:var(--accent);color:var(--surface);padding:1px 5px;border-radius:4px;margin-left:3px;vertical-align:middle">restrito</span></div><div class="text-xs text-3">Múltiplos arquivos</div></span>
           </button>
         </div>` : ''}
-        ${qa('🎨','Criativos','criativos_url',cli.criativos_url)}
-        ${qa('📊','Relatórios','relatorios_url',cli.relatorios_url)}
+        <!-- Criativos e Relatórios saíram daqui: Relatórios já é aba no topo do
+             cadastro e Criativos não era usado. Os links seguem no banco. -->
         <div class="qa-wrap" style="position:relative">
           <button class="qa" onclick="copy(location.origin+'/c/${cli.id}','Link do cliente')">
             <span class="qa-icon">🔗</span>
@@ -9421,20 +9419,8 @@ function paneVisao(cli){
         </div>
       </div>
 
-      <div class="card mb-4">
-        <div class="card-header"><div class="card-title">⚡ Mensagens prontas — WhatsApp</div></div>
-        <div class="qa-grid" style="grid-template-columns:repeat(auto-fit,minmax(110px,1fr))">
-          ${[
-            ['💰','Cobrança',`Olá ${cli.name}! Tudo bem? Passando para lembrar do vencimento da mensalidade. Qualquer dúvida estamos à disposição.`],
-            ['✅','Aprovação','Olá! Os conteúdos da semana estão prontos para aprovação. Pode dar uma olhada quando puder?'],
-            ['📅','Reunião','Olá! Vamos marcar nossa reunião mensal? Tenho disponibilidade nos seguintes horários...'],
-            ['📦','Material','Olá! Enviamos o material novo no Drive. Qualquer ajuste é só avisar!'],
-            ['🔁','Follow-up','Olá! Passando para saber se conseguiu analisar nossa proposta. Estou à disposição!'],
-            ['🎂','Aniversário',`Feliz aniversário, ${cli.name}! Que seu ano seja repleto de conquistas. Toda a equipe Nova torce por vocês!`],
-            ['📝','Pós-reunião','Obrigado pela reunião de hoje! Em anexo o resumo dos próximos passos discutidos.'],
-          ].map(t=>`<button class="qa" onclick="copy(\`${t[2].replace(/'/g,"\\'")}\`,'Mensagem');whatsApp('${cli.phone}','${cli.name}')"><span class="qa-icon">${t[0]}</span><span style="font-weight:600">${t[1]}</span></button>`).join('')}
-        </div>
-      </div>
+      <!-- As mensagens prontas de WhatsApp saíram: eram textos genéricos, e um
+           deles ainda assinava como "equipe Nova". -->
 
       <div class="section-title" style="margin-top:0;display:flex;align-items:center;gap:8px">
         Informações de contato
