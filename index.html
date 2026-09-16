@@ -272,6 +272,121 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-sec:first-child{margin-top:2px}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* Caixa do link do cadastro, na aba Comercial */
+.cad-link-caixa{
+  background:var(--surface-2);border:1px dashed var(--border-strong,var(--border));border-radius:10px;
+  padding:13px 15px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;
+  color:var(--text);word-break:break-all;user-select:all;
+}
+
+/* ===== Formulário de cadastro que o cliente preenche (link ?cadastro) ===== */
+#cadPublicoTela{
+  position:fixed;inset:0;z-index:400;overflow-y:auto;overflow-x:hidden;
+  background:#08080C;color:#fff;
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  padding:0 0 70px;-webkit-font-smoothing:antialiased;
+}
+#cadPublicoTela .cad-luz{position:fixed;border-radius:50%;filter:blur(150px);pointer-events:none;z-index:0}
+#cadPublicoTela .cad-luz1{width:760px;height:760px;top:-330px;right:-260px;
+  background:radial-gradient(circle,rgba(247,148,30,.26),rgba(236,30,121,.17) 45%,transparent 70%)}
+#cadPublicoTela .cad-luz2{width:860px;height:860px;bottom:-420px;left:-300px;
+  background:radial-gradient(circle,rgba(41,171,226,.20),rgba(162,59,214,.16) 45%,transparent 70%)}
+
+#cadPublicoTela .cad-folha{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:56px 22px 0}
+
+#cadPublicoTela .cad-marca{display:flex;align-items:center;gap:11px;font-family:'Sora',sans-serif;
+  font-size:21px;font-weight:700;letter-spacing:-.02em;color:#fff;margin-bottom:38px}
+#cadPublicoTela .cad-marca b{font-weight:800}
+#cadPublicoTela .cad-quadro{width:20px;height:20px;border-radius:5px;flex:none;
+  background:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2)}
+
+#cadPublicoTela .cad-titulo{font-family:'Sora',sans-serif;font-weight:800;
+  font-size:clamp(29px,6vw,43px);line-height:1.08;letter-spacing:-.03em;margin:0 0 14px;text-wrap:balance}
+#cadPublicoTela .cad-sub{font-size:16px;line-height:1.6;color:#A6A6B4;margin:0;max-width:56ch}
+#cadPublicoTela .cad-sub b{color:#fff;font-weight:600}
+#cadPublicoTela .cad-topo{padding-bottom:36px;border-bottom:1px solid rgba(255,255,255,.09)}
+
+#cadPublicoTela .cad-form{display:flex;flex-direction:column;gap:14px;margin-top:30px}
+#cadPublicoTela .cad-bloco{background:#121219;border:1px solid rgba(255,255,255,.09);
+  border-radius:16px;padding:24px 22px}
+#cadPublicoTela .cad-bloco-cab{display:flex;align-items:center;gap:13px;margin-bottom:18px}
+#cadPublicoTela .cad-bloco-cab h2{font-family:'Sora',sans-serif;font-size:18px;font-weight:700;
+  letter-spacing:-.02em;margin:0;color:#fff}
+#cadPublicoTela .cad-num{width:29px;height:29px;flex:none;border-radius:9px;display:grid;place-items:center;
+  font-family:'Sora',sans-serif;font-weight:800;font-size:14px;color:#EC1E79;background:rgba(236,30,121,.14)}
+#cadPublicoTela .cad-nota{font-size:13.5px;line-height:1.55;color:#6C6C7A;margin:-8px 0 18px}
+
+#cadPublicoTela .cad-grade{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+#cadPublicoTela .cad-campo{display:flex;flex-direction:column;gap:7px;min-width:0}
+#cadPublicoTela .cad-rot{font-size:12.5px;font-weight:600;color:#A6A6B4;letter-spacing:.01em}
+#cadPublicoTela .cad-req{color:#EC1E79;margin-left:3px}
+#cadPublicoTela .cad-dica{font-size:11.5px;color:#6C6C7A;line-height:1.45}
+#cadPublicoTela .cad-in{
+  width:100%;background:#08080C;border:1px solid rgba(255,255,255,.16);border-radius:10px;
+  padding:12px 13px;font-size:15px;color:#fff;font-family:inherit;
+  transition:border-color .18s ease,box-shadow .18s ease;
+}
+#cadPublicoTela textarea.cad-in{resize:vertical;min-height:84px;line-height:1.55}
+#cadPublicoTela .cad-in::placeholder{color:#4A4A57}
+#cadPublicoTela .cad-in:focus{outline:none;border-color:#EC1E79;box-shadow:0 0 0 3px rgba(236,30,121,.18)}
+#cadPublicoTela .cad-in-erro{border-color:#F05252;box-shadow:0 0 0 3px rgba(240,82,82,.2)}
+#cadPublicoTela select.cad-in{appearance:none;cursor:pointer;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' stroke='%236C6C7A' stroke-width='2'><path d='M1 1l5 5 5-5'/></svg>");
+  background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+#cadPublicoTela input[type="date"].cad-in{color-scheme:dark}
+
+#cadPublicoTela .cad-igual{margin-top:15px;background:none;border:1px dashed rgba(255,255,255,.22);
+  color:#A6A6B4;border-radius:999px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:border-color .18s ease,color .18s ease}
+#cadPublicoTela .cad-igual:hover{border-color:#EC1E79;color:#fff}
+
+#cadPublicoTela .cad-pergunta{padding:16px 0;border-top:1px solid rgba(255,255,255,.07)}
+#cadPublicoTela .cad-pergunta:first-of-type{border-top:none;padding-top:0}
+#cadPublicoTela .cad-escolhas{display:flex;flex-wrap:wrap;gap:10px;margin-top:11px}
+#cadPublicoTela .cad-op{display:inline-flex;align-items:center;gap:10px;cursor:pointer;
+  background:#08080C;border:1px solid rgba(255,255,255,.16);border-radius:11px;
+  padding:13px 17px;font-size:14.5px;font-weight:500;color:#fff;
+  transition:border-color .18s ease,background .18s ease}
+#cadPublicoTela .cad-op:hover{border-color:rgba(255,255,255,.34)}
+#cadPublicoTela .cad-op input{accent-color:#EC1E79;width:17px;height:17px;cursor:pointer;flex:none;margin:0}
+#cadPublicoTela .cad-op:has(input:checked){border-color:#EC1E79;background:rgba(236,30,121,.1)}
+
+#cadPublicoTela .cad-anivs{display:flex;flex-direction:column;gap:10px}
+#cadPublicoTela .cad-aniv{display:grid;grid-template-columns:1fr 172px;gap:10px}
+
+#cadPublicoTela .cad-erro{background:rgba(240,82,82,.12);border:1px solid rgba(240,82,82,.42);
+  color:#FCA5A5;border-radius:11px;padding:14px 17px;font-size:14.5px;line-height:1.5;font-weight:500}
+
+#cadPublicoTela .cad-enviar{
+  width:100%;border:none;border-radius:999px;padding:18px 24px;cursor:pointer;
+  background:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2);
+  color:#fff;font-family:'Sora',sans-serif;font-size:17px;font-weight:700;letter-spacing:-.01em;
+  box-shadow:0 14px 34px rgba(236,30,121,.3);transition:transform .16s ease,box-shadow .16s ease;
+}
+#cadPublicoTela .cad-enviar:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 18px 42px rgba(236,30,121,.4)}
+#cadPublicoTela .cad-enviar:disabled{opacity:.6;cursor:progress;transform:none}
+#cadPublicoTela .cad-rodape{font-size:12.5px;color:#6C6C7A;text-align:center;line-height:1.55;margin:4px 0 0;max-width:52ch;margin-inline:auto}
+
+#cadPublicoTela .cad-fim{text-align:center;padding:70px 0 40px}
+#cadPublicoTela .cad-fim .cad-sub{margin-inline:auto}
+#cadPublicoTela .cad-check{width:78px;height:78px;margin:0 auto 26px;border-radius:50%;display:grid;place-items:center;
+  font-size:38px;color:#10B981;background:rgba(16,185,129,.14);border:2px solid rgba(16,185,129,.4)}
+
+@media (max-width:640px){
+  #cadPublicoTela .cad-folha{padding:40px 16px 0}
+  #cadPublicoTela .cad-grade{grid-template-columns:repeat(2,1fr)}
+  #cadPublicoTela .cad-campo[style*="span 4"],
+  #cadPublicoTela .cad-campo[style*="span 2"]{grid-column:span 2 !important}
+  #cadPublicoTela .cad-bloco{padding:20px 16px}
+  #cadPublicoTela .cad-aniv{grid-template-columns:1fr}
+  #cadPublicoTela .cad-escolhas{flex-direction:column}
+  #cadPublicoTela .cad-op{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  #cadPublicoTela .cad-enviar{transition:none}
+  #cadPublicoTela .cad-enviar:hover:not(:disabled){transform:none}
+}
+
 /* ===== Aniversariantes em destaque ===== */
 .aniv-destaque{padding:15px 17px;margin-bottom:14px;border:1px solid var(--accent-border);background:var(--accent-soft)}
 .aniv-destaque-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:11px}
@@ -2412,7 +2527,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.00 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.01 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -3052,6 +3167,14 @@ async function loadDataFromSupabase(){
           conhecendo_url: cl.conhecendo_url || '',
           aniversarios: Array.isArray(cl.aniversarios) ? cl.aniversarios : [],
           aniversario_empresa: cl.aniversario_empresa || '',
+          endereco: cl.endereco || '', bairro: cl.bairro || '', cep: cl.cep || '',
+          dono_nome: cl.dono_nome || '', dono_nacionalidade: cl.dono_nacionalidade || '',
+          dono_estado_civil: cl.dono_estado_civil || '', dono_profissao: cl.dono_profissao || '',
+          dono_cpf: cl.dono_cpf || '', dono_rg: cl.dono_rg || '',
+          dono_endereco: cl.dono_endereco || '', dono_bairro: cl.dono_bairro || '', dono_cep: cl.dono_cep || '',
+          dono_telefone: cl.dono_telefone || '', dono_email: cl.dono_email || '',
+          precisa_nota_fiscal: (cl.precisa_nota_fiscal === null || cl.precisa_nota_fiscal === undefined) ? null : !!cl.precisa_nota_fiscal,
+          dia_pagamento: cl.dia_pagamento || '',
           cnpj: cl.cnpj || '',
           // Observação do plano: estava sendo GRAVADA no banco mas nunca lida de volta,
           // então só quem escreveu enxergava (pelo cache local do próprio navegador).
@@ -4162,6 +4285,11 @@ async function checkAuth(){
   // ROTA PÚBLICA: ?vaga abre a página da vaga + formulário de candidatura (sem login)
   if(url.searchParams.has('vaga')){
     renderPublicVaga();
+    return;
+  }
+  // ROTA PÚBLICA: ?cadastro abre o formulário que o cliente preenche sozinho (sem login)
+  if(url.searchParams.has('cadastro')){
+    renderPublicCadastroCliente();
     return;
   }
   // ROTA PÚBLICA: ?check abre a página do CHEFE pra adicionar demandas ao checklist de um colaborador (sem login)
@@ -11147,6 +11275,7 @@ function paneFinanceiro(cli){
         </details>
       </div>
 
+      ${blocoDadosContrato(cli)}
       ${blocoAniversarios(cli)}
 
       <!-- ===== Campos editáveis ===== -->
@@ -11248,6 +11377,43 @@ function paneArquivos(cli){
 
 // ===== Aniversários dos contatos do cliente (até 5) =====
 const _ANIV_MAX = 5;
+// Dados que vieram do formulário do cliente e servem pro contrato.
+// Só a administração vê: tem CPF e RG aí dentro.
+function blocoDadosContrato(cli){
+  if(typeof _ehDaAdministracao === 'function' && !_ehDaAdministracao()) return '';
+  const linha = function(rot, val){
+    return '<div class="info-item"><div class="info-label">' + escapeHtml(rot) + '</div>' +
+      '<div class="info-value">' + (val ? escapeHtml(val) : '<span class="text-3">—</span>') + '</div></div>';
+  };
+  const temAlgo = ['endereco','dono_nome','dono_cpf','dia_pagamento'].some(function(k){ return cli[k]; });
+  const nf = cli.precisa_nota_fiscal === true ? 'Nota fiscal'
+           : cli.precisa_nota_fiscal === false ? 'Recibo de prestação de serviço' : '';
+  return '<div class="card" style="margin-top:14px">' +
+    '<div class="card-header" style="margin-bottom:10px">' +
+      '<div class="card-title">📄 Dados para contrato</div>' +
+      (cli.pre_cadastro ? '<span class="badge" style="background:rgba(251,191,36,.16);color:#fbbf24">pré-cadastro</span>' : '') +
+    '</div>' +
+    (temAlgo ? '' : '<div class="text-xs text-3" style="margin-bottom:12px">Ainda em branco. O cliente preenche pelo link do Comercial, ou a equipe completa aqui.</div>') +
+    '<div class="text-xs text-3" style="margin-bottom:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Endereço da empresa</div>' +
+    '<div class="info-grid">' +
+      linha('Endereço', cli.endereco) + linha('Bairro', cli.bairro) + linha('CEP', cli.cep) +
+    '</div>' +
+    '<div class="text-xs text-3" style="margin:16px 0 12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Dono da empresa</div>' +
+    '<div class="info-grid">' +
+      linha('Nome completo', cli.dono_nome) + linha('Nacionalidade', cli.dono_nacionalidade) +
+      linha('Estado civil', cli.dono_estado_civil) + linha('Profissão', cli.dono_profissao) +
+      linha('CPF', cli.dono_cpf) + linha('RG', cli.dono_rg) +
+      linha('Telefone', cli.dono_telefone) + linha('E-mail', cli.dono_email) +
+      linha('Endereço', cli.dono_endereco) + linha('Bairro', cli.dono_bairro) + linha('CEP', cli.dono_cep) +
+    '</div>' +
+    '<div class="text-xs text-3" style="margin:16px 0 12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Cobrança</div>' +
+    '<div class="info-grid">' +
+      linha('Emissão', nf) + linha('Melhor data de pagamento', cli.dia_pagamento ? 'dia ' + cli.dia_pagamento : '') +
+    '</div>' +
+  '</div>';
+}
+if(typeof window!=='undefined'){ window.blocoDadosContrato = blocoDadosContrato; }
+
 function blocoAniversarios(cli){
   const lista = Array.isArray(cli.aniversarios) ? cli.aniversarios.slice(0,_ANIV_MAX) : [];
   const linhas = [];
@@ -16299,9 +16465,10 @@ function renderComercial(c){
     <span class="filter-chip ${comTab==='upsell'?'active':''}" onclick="comTab='upsell';renderComercial(document.getElementById('content'))">Upsell & Projeções</span>
     <span class="filter-chip ${comTab==='orcamento'?'active':''}" onclick="comTab='orcamento';renderComercial(document.getElementById('content'))">Orçamento</span>
     <span class="filter-chip ${comTab==='historico'?'active':''}" onclick="comTab='historico';renderComercial(document.getElementById('content'))">📊 Histórico</span>
+    <span class="filter-chip ${comTab==='cadastro'?'active':''}" onclick="comTab='cadastro';renderComercial(document.getElementById('content'))">🔗 Cadastro do cliente</span>
     ${isAdmin() ? `<span class="filter-chip ${comTab==='precificacao'?'active':''}" onclick="comTab='precificacao';renderComercial(document.getElementById('content'))">💲 Precificação</span>` : ''}
   </div>
-  ${comTab==='pipeline'?renderPipelineCom():comTab==='upsell'?renderUpsellCom():comTab==='historico'?renderHistoricoOrcamentos():comTab==='precificacao'?renderPrecificacao():renderOrcamentoCom()}
+  ${comTab==='pipeline'?renderPipelineCom():comTab==='upsell'?renderUpsellCom():comTab==='historico'?renderHistoricoOrcamentos():comTab==='precificacao'?renderPrecificacao():comTab==='cadastro'?renderCadastroLinkCom():renderOrcamentoCom()}
   </div>`;
 }
 
@@ -16710,6 +16877,106 @@ async function excluirLead(leadId){
   renderComercial(document.getElementById('content'));
 }
 window.excluirLead = excluirLead;
+
+// ===== Aba Comercial > Cadastro do cliente =====
+// Um link só, igual pra todo mundo. O cliente preenche e o cadastro nasce
+// sozinho, marcado como pré-cadastro pra equipe conferir.
+let _cadEnvios = null;
+
+async function carregarCadastrosCliente(){
+  if(!_supa) return;
+  try {
+    const { data, error } = await _supa.from('cadastros_cliente')
+      .select('*').order('enviado_em', {ascending:false}).limit(60);
+    if(error){
+      if(error.code === '42P01'){ console.warn('[cadastros] rode sql/87'); _cadEnvios = []; return; }
+      console.warn('[cadastros]', error); _cadEnvios = []; return;
+    }
+    _cadEnvios = data || [];
+  } catch(e){ console.warn('[cadastros]', e); _cadEnvios = []; }
+}
+
+function _cadLinkPublico(){ return location.origin + '/?cadastro'; }
+
+function _cadMensagemPronta(){
+  return 'Oi! Pra gente montar seu contrato e deixar tudo certo, preenche esse cadastro rapidinho? '
+       + 'Leva menos de 5 minutos e você só faz uma vez.\n\n' + _cadLinkPublico();
+}
+
+function copiarLinkCadastro(){
+  copy(_cadLinkPublico(), 'Link do cadastro');
+}
+function copiarMensagemCadastro(){
+  copy(_cadMensagemPronta(), 'Mensagem pronta');
+}
+function abrirLinkCadastro(){
+  window.open(_cadLinkPublico(), '_blank');
+}
+window.copiarLinkCadastro = copiarLinkCadastro;
+window.copiarMensagemCadastro = copiarMensagemCadastro;
+window.abrirLinkCadastro = abrirLinkCadastro;
+
+function renderCadastroLinkCom(){
+  if(_cadEnvios === null){
+    _cadEnvios = [];
+    carregarCadastrosCliente().then(function(){
+      if(currentPage === 'comercial' && comTab === 'cadastro') renderComercial(document.getElementById('content'));
+    });
+  }
+  const envios = _cadEnvios || [];
+  const link = _cadLinkPublico();
+
+  let html = '<div class="card" style="margin-bottom:16px">' +
+    '<div class="card-header"><div class="card-title">🔗 Link do cadastro</div>' +
+      '<span class="text-xs text-3">o mesmo link serve para todos os clientes</span></div>' +
+    '<div class="text-sm text-mu" style="margin-bottom:14px;line-height:1.6">' +
+      'Mande este link para o cliente. Ele preenche os dados da empresa, do dono, a forma de pagamento e os aniversários. ' +
+      'Quando enviar, o cadastro entra sozinho na aba Clientes marcado como <b>pré-cadastro</b>, para a equipe conferir antes de usar em contrato.' +
+    '</div>' +
+    '<div class="cad-link-caixa">' + escapeHtml(link) + '</div>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">' +
+      '<button class="btn btn-primary" onclick="copiarLinkCadastro()">📋 Copiar link</button>' +
+      '<button class="btn" onclick="copiarMensagemCadastro()">💬 Copiar mensagem pronta</button>' +
+      '<button class="btn" onclick="abrirLinkCadastro()">👁 Ver como o cliente vê</button>' +
+    '</div>' +
+  '</div>';
+
+  html += '<div class="card">' +
+    '<div class="card-header"><div class="card-title">📥 Cadastros recebidos</div>' +
+      '<span class="badge b-default">' + envios.length + '</span></div>';
+
+  if(!envios.length){
+    html += '<div class="empty-state" style="padding:40px 20px"><div class="ico">📭</div>' +
+      '<div class="ttl">Nenhum cadastro ainda</div>' +
+      '<div class="desc">Assim que um cliente preencher o link, ele aparece aqui e na aba Clientes.</div></div>';
+  } else {
+    html += '<div style="overflow-x:auto"><table class="table" style="min-width:640px"><thead><tr>' +
+      '<th>Empresa</th><th>Responsável</th><th>Pagamento</th><th>Nota</th><th>Recebido</th><th></th>' +
+      '</tr></thead><tbody>';
+    envios.forEach(function(e){
+      const cli = (clients||[]).find(function(c){ return c._dbId === e.client_id; });
+      const quando = e.enviado_em
+        ? new Date(e.enviado_em).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+        : '';
+      html += '<tr>' +
+        '<td style="font-weight:600">' + escapeHtml(e.empresa_nome || '') +
+          (e.cnpj ? '<div class="text-xs text-3">' + escapeHtml(e.cnpj) + '</div>' : '') + '</td>' +
+        '<td>' + escapeHtml(e.empresa_responsavel || '—') + '</td>' +
+        '<td>' + (e.dia_pagamento ? 'dia ' + escapeHtml(e.dia_pagamento) : '—') + '</td>' +
+        '<td>' + (e.precisa_nota_fiscal === true ? 'Nota fiscal' : e.precisa_nota_fiscal === false ? 'Recibo' : '—') + '</td>' +
+        '<td class="text-xs text-3">' + escapeHtml(quando) + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+          (cli ? '<button class="btn btn-sm" onclick="openClient(' + cli.id + ')">Abrir cadastro</button>'
+               : '<span class="text-xs text-3">cliente removido</span>') +
+        '</td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '</div>';
+  return html;
+}
+window.renderCadastroLinkCom = renderCadastroLinkCom;
 
 function renderUpsellCom(){
   const opps=[];
@@ -21378,6 +21645,305 @@ async function renderPublicPesquisa(gateMode){
   _pesqMostraStep(0);
 }
 window.renderPublicPesquisa = renderPublicPesquisa;
+
+// ===== Página pública: o cliente preenche o próprio cadastro (link ?cadastro) =====
+// O que ele envia cai direto no cadastro de clientes, marcado como pré-cadastro
+// pra equipe conferir antes de usar em contrato. Se o CNPJ já existir, atualiza
+// o que estiver em branco em vez de criar um cliente repetido.
+const _CAD_ESTADO_CIVIL = ['Solteiro(a)','Casado(a)','União estável','Divorciado(a)','Viúvo(a)'];
+const _CAD_MAX_ANIV = 6;
+
+function _cadCampo(id, rotulo, opts){
+  opts = opts || {};
+  const tipo = opts.tipo || 'text';
+  const ph = opts.ph ? ' placeholder="' + escapeHtml(opts.ph) + '"' : '';
+  const req = opts.req ? '<span class="cad-req">*</span>' : '';
+  const mask = opts.mask ? ' data-mask="' + opts.mask + '"' : '';
+  const dica = opts.dica ? '<div class="cad-dica">' + escapeHtml(opts.dica) + '</div>' : '';
+  const auto = opts.auto ? ' autocomplete="' + opts.auto + '"' : '';
+  const col = opts.col ? ' style="grid-column:span ' + opts.col + '"' : '';
+  return '<div class="cad-campo"' + col + '>' +
+    '<label class="cad-rot" for="' + id + '">' + escapeHtml(rotulo) + req + '</label>' +
+    '<input id="' + id + '" type="' + tipo + '" class="cad-in"' + ph + mask + auto + ' />' + dica +
+  '</div>';
+}
+
+function _cadSelect(id, rotulo, itens, opts){
+  opts = opts || {};
+  const req = opts.req ? '<span class="cad-req">*</span>' : '';
+  const col = opts.col ? ' style="grid-column:span ' + opts.col + '"' : '';
+  return '<div class="cad-campo"' + col + '>' +
+    '<label class="cad-rot" for="' + id + '">' + escapeHtml(rotulo) + req + '</label>' +
+    '<select id="' + id + '" class="cad-in">' +
+      '<option value="">Selecione</option>' +
+      itens.map(function(o){ return '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + '</option>'; }).join('') +
+    '</select>' +
+  '</div>';
+}
+
+function renderPublicCadastroCliente(){
+  document.getElementById('loginScreen')?.classList.add('hidden');
+  // Mesma classe das outras páginas públicas: libera o rolar da página e some
+  // com a barra lateral do app. Sem isso o conteúdo fica cortado no celular.
+  document.documentElement.classList.add('public-page');
+  document.body.classList.add('public-page');
+
+  let tela = document.getElementById('cadPublicoTela');
+  if(tela) tela.remove();
+  tela = document.createElement('div');
+  tela.id = 'cadPublicoTela';
+
+  const linhasAniv = [];
+  for(let i = 0; i < _CAD_MAX_ANIV; i++){
+    const sugestao = i === 0 ? 'Ex: Maria Silva (CEO)' : 'Nome do colaborador';
+    linhasAniv.push(
+      '<div class="cad-aniv">' +
+        '<input id="cadAnivNome' + i + '" class="cad-in" placeholder="' + sugestao + '" />' +
+        '<input id="cadAnivData' + i + '" class="cad-in" type="date" aria-label="Data de nascimento" />' +
+      '</div>');
+  }
+
+  tela.innerHTML =
+    '<div class="cad-luz cad-luz1"></div><div class="cad-luz cad-luz2"></div>' +
+    '<div class="cad-folha">' +
+
+      '<header class="cad-topo">' +
+        '<div class="cad-marca"><span class="cad-quadro"></span><span>impulse<b>one</b></span></div>' +
+        '<h1 class="cad-titulo">Cadastro do cliente</h1>' +
+        '<p class="cad-sub">Precisamos destes dados para emitir seu contrato e sua nota. ' +
+          'Leva menos de 5 minutos e você só preenche uma vez.</p>' +
+      '</header>' +
+
+      '<form id="cadForm" class="cad-form" novalidate>' +
+
+        '<section class="cad-bloco">' +
+          '<div class="cad-bloco-cab"><span class="cad-num">1</span><h2>A empresa</h2></div>' +
+          '<div class="cad-grade">' +
+            _cadCampo('cadEmpNome', 'Nome da empresa', {req:true, col:2, ph:'Como todo mundo conhece', auto:'organization'}) +
+            _cadCampo('cadEmpResp', 'Nome do responsável', {req:true, col:2, ph:'Quem fala com a gente no dia a dia'}) +
+            _cadCampo('cadRazao', 'Razão social', {col:2, ph:'Nome que está no CNPJ'}) +
+            _cadCampo('cadCnpj', 'CNPJ', {req:true, col:2, ph:'00.000.000/0000-00', mask:'cnpj'}) +
+            _cadCampo('cadEmpEnd', 'Endereço', {req:true, col:4, ph:'Rua, número e complemento'}) +
+            _cadCampo('cadEmpBairro', 'Bairro', {req:true, col:2}) +
+            _cadCampo('cadEmpCep', 'CEP', {req:true, col:2, ph:'00000-000', mask:'cep'}) +
+          '</div>' +
+        '</section>' +
+
+        '<section class="cad-bloco">' +
+          '<div class="cad-bloco-cab"><span class="cad-num">2</span><h2>O dono da empresa</h2></div>' +
+          '<p class="cad-nota">Estes dados entram no contrato. Ficam guardados no nosso sistema e só a administração enxerga.</p>' +
+          '<div class="cad-grade">' +
+            _cadCampo('cadDonoNome', 'Nome completo', {req:true, col:4, auto:'name'}) +
+            _cadCampo('cadDonoNac', 'Nacionalidade', {req:true, col:2, ph:'Ex: brasileira'}) +
+            _cadSelect('cadDonoCivil', 'Estado civil', _CAD_ESTADO_CIVIL, {req:true, col:2}) +
+            _cadCampo('cadDonoProf', 'Profissão', {req:true, col:2, ph:'Ex: empresário'}) +
+            _cadCampo('cadDonoCpf', 'CPF', {req:true, col:2, ph:'000.000.000-00', mask:'cpf'}) +
+            _cadCampo('cadDonoRg', 'RG', {req:true, col:2}) +
+            _cadCampo('cadDonoTel', 'Telefone', {req:true, col:2, tipo:'tel', ph:'(51) 99999-9999', mask:'tel', auto:'tel'}) +
+            _cadCampo('cadDonoEmail', 'E-mail', {req:true, col:4, tipo:'email', ph:'nome@empresa.com.br', auto:'email'}) +
+            _cadCampo('cadDonoEnd', 'Endereço', {req:true, col:4, ph:'Rua, número e complemento'}) +
+            _cadCampo('cadDonoBairro', 'Bairro', {req:true, col:2}) +
+            _cadCampo('cadDonoCep', 'CEP', {req:true, col:2, ph:'00000-000', mask:'cep'}) +
+          '</div>' +
+          '<button type="button" class="cad-igual" id="cadIgual">Usar o mesmo endereço da empresa</button>' +
+        '</section>' +
+
+        '<section class="cad-bloco">' +
+          '<div class="cad-bloco-cab"><span class="cad-num">3</span><h2>Pagamento</h2></div>' +
+          '<div class="cad-pergunta">' +
+            '<div class="cad-rot">Você precisa de nota fiscal?<span class="cad-req">*</span></div>' +
+            '<div class="cad-dica">Se não precisar, emitimos recibo de prestação de serviço.</div>' +
+            '<div class="cad-escolhas" id="cadNfBox">' +
+              '<label class="cad-op"><input type="radio" name="cadNf" value="sim" /><span>Sim, preciso de nota fiscal</span></label>' +
+              '<label class="cad-op"><input type="radio" name="cadNf" value="nao" /><span>Não, o recibo resolve</span></label>' +
+            '</div>' +
+          '</div>' +
+          '<div class="cad-pergunta">' +
+            '<div class="cad-rot">Melhor data de pagamento<span class="cad-req">*</span></div>' +
+            '<div class="cad-dica">A cobrança cai todo mês nesse dia.</div>' +
+            '<div class="cad-escolhas" id="cadDiaBox">' +
+              '<label class="cad-op"><input type="radio" name="cadDia" value="05" /><span>Dia 05</span></label>' +
+              '<label class="cad-op"><input type="radio" name="cadDia" value="15" /><span>Dia 15</span></label>' +
+            '</div>' +
+          '</div>' +
+        '</section>' +
+
+        '<section class="cad-bloco">' +
+          '<div class="cad-bloco-cab"><span class="cad-num">4</span><h2>Datas para comemorar</h2></div>' +
+          '<p class="cad-nota">A gente lembra e comemora com vocês. Preencha só quem você quiser.</p>' +
+          '<div class="cad-campo" style="max-width:280px;margin-bottom:18px">' +
+            '<label class="cad-rot" for="cadAnivEmpresa">Aniversário da empresa</label>' +
+            '<input id="cadAnivEmpresa" type="date" class="cad-in" />' +
+          '</div>' +
+          '<div class="cad-rot" style="margin-bottom:9px">Aniversariantes da equipe</div>' +
+          '<div class="cad-anivs">' + linhasAniv.join('') + '</div>' +
+        '</section>' +
+
+        '<section class="cad-bloco">' +
+          '<div class="cad-bloco-cab"><span class="cad-num">5</span><h2>Mais alguma coisa?</h2></div>' +
+          '<div class="cad-campo">' +
+            '<label class="cad-rot" for="cadObs">Observações</label>' +
+            '<textarea id="cadObs" class="cad-in" rows="3" placeholder="Opcional. Qualquer coisa que a gente precise saber."></textarea>' +
+          '</div>' +
+        '</section>' +
+
+        '<div class="cad-erro" id="cadErro" hidden></div>' +
+        '<button type="submit" class="cad-enviar" id="cadEnviar">Enviar cadastro</button>' +
+        '<p class="cad-rodape">Ao enviar, seus dados vão direto para o sistema da Impulse One e são usados apenas para o contrato, a cobrança e o atendimento.</p>' +
+      '</form>' +
+    '</div>';
+
+  document.body.appendChild(tela);
+  _cadLigarMascaras();
+
+  document.getElementById('cadIgual').onclick = function(){
+    const de = ['cadEmpEnd','cadEmpBairro','cadEmpCep'];
+    const para = ['cadDonoEnd','cadDonoBairro','cadDonoCep'];
+    de.forEach(function(id, i){
+      const o = document.getElementById(id), d = document.getElementById(para[i]);
+      if(o && d) d.value = o.value;
+    });
+    this.textContent = 'Endereço copiado';
+    const btn = this;
+    setTimeout(function(){ btn.textContent = 'Usar o mesmo endereço da empresa'; }, 2200);
+  };
+
+  document.getElementById('cadForm').addEventListener('submit', function(ev){
+    ev.preventDefault();
+    _cadEnviar();
+  });
+}
+
+// Mascaras simples: o cliente digita solto e o campo se ajeita sozinho.
+function _cadLigarMascaras(){
+  const so = function(v){ return String(v||'').replace(/\D/g,''); };
+  const regras = {
+    cnpj: function(v){ v = so(v).slice(0,14);
+      return v.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3')
+              .replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2'); },
+    cpf: function(v){ v = so(v).slice(0,11);
+      return v.replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3')
+              .replace(/\.(\d{3})(\d{1,2})$/,'.$1-$2'); },
+    cep: function(v){ v = so(v).slice(0,8); return v.replace(/^(\d{5})(\d)/,'$1-$2'); },
+    tel: function(v){ v = so(v).slice(0,11);
+      if(v.length <= 10) return v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{4})(\d)/,'$1-$2');
+      return v.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2'); }
+  };
+  document.querySelectorAll('#cadPublicoTela [data-mask]').forEach(function(el){
+    const fn = regras[el.getAttribute('data-mask')];
+    if(!fn) return;
+    el.setAttribute('inputmode','numeric');
+    el.addEventListener('input', function(){ const p = this.selectionStart; this.value = fn(this.value); if(p < this.value.length) this.setSelectionRange(this.value.length, this.value.length); });
+  });
+}
+
+function _cadValidaCPF(txt){
+  const v = String(txt||'').replace(/\D/g,'');
+  if(v.length !== 11 || /^(\d)\1{10}$/.test(v)) return false;
+  let soma = 0;
+  for(let i=0;i<9;i++) soma += parseInt(v[i],10) * (10-i);
+  let d1 = (soma*10) % 11; if(d1 === 10) d1 = 0;
+  if(d1 !== parseInt(v[9],10)) return false;
+  soma = 0;
+  for(let i=0;i<10;i++) soma += parseInt(v[i],10) * (11-i);
+  let d2 = (soma*10) % 11; if(d2 === 10) d2 = 0;
+  return d2 === parseInt(v[10],10);
+}
+function _cadValidaCNPJ(txt){
+  const v = String(txt||'').replace(/\D/g,'');
+  if(v.length !== 14 || /^(\d)\1{13}$/.test(v)) return false;
+  const conta = function(ate){
+    let peso = ate - 7, soma = 0;
+    for(let i = 0; i < ate; i++){ soma += parseInt(v[i],10) * peso--; if(peso < 2) peso = 9; }
+    const r = soma % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return conta(12) === parseInt(v[12],10) && conta(13) === parseInt(v[13],10);
+}
+
+async function _cadEnviar(){
+  const pegar = function(id){ const el = document.getElementById(id); return el ? String(el.value||'').trim() : ''; };
+  const marcado = function(nome){ const el = document.querySelector('#cadPublicoTela input[name="' + nome + '"]:checked'); return el ? el.value : ''; };
+  const caixa = document.getElementById('cadErro');
+  const btn = document.getElementById('cadEnviar');
+  const falhar = function(msg, foco){
+    caixa.textContent = msg; caixa.hidden = false;
+    caixa.scrollIntoView({behavior:'smooth', block:'center'});
+    const el = foco && document.getElementById(foco);
+    if(el){ el.focus(); el.classList.add('cad-in-erro'); setTimeout(function(){ el.classList.remove('cad-in-erro'); }, 2600); }
+  };
+  caixa.hidden = true;
+
+  const obrig = [
+    ['cadEmpNome','o nome da empresa'], ['cadEmpResp','o nome do responsável'], ['cadCnpj','o CNPJ'],
+    ['cadEmpEnd','o endereço da empresa'], ['cadEmpBairro','o bairro da empresa'], ['cadEmpCep','o CEP da empresa'],
+    ['cadDonoNome','o nome completo do dono'], ['cadDonoNac','a nacionalidade'], ['cadDonoProf','a profissão'],
+    ['cadDonoCpf','o CPF'], ['cadDonoRg','o RG'], ['cadDonoTel','o telefone'], ['cadDonoEmail','o e-mail'],
+    ['cadDonoEnd','o endereço do dono'], ['cadDonoBairro','o bairro do dono'], ['cadDonoCep','o CEP do dono']
+  ];
+  for(const [id, nome] of obrig){
+    if(!pegar(id)) return falhar('Falta preencher ' + nome + '.', id);
+  }
+  if(!pegar('cadDonoCivil')) return falhar('Escolha o estado civil.', 'cadDonoCivil');
+  if(!_cadValidaCNPJ(pegar('cadCnpj')))   return falhar('Esse CNPJ não confere. Confira os números.', 'cadCnpj');
+  if(!_cadValidaCPF(pegar('cadDonoCpf'))) return falhar('Esse CPF não confere. Confira os números.', 'cadDonoCpf');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(pegar('cadDonoEmail'))) return falhar('Confira o e-mail.', 'cadDonoEmail');
+  if(!marcado('cadNf'))  return falhar('Diga se você precisa de nota fiscal.');
+  if(!marcado('cadDia')) return falhar('Escolha a melhor data de pagamento.');
+
+  const aniversarios = [];
+  for(let i = 0; i < _CAD_MAX_ANIV; i++){
+    const nome = pegar('cadAnivNome' + i), data = pegar('cadAnivData' + i);
+    if(!nome && !data) continue;
+    if(nome && !data) return falhar('Falta a data de nascimento de ' + nome + '.', 'cadAnivData' + i);
+    if(!nome && data) return falhar('Falta o nome de quem faz aniversário nessa data.', 'cadAnivNome' + i);
+    aniversarios.push({nome: nome, data: data});
+  }
+
+  const payload = {
+    empresa_nome: pegar('cadEmpNome'), empresa_responsavel: pegar('cadEmpResp'),
+    razao_social: pegar('cadRazao'), cnpj: pegar('cadCnpj'),
+    empresa_endereco: pegar('cadEmpEnd'), empresa_bairro: pegar('cadEmpBairro'), empresa_cep: pegar('cadEmpCep'),
+    dono_nome: pegar('cadDonoNome'), dono_nacionalidade: pegar('cadDonoNac'),
+    dono_estado_civil: pegar('cadDonoCivil'), dono_profissao: pegar('cadDonoProf'),
+    dono_cpf: pegar('cadDonoCpf'), dono_rg: pegar('cadDonoRg'),
+    dono_endereco: pegar('cadDonoEnd'), dono_bairro: pegar('cadDonoBairro'), dono_cep: pegar('cadDonoCep'),
+    dono_telefone: pegar('cadDonoTel'), dono_email: pegar('cadDonoEmail'),
+    precisa_nota_fiscal: marcado('cadNf') === 'sim',
+    dia_pagamento: marcado('cadDia'),
+    aniversario_empresa: pegar('cadAnivEmpresa') || null,
+    aniversarios: aniversarios,
+    observacoes: pegar('cadObs')
+  };
+
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try {
+    if(!_supa) throw new Error('sem conexão');
+    const { error } = await _supa.rpc('cadastro_cliente_enviar', { p: payload });
+    if(error) throw error;
+    _cadPronto(payload.empresa_nome);
+  } catch(e){
+    console.warn('[cadastro público]', e);
+    btn.disabled = false; btn.textContent = 'Enviar cadastro';
+    falhar('Não consegui enviar agora: ' + (e.message || 'tente de novo em instantes') + '. Seus dados continuam preenchidos.');
+  }
+}
+
+function _cadPronto(nome){
+  const folha = document.querySelector('#cadPublicoTela .cad-folha');
+  if(!folha) return;
+  folha.innerHTML =
+    '<div class="cad-fim">' +
+      '<div class="cad-marca" style="justify-content:center;margin-bottom:34px"><span class="cad-quadro"></span><span>impulse<b>one</b></span></div>' +
+      '<div class="cad-check">✓</div>' +
+      '<h1 class="cad-titulo" style="margin-bottom:14px">Recebemos, obrigado!</h1>' +
+      '<p class="cad-sub">O cadastro da <b>' + escapeHtml(nome) + '</b> já está no nosso sistema. ' +
+        'Daqui a gente cuida do contrato e da cobrança. Qualquer coisa que faltar, falamos com você.</p>' +
+    '</div>';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+window.renderPublicCadastroCliente = renderPublicCadastroCliente;
 
 // ===== Página pública: aprovação de desconto (link ?aprovar-desconto=TOKEN) =====
 async function renderPublicAprovacaoDesconto(token){
