@@ -2412,7 +2412,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v3.99 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.00 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -4005,6 +4005,25 @@ async function saveAutomationToggle(idx, enabled){
 
 // Data de HOJE no fuso de Brasília (YYYY-MM-DD). new Date().toISOString() usa UTC
 // e depois das 21h de Brasília já vira o dia seguinte — gravava ponto no dia errado.
+// Le uma data do banco sem perder o dia. Data pura ("2026-09-16") o navegador
+// interpreta como meia-noite em UTC: aqui, que e UTC-3, isso volta como 21h do
+// dia ANTERIOR e a tela mostra um dia a menos. Colando a hora zero, ela e lida
+// no fuso de casa e o dia se mantem. Quem ja vem com hora (created_at e afins)
+// passa direto.
+function dataLocal(v){
+  if(!v) return null;
+  if(v instanceof Date) return v;
+  const txt = String(v).trim();
+  const d = /^(\d{4})-(\d{2})-(\d{2})$/.test(txt) ? new Date(txt + 'T00:00:00') : new Date(txt);
+  return isNaN(d.getTime()) ? null : d;
+}
+// A mesma data, ja escrita como a pessoa le.
+function dataBR(v){
+  const d = dataLocal(v);
+  return d ? d.toLocaleDateString('pt-BR') : '';
+}
+window.dataLocal = dataLocal; window.dataBR = dataBR;
+
 function hojeBrasiliaStr(){
   return new Date().toLocaleDateString('en-CA', {timeZone:'America/Sao_Paulo'});
 }
@@ -12639,7 +12658,7 @@ function renderCalendario(c){
       (proximos.length === 0
         ? '<div class="empty-state"><div class="ico">📅</div><div class="ttl">Nenhum evento</div><div class="desc">Programe férias ou cadastre aniversário dos colaboradores.</div></div>'
         : proximos.map(p => {
-            const d = new Date(p.data);
+            const d = dataLocal(p.data) || new Date();
             const dias = Math.ceil((d - new Date()) / 86400000);
             const subtxt = dias === 0 ? 'HOJE' : (dias === 1 ? 'Amanhã' : 'em '+dias+' dias');
             return '<div class="list-item" '+(p.tipo==='ferias'?'onclick="abrirFerias(\''+p.feriasId+'\')" style="cursor:pointer"':'')+'>'+
@@ -14250,7 +14269,7 @@ function renderEquipePerfil(){
     return '<div class="empty-state" style="padding:60px"><div class="ico">⚠</div><div class="ttl">Colaborador não encontrado</div></div>';
   }
   // Data segura: se m.since vazio/inválido, usa data padrão (hoje)
-  let since = new Date(m.since);
+  let since = dataLocal(m.since) || new Date(NaN);
   if(isNaN(since.getTime())){
     since = new Date();
   }
@@ -16810,7 +16829,7 @@ function renderOrcamentoCom(){
         <div style="background:var(--surface-2);padding:18px;border-radius:10px;border:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--border)">
             <div class="brand-logo">i1</div>
-            <div><div style="font-weight:700">IMPULSE ONE</div><div class="text-xs text-3">Orçamento — ${new Date(orcamento.data||Date.now()).toLocaleDateString('pt-BR')}</div></div>
+            <div><div style="font-weight:700">IMPULSE ONE</div><div class="text-xs text-3">Orçamento — ${dataBR(orcamento.data) || new Date().toLocaleDateString('pt-BR')}</div></div>
           </div>
           <div style="margin:14px 0"><div class="info-label">Cliente</div><div style="font-size:14px;font-weight:600">${cliNome||'Selecione o cliente'}</div></div>
           <div class="info-label">Itens</div>
@@ -17767,8 +17786,8 @@ async function gerarPDFOrcamento(){
   doc.text('ORÇAMENTO ' + orcamento.numero, 15, y);
   doc.setFont('helvetica','normal');
   doc.setFontSize(10);
-  doc.text('Emitido em: ' + new Date(orcamento.data).toLocaleDateString('pt-BR'), 15, y+7);
-  doc.text('Válido até: ' + new Date(orcamento.validade).toLocaleDateString('pt-BR'), 15, y+12);
+  doc.text('Emitido em: ' + dataBR(orcamento.data), 15, y+7);
+  doc.text('Válido até: ' + dataBR(orcamento.validade), 15, y+12);
   // Cliente
   y = 65;
   doc.setFillColor(245,245,247);
@@ -22905,7 +22924,7 @@ function renderFeedback(c){
 
           <!-- Plano de desenvolvimento (real, do último feedback) -->
           <div class="fb-card">
-            <div class="card-header"><div class="card-title">🎯 Plano de desenvolvimento ativo</div>${latestEst?`<span class="card-link">do feedback de ${histEst[0]?new Date(histEst[0].date).toLocaleDateString('pt-BR'):''}</span>`:''}</div>
+            <div class="card-header"><div class="card-title">🎯 Plano de desenvolvimento ativo</div>${latestEst?`<span class="card-link">do feedback de ${histEst[0]?dataBR(histEst[0].date):''}</span>`:''}</div>
             ${planoHTML}
           </div>
 
@@ -22921,7 +22940,7 @@ function renderFeedback(c){
             ${list.length===0?'<div class="empty-state"><div class="ico">📭</div><div class="ttl">Nenhum feedback ainda</div><div class="desc">Cole o resumo de uma reunião acima e estruture o primeiro.</div></div>':list.map(f=>{
               const tipo = feedbackTypes[f.type] ? f.type : 'development';
               const ico = feedbackTypes[tipo][0];
-              const dataBr = new Date(f.date).toLocaleDateString('pt-BR');
+              const dataBr = dataBR(f.date);
               if(f.est){
                 const icoHead = (f.est._tipo==='planilha' && f.est.clima) ? (_FB_CLIMAS[f.est.clima]||'📋') : _fbSentInfo(f.est.sentimento).ico;
                 return `<div class="fb-entry ${tipo}" style="flex-direction:column;gap:0;padding:14px">
@@ -23163,7 +23182,7 @@ function drawFbCharts(tm){
   const evoCtx = document.getElementById('fbEvoChart');
   if(evoCtx){
     const list = (feedbackData[tm.name]||[]).filter(f=>f.score>0).slice().sort((a,b)=>a.date.localeCompare(b.date));
-    const labels = list.length?list.map(f=>new Date(f.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})):['—'];
+    const labels = list.length?list.map(f=>{ const d = dataLocal(f.date); return d ? d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : '—'; }):['—'];
     const data = list.length?list.map(f=>f.score):[0];
     new Chart(evoCtx,{type:'line',data:{labels,datasets:[{label:'Nota',data,borderColor:accentCol,backgroundColor:isDark?'rgba(245,245,247,.15)':'rgba(29,29,31,.08)',fill:true,tension:.4,borderWidth:2.5,pointRadius:5,pointBackgroundColor:accentCol,pointBorderColor:isDark?'#141417':'#fff',pointBorderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:isDark?'#1a1a1f':'#1d1d1f',titleColor:'#fff',bodyColor:'#ccc'}},scales:{x:{grid:{display:false},ticks:{color:txtCol,font:{family:'Inter',size:10}}},y:{min:0,max:10,grid:{color:gridCol},ticks:{color:txtCol,font:{family:'Inter',size:10}}}}}});
   }
