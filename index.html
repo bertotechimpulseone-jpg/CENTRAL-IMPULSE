@@ -272,6 +272,39 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-sec:first-child{margin-top:2px}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* Melhorias & bugs */
+.melh-item{padding:16px 18px}
+.melh-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.melh-tit{font-size:14.5px;font-weight:700;letter-spacing:-.01em;line-height:1.35}
+.melh-status{flex:none;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.melh-desc{font-size:13.5px;line-height:1.6;color:var(--text-2);margin-top:9px;white-space:pre-wrap}
+.melh-resposta{margin-top:12px;padding:11px 13px;border-radius:9px;background:var(--surface-2);
+  border-left:2px solid var(--accent);font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap}
+.melh-resposta-rot{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:5px}
+
+.melh-escolhas{display:flex;flex-direction:column;gap:8px}
+.melh-op{display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:10px;padding:12px 14px;
+  transition:border-color var(--dur,.16s) var(--ease,ease),background var(--dur,.16s) var(--ease,ease)}
+.melh-op:hover{border-color:var(--border-strong,var(--border))}
+.melh-op:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.melh-op input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer;flex:none;margin:2px 0 0}
+.melh-op span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.melh-op b{font-size:13.5px;font-weight:600}
+.melh-op small{font-size:11.5px;color:var(--text-3);line-height:1.45}
+.melh-op.curta{flex:1;min-width:92px;justify-content:center;padding:10px 12px}
+.melh-op.curta span{align-items:center}
+
+.melh-erro{background:rgba(240,82,82,.12);border:1px solid rgba(240,82,82,.4);color:#FCA5A5;
+  border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.5}
+
+@media (max-width:768px){
+  .melh-item{padding:14px}
+  .melh-topo{flex-direction:column;gap:8px}
+  .melh-status{align-self:flex-start}
+}
+
 /* Planilha de relacionamento do Tráfego */
 .traf-rolo{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .traf-planilha{border-collapse:collapse;width:100%;min-width:940px;font-size:13px}
@@ -2639,7 +2672,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.07 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.08 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -4590,6 +4623,7 @@ function renderAtalhos(c){
     {t:'🎬 Produção & conteúdo', items:[['captacao','🎥','Captação'],['solicitacoes','📥','Solicitações'],['cronograma','🗓','Cronograma'],['calendario','📅','Calendário'],['operacional','✅','Checklist'],['trafego','📈','Tráfego Pago']]},
     {t:'💼 Comercial', items:[['comercial','💼','Comercial'],['parcerias','🤝','Parcerias']]},
     {t:'👤 Pessoas & RH', items:[['equipe','👥','Equipe'],['feedback','💬','Feedback'],['desabafo','💛','Desabafo'],['pesquisa','📋','Pesquisa NR-1'],['desligamento','🚪','Desligamento']]},
+    {t:'🛠 Sistema', items:[['melhorias','🐞','Melhorias & bugs']]},
     {t:'💰 Financeiro & Admin (restrito)', items:[['pagamentos','💳','Pagamentos'],['financeiro','💰','Financeiro'],['usuarios','🔑','Usuários']]}
   ];
   const card = (id,emoji,name)=>`
@@ -5726,6 +5760,15 @@ if(typeof window!=='undefined'){
 // Abas desativadas: não existem pra ninguém, nem pro dono, nem pra quem tinha a
 // permissão gravada no cadastro. Por isso a trava é a primeira linha.
 const PAGINAS_DESATIVADAS = ['texto','gerador','ponto','almoco'];
+// Solicitacoes de melhoria: administracao + Francielle. A mesma lista existe
+// no banco, em melhorias_permitido(), porque acesso de verdade se decide la.
+const MELHORIAS_EMAILS = ['fran@impulseone.com.br'];
+function _melhoriasTemAcesso(){
+  if(typeof _ehDaAdministracao === 'function' && _ehDaAdministracao()) return true;
+  return MELHORIAS_EMAILS.indexOf(_meuEmailApp()) !== -1;
+}
+window._melhoriasTemAcesso = _melhoriasTemAcesso;
+
 function canAccess(pageId){
   if(PAGINAS_DESATIVADAS.indexOf(pageId) !== -1) return false;
   if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;   // dono: todas as abas, sem exceção
@@ -5734,6 +5777,7 @@ function canAccess(pageId){
   if(pageId === 'duvidas') return true;
   // Atalhos: só a administração. Os links levam direto pra abas restritas.
   if(pageId === 'atalhos') return (typeof isAdmin === 'function') ? isAdmin() : false;
+  if(pageId === 'melhorias') return _melhoriasTemAcesso();
   // Solicitações respeita a permissão por usuário (selecionável em Usuários)
   // Materiais: restrito a Vini, Haisa e Heidy (nem outros admins acessam)
   if(pageId === 'materiais') return (typeof _materiaisTemAcesso==='function') ? _materiaisTemAcesso() : false;
@@ -6123,6 +6167,7 @@ const navItems = [
     {id:'equipe',label:'Equipe',icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',badge:'9'},
     {id:'feedback',label:'Feedback',icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>'},
     {id:'desabafo',label:'Desabafo',icon:'<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>'},
+    {id:'melhorias',label:'Melhorias & bugs',icon:'<path d="M8 6h8M9 3h6"/><path d="M6.5 10a5.5 5.5 0 0 1 11 0v4a5.5 5.5 0 0 1-11 0z"/><path d="M3 12h3.5M17.5 12H21M4 7l2.5 1.5M20 7l-2.5 1.5M4 17l2.5-1.5M20 17l-2.5-1.5"/>'},
     {id:'duvidas',label:'Dúvidas',icon:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/>'},
     {id:'atalhos',label:'Atalhos',icon:'<path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'},
     {id:'materiais',label:'Materiais',icon:'<path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4"/>'},
@@ -6982,6 +7027,7 @@ function _resetSubViews(page){
       // goTo(pagina, {skipReset:true}), senao a escolha e apagada aqui.
       case 'comercial': if(typeof comTab !== 'undefined') comTab = 'pipeline'; break;
       case 'trafego': if(typeof _trafTab !== 'undefined') _trafTab = 'campanhas'; break;
+      case 'melhorias': if(typeof _melhFiltro !== 'undefined') _melhFiltro = 'todas'; break;
       case 'captacao':
         if(typeof capView !== 'undefined') capView = 'lista';
         if(typeof capSelectedDay !== 'undefined') capSelectedDay = null;
@@ -7131,6 +7177,7 @@ function renderPage(page){
     pagamentos:renderPagamentos,
     controlecal:renderControleCalendarios,
     patrimonio:renderPatrimonio,
+    melhorias:renderMelhorias,
   };
   _telaSenha++;                  // invalida qualquer desenho atrasado da tela anterior
   c.innerHTML='';c.scrollTop=0;
@@ -21868,6 +21915,224 @@ async function renderPublicPesquisa(gateMode){
 }
 window.renderPublicPesquisa = renderPublicPesquisa;
 
+// ===== MELHORIAS & BUGS =====
+// O que a equipe pede pra Bertotech. Fica no banco daqui; o painel deles le e
+// responde pelo servidor. Bug e melhoria sao filas diferentes e o tipo vem
+// marcado na abertura, pra chegar la ja separado.
+let _melhorias = null;
+let _melhFiltro = 'todas';        // todas | bug | melhoria
+const _MELH_STATUS = {
+  recebida:     {rot:'Recebida',      cor:'#F59E0B'},
+  em_analise:   {rot:'Em análise',    cor:'#A23BD6'},
+  em_andamento: {rot:'Em andamento',  cor:'#29ABE2'},
+  concluida:    {rot:'Concluída',     cor:'#10B981'},
+  recusada:     {rot:'Recusada',      cor:'#6C6C7A'}
+};
+const _MELH_ABERTA = (st) => st !== 'concluida' && st !== 'recusada';
+
+async function loadMelhorias(){
+  if(!_supa) return;
+  try {
+    const { data, error } = await _supa.from('melhorias')
+      .select('*').order('criado_em', {ascending:false}).limit(300);
+    if(error){
+      if(error.code === '42P01'){ console.warn('[melhorias] rode sql/88'); _melhorias = []; return; }
+      console.warn('[melhorias]', error); _melhorias = []; return;
+    }
+    _melhorias = data || [];
+  } catch(e){ console.warn('[melhorias]', e); _melhorias = []; }
+}
+
+function setMelhFiltro(v){
+  _melhFiltro = v;
+  renderMelhorias(document.getElementById('content'));
+}
+window.setMelhFiltro = setMelhFiltro;
+
+function renderMelhorias(c){
+  if(!_melhoriasTemAcesso()){
+    c.innerHTML = '<div class="page-head"><div class="page-title">🐞 Melhorias & bugs</div></div>' +
+      '<div class="card" style="text-align:center;padding:50px 20px"><div style="font-size:42px;margin-bottom:12px">🔒</div>' +
+      '<div style="font-size:15px;font-weight:600">Acesso restrito</div>' +
+      '<div class="text-sm text-mu" style="margin-top:6px">Esta aba é da administração e da Francielle.</div></div>';
+    return;
+  }
+
+  if(_melhorias === null){
+    _melhorias = [];
+    loadMelhorias().then(function(){
+      if(currentPage === 'melhorias') renderMelhorias(document.getElementById('content'));
+    });
+    c.innerHTML = '<div class="page-head"><div class="page-title">🐞 Melhorias & bugs</div></div>' +
+      '<div class="card" style="padding:40px;text-align:center" class="text-mu">Carregando…</div>';
+    return;
+  }
+
+  const todas = _melhorias || [];
+  const bugsAbertos = todas.filter(x => x.tipo === 'bug' && _MELH_ABERTA(x.status));
+  const melhAbertas = todas.filter(x => x.tipo === 'melhoria' && _MELH_ABERTA(x.status));
+  const respondidas = todas.filter(x => x.resposta);
+  const lista = _melhFiltro === 'todas' ? todas : todas.filter(x => x.tipo === _melhFiltro);
+
+  const chip = (v, rot) => '<span class="filter-chip' + (_melhFiltro === v ? ' active' : '') +
+    '" onclick="setMelhFiltro(\'' + v + '\')">' + rot + '</span>';
+
+  let html = '<div class="page-head"><div><div class="page-title">🐞 Melhorias & bugs</div>' +
+    '<div class="page-sub">O que a gente pede pra Bertotech. Eles respondem aqui mesmo.</div></div>' +
+    '<button class="btn btn-primary" onclick="abrirMelhoriaModal()">+ Nova solicitação</button></div>' +
+
+    '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px">' +
+      '<div class="stat-card"><div class="stat-value" style="color:' + (bugsAbertos.length ? '#F05252' : 'inherit') + '">' + bugsAbertos.length + '</div><div class="stat-label">Bugs em aberto</div></div>' +
+      '<div class="stat-card"><div class="stat-value" style="color:' + (melhAbertas.length ? '#F59E0B' : 'inherit') + '">' + melhAbertas.length + '</div><div class="stat-label">Melhorias em aberto</div></div>' +
+      '<div class="stat-card"><div class="stat-value">' + respondidas.length + '</div><div class="stat-label">Já respondidas</div></div>' +
+      '<div class="stat-card"><div class="stat-value">' + todas.length + '</div><div class="stat-label">Total enviado</div></div>' +
+    '</div>' +
+
+    '<div class="filter-bar">' + chip('todas','Todas (' + todas.length + ')') +
+      chip('bug','🐞 Bugs (' + todas.filter(x=>x.tipo==='bug').length + ')') +
+      chip('melhoria','✨ Melhorias (' + todas.filter(x=>x.tipo==='melhoria').length + ')') + '</div>';
+
+  if(!lista.length){
+    html += '<div class="empty-state" style="padding:50px 20px"><div class="ico">🐞</div>' +
+      '<div class="ttl">Nenhuma solicitação ainda</div>' +
+      '<div class="desc">Achou um erro ou pensou numa melhoria? Clique em <b>+ Nova solicitação</b>. ' +
+      'Ela chega na hora no painel da Bertotech.</div></div>';
+    c.innerHTML = html;
+    return;
+  }
+
+  html += '<div style="display:flex;flex-direction:column;gap:10px">' +
+    lista.map(function(m){
+      const st = _MELH_STATUS[m.status] || _MELH_STATUS.recebida;
+      const quando = m.criado_em ? new Date(m.criado_em).toLocaleDateString('pt-BR') : '';
+      return '<div class="card melh-item" style="border-left:3px solid ' + (m.tipo === 'bug' ? '#F05252' : '#A23BD6') + '">' +
+        '<div class="melh-topo">' +
+          '<div style="min-width:0">' +
+            '<div class="melh-tit">' + (m.tipo === 'bug' ? '🐞' : '✨') + ' ' + escapeHtml(m.titulo||'') + '</div>' +
+            '<div class="text-xs text-3" style="margin-top:3px">' +
+              escapeHtml(m.autor_nome || m.autor_email || 'sem autor') + ' · ' + quando +
+              (m.area ? ' · ' + escapeHtml(m.area) : '') + '</div>' +
+          '</div>' +
+          '<span class="melh-status" style="background:' + st.cor + '22;color:' + st.cor + '">' + st.rot + '</span>' +
+        '</div>' +
+        '<div class="melh-desc">' + escapeHtml(m.descricao||'') + '</div>' +
+        (m.resposta
+          ? '<div class="melh-resposta"><div class="melh-resposta-rot">Resposta da Bertotech</div>' +
+            escapeHtml(m.resposta) + '</div>'
+          : '<div class="text-xs text-3" style="margin-top:10px">Ainda sem resposta.</div>') +
+      '</div>';
+    }).join('') + '</div>';
+
+  c.innerHTML = html;
+}
+window.renderMelhorias = renderMelhorias;
+
+function abrirMelhoriaModal(){
+  if(!_melhoriasTemAcesso()){ toast('Sem permissão','info'); return; }
+  let modal = document.getElementById('melhoriaModal');
+  if(modal) modal.remove();
+  modal = document.createElement('div');
+  modal.id = 'melhoriaModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:18px';
+  modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
+
+  const areas = ['Dashboard','Clientes','Comercial','Financeiro','Captação','Cronograma',
+                 'Calendário','Checklist','Tráfego Pago','Equipe','Relatórios','Outra'];
+
+  modal.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px;max-width:520px;width:100%;max-height:90dvh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.35)">' +
+      '<div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
+        '<div style="flex:1"><div style="font-size:17px;font-weight:700">Nova solicitação</div>' +
+        '<div class="text-xs text-3" style="margin-top:2px">Vai direto pro painel da Bertotech</div></div>' +
+        '<button class="icon-btn" onclick="document.getElementById(\'melhoriaModal\').remove()" style="font-size:20px">×</button>' +
+      '</div>' +
+      '<div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">' +
+
+        '<div><div class="info-label" style="margin-bottom:7px">O que é? *</div>' +
+          '<div class="melh-escolhas">' +
+            '<label class="melh-op"><input type="radio" name="melhTipo" value="bug" checked />' +
+              '<span><b>🐞 Bug</b><small>Algo que já existe e parou de funcionar ou está errado</small></span></label>' +
+            '<label class="melh-op"><input type="radio" name="melhTipo" value="melhoria" />' +
+              '<span><b>✨ Melhoria</b><small>Algo novo, ou uma mudança no que já existe</small></span></label>' +
+          '</div></div>' +
+
+        '<div><div class="info-label" style="margin-bottom:5px">Resumo *</div>' +
+          '<input id="melhTitulo" class="login-input" maxlength="120" placeholder="Em uma linha: o que está acontecendo" style="background:var(--surface-2)" /></div>' +
+
+        '<div><div class="info-label" style="margin-bottom:5px">Onde, no sistema?</div>' +
+          '<select id="melhArea" class="login-input" style="background:var(--surface-2)">' +
+            '<option value="">— escolher —</option>' +
+            areas.map(a => '<option value="' + a + '">' + a + '</option>').join('') +
+          '</select></div>' +
+
+        '<div><div class="info-label" style="margin-bottom:5px">Explique com detalhe *</div>' +
+          '<textarea id="melhDesc" class="login-input" rows="5" style="background:var(--surface-2);resize:vertical;font-family:inherit" ' +
+            'placeholder="Se for bug: o que você fez, o que esperava e o que aconteceu. Se for melhoria: o que resolveria, e por quê."></textarea></div>' +
+
+        '<div><div class="info-label" style="margin-bottom:7px">Urgência</div>' +
+          '<div class="melh-escolhas" style="flex-direction:row;flex-wrap:wrap">' +
+            '<label class="melh-op curta"><input type="radio" name="melhPrio" value="baixa" /><span><b>Baixa</b></span></label>' +
+            '<label class="melh-op curta"><input type="radio" name="melhPrio" value="media" checked /><span><b>Média</b></span></label>' +
+            '<label class="melh-op curta"><input type="radio" name="melhPrio" value="alta" /><span><b>Alta</b></span></label>' +
+          '</div></div>' +
+
+        '<div class="melh-erro" id="melhErro" hidden></div>' +
+
+        '<div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px">' +
+          '<button class="btn" onclick="document.getElementById(\'melhoriaModal\').remove()">Cancelar</button>' +
+          '<button class="btn btn-primary" id="melhEnviar" onclick="enviarMelhoria()">Enviar pra Bertotech</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  setTimeout(function(){ const el = document.getElementById('melhTitulo'); if(el) el.focus(); }, 80);
+}
+window.abrirMelhoriaModal = abrirMelhoriaModal;
+
+async function enviarMelhoria(){
+  const pega = (id) => { const el = document.getElementById(id); return el ? String(el.value||'').trim() : ''; };
+  const marcado = (n) => { const el = document.querySelector('#melhoriaModal input[name="' + n + '"]:checked'); return el ? el.value : ''; };
+  const caixa = document.getElementById('melhErro');
+  const btn = document.getElementById('melhEnviar');
+  const falhar = (msg, foco) => {
+    caixa.textContent = msg; caixa.hidden = false;
+    const el = foco && document.getElementById(foco); if(el) el.focus();
+  };
+  caixa.hidden = true;
+
+  const titulo = pega('melhTitulo');
+  const desc = pega('melhDesc');
+  if(!titulo) return falhar('Escreva um resumo em uma linha.', 'melhTitulo');
+  if(desc.length < 15) return falhar('Explique com um pouco mais de detalhe. Quanto melhor a explicação, mais rápido eles resolvem.', 'melhDesc');
+
+  const payload = {
+    tipo: marcado('melhTipo') || 'bug',
+    titulo: titulo,
+    descricao: desc,
+    area: pega('melhArea') || null,
+    prioridade: marcado('melhPrio') || 'media',
+    autor_nome: (_currentProfile && _currentProfile.name) || null,
+    autor_email: _meuEmailApp() || null,
+    status: 'recebida'
+  };
+
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  try {
+    if(!_supa) throw new Error('sem conexão');
+    const { error } = await _supa.from('melhorias').insert(payload);
+    if(error) throw error;
+    const m = document.getElementById('melhoriaModal'); if(m) m.remove();
+    _melhorias = null;                       // recarrega do banco
+    toast('✓ Enviado pra Bertotech. Você acompanha a resposta aqui.','success');
+    if(currentPage === 'melhorias') renderMelhorias(document.getElementById('content'));
+  } catch(e){
+    console.warn('[enviarMelhoria]', e);
+    btn.disabled = false; btn.textContent = 'Enviar pra Bertotech';
+    falhar('Não consegui enviar agora: ' + (e.message || 'tente de novo') + '. O que você escreveu continua aqui.');
+  }
+}
+window.enviarMelhoria = enviarMelhoria;
+
 // ===== Página pública: o cliente preenche o próprio cadastro (link ?cadastro) =====
 // O que ele envia cai direto no cadastro de clientes, marcado como pré-cadastro
 // pra equipe conferir antes de usar em contrato. Se o CNPJ já existir, atualiza
@@ -24963,6 +25228,7 @@ const allPages = [
   {id:'i3',label:'I3 (sócios)'},
   {id:'patrimonio',label:'Patrimônio'},
   {id:'usuarios',label:'Usuários (dá acesso a outros)'},
+  {id:'melhorias',label:'Melhorias & bugs (adm + Fran)'},
   {id:'config',label:'Configurações'},
 ];
 
