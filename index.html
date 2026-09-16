@@ -272,6 +272,38 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-sec:first-child{margin-top:2px}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* Descrição do plano, puxada da Precificação */
+.plano-desc{border:1px solid var(--border);border-radius:11px;background:var(--surface-2);margin-bottom:8px;overflow:hidden}
+.plano-desc:last-child{margin-bottom:0}
+.plano-desc > summary{
+  list-style:none;cursor:pointer;padding:12px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  font-size:13.5px;font-weight:600;color:var(--text);user-select:none;
+}
+.plano-desc > summary::-webkit-details-marker{display:none}
+.plano-desc > summary::before{
+  content:"▸";color:var(--text-3);font-size:11px;flex:none;
+  transition:transform var(--dur,.18s) var(--ease,ease);
+}
+.plano-desc[open] > summary::before{transform:rotate(90deg)}
+.plano-desc > summary:hover{background:var(--surface-3,rgba(255,255,255,.03))}
+.plano-desc .pd-nome{flex:1;min-width:0}
+.plano-desc .pd-tag{
+  font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  padding:2px 7px;border-radius:5px;background:var(--accent-soft);color:var(--accent);flex:none;
+}
+.plano-desc .pd-tag.fora{background:rgba(245,158,11,.16);color:#f59e0b}
+.plano-desc .pd-corpo{padding:0 14px 14px;border-top:1px solid var(--border)}
+.plano-desc .pd-texto{
+  white-space:pre-wrap;font-size:13px;line-height:1.62;color:var(--text-2);
+  padding-top:12px;max-height:340px;overflow-y:auto;
+}
+.plano-desc .pd-vazio{padding-top:12px;font-size:12.5px;line-height:1.6;color:var(--text-3)}
+@media (max-width:768px){
+  .plano-desc > summary{padding:11px 12px;font-size:13px}
+  .plano-desc .pd-corpo{padding:0 12px 12px}
+  .plano-desc .pd-texto{max-height:none}
+}
+
 /* Caixa do link do cadastro, na aba Comercial */
 .cad-link-caixa{
   background:var(--surface-2);border:1px dashed var(--border-strong,var(--border));border-radius:10px;
@@ -2540,7 +2572,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.03 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.04 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -9353,7 +9385,8 @@ function _orcClienteHTML(budgets, leads, cli){
       <div style="min-width:0"><div style="font-weight:600;font-size:13.5px">${escapeHtml(l.name||'Negociação')}</div>
       <div class="text-xs text-3">Pipeline · ${escapeHtml(st)}${l.created_at?' · '+fmt(l.created_at):''}</div></div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><strong style="font-size:14px">R$ ${v.toLocaleString('pt-BR')}</strong>
-      <button class="btn btn-sm" onclick="closeModal();goTo('comercial');setTimeout(()=>{try{abrirLeadDetalhe('${l.id}')}catch(e){}},120)">Abrir</button></div>
+      <button class="btn btn-sm" onclick="abrirOrcamentoDoCliente(${cli.id})" title="Abre o orçamento salvo deste cliente">📄 Orçamento</button>
+      <button class="btn btn-sm" onclick="closeModal();goTo('comercial');setTimeout(()=>{try{abrirLeadDetalhe('${l.id}')}catch(e){}},120)" title="Abre o card no pipeline">Pipeline</button></div>
     </div>`;
   }).join('');
   const orcCards = (budgets||[]).map(b=>{
@@ -9702,6 +9735,38 @@ function paneOrcamentos(cli){
     <div id="orcClienteLista">${(cacheB.length+leads.length) ? _orcClienteHTML(cacheB, leads, cli) : '<div class="text-xs text-3" style="padding:24px;text-align:center">⏳ Carregando orçamentos e negociações...</div>'}</div>
   </div>`;
 }
+// Abre o orçamento salvo do cliente. O card do pipeline levava só pro funil;
+// quem fechou o negócio quer ver o orçamento, não a negociação.
+// budgets.lead_id nunca foi preenchido no sistema, então o vínculo é pelo cliente.
+function abrirOrcamentoDoCliente(cliId){
+  const cli = (clients||[]).find(c => c.id === cliId);
+  if(!cli){ toast('Cliente não encontrado','info'); return; }
+  const doCliente = function(lista){ return (lista||[]).filter(b => _orcEhDoCliente(b, cli)); };
+  // Primeiro os que a própria aba já buscou; depois o histórico geral.
+  let achados = doCliente(window._orcCliBudgets);
+  if(!achados.length) achados = doCliente(typeof orcamentosSalvos !== 'undefined' ? orcamentosSalvos : []);
+  if(!achados.length){
+    toast('Nenhum orçamento salvo para ' + _nomeCli(cli) + '. Use "+ Fazer orçamento" para criar o primeiro.', 'info');
+    return;
+  }
+  // o mais recente primeiro
+  achados.sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
+  const b = achados[0];
+  // garante que o histórico conheça esse orçamento antes de abrir
+  if(typeof orcamentosSalvos !== 'undefined' && !orcamentosSalvos.some(x => x.id === b.id)){
+    orcamentosSalvos = [b].concat(orcamentosSalvos);
+  }
+  closeModal();
+  comTab = 'orcamento';
+  goTo('comercial');
+  setTimeout(function(){
+    try { carregarOrcSalvo(b.id); }
+    catch(e){ console.warn('[abrir orcamento]', e); toast('Não consegui abrir esse orçamento','info'); }
+  }, 150);
+  if(achados.length > 1) toast('Abrindo o orçamento mais recente. ' + _nomeCli(cli) + ' tem ' + achados.length + '.', 'info');
+}
+if(typeof window!=='undefined'){ window.abrirOrcamentoDoCliente = abrirOrcamentoDoCliente; }
+
 async function carregarOrcamentosCliente(cli){
   const box = document.getElementById('orcClienteLista');
   if(!box || !_supa) return;
@@ -9712,6 +9777,7 @@ async function carregarOrcamentosCliente(cli){
     ]);
     const budgets = bRes.error ? [] : (bRes.data||[]).filter(b => _orcEhDoCliente(b, cli));
     const leads = lRes.error ? _orcClienteLeads(cli) : (lRes.data||[]).filter(l => _leadEhDoCliente(l, cli));
+    window._orcCliBudgets = budgets;   // o botão "Orçamento" procura aqui primeiro
     box.innerHTML = _orcClienteHTML(budgets, leads, cli);
     const cnt = document.getElementById('orcClienteCount'); if(cnt) cnt.textContent = budgets.length + leads.length;
   } catch(e){ console.warn('[orcCliente]', e); }
@@ -10115,6 +10181,69 @@ async function updateClientField(cliId, field, value){
 }
 
 // Multi-seleção de planos no modal do cliente (pane plano): marca vários e só salva no botão.
+// A descrição do plano é a mesma da Precificação: escrita uma vez lá, aparece
+// aqui. Assim ninguém precisa manter dois textos iguais em lugares diferentes.
+function _planoProduto(nome){
+  const alvo = _planosNorm(String(nome||'')).trim();
+  if(!alvo) return null;
+  const prods = (typeof _precifProdutos !== 'undefined' && Array.isArray(_precifProdutos)) ? _precifProdutos : [];
+  return prods.find(p => _planosNorm(String(p.produto||'')).trim() === alvo) || null;
+}
+
+function _planoDescricoesHTML(cli){
+  const planos = _planosDoCliente(cli).filter(x => String(x||'').trim());
+  if(!planos.length) return '';
+
+  const prods = (typeof _precifProdutos !== 'undefined' && Array.isArray(_precifProdutos)) ? _precifProdutos : [];
+  if(!prods.length){
+    // A Precificação ainda não carregou. Busca UMA vez e redesenha quando chegar.
+    // A trava nunca é solta: se a tabela voltar vazia, o redesenho chamaria esta
+    // função de novo e ela pediria outra busca, sem fim.
+    if(typeof loadPrecificacao === 'function' && !window._planoDescTentou){
+      window._planoDescTentou = true;
+      loadPrecificacao().then(function(){
+        const alvo = document.getElementById('planoDescBox');
+        if(!alvo) return;
+        const temAgora = (typeof _precifProdutos !== 'undefined' && Array.isArray(_precifProdutos) && _precifProdutos.length);
+        alvo.outerHTML = temAgora
+          ? _planoDescricoesHTML(cli)
+          : '<div class="text-xs text-3" style="padding:10px 2px">A Precificação está vazia, então não há descrição para mostrar.</div>';
+      }).catch(function(){
+        const alvo = document.getElementById('planoDescBox');
+        if(alvo) alvo.outerHTML = '<div class="text-xs text-3" style="padding:10px 2px">Não consegui carregar a descrição do plano agora.</div>';
+      });
+      return '<div id="planoDescBox" class="text-xs text-3" style="padding:10px 2px">Carregando a descrição do plano…</div>';
+    }
+    return '';
+  }
+
+  const blocos = planos.map(function(nome, i){
+    const p = _planoProduto(nome);
+    const desc = p && String(p.descricao||'').trim();
+    if(!desc){
+      return '<details class="plano-desc"' + (i === 0 ? ' open' : '') + '>' +
+        '<summary><span class="pd-nome">' + escapeHtml(nome) + '</span>' +
+          '<span class="pd-tag fora">fora da Precificação</span></summary>' +
+        '<div class="pd-corpo"><div class="pd-vazio">' +
+          (p ? 'Este produto existe na Precificação mas ainda está sem descrição. Escreva lá uma vez e ela passa a aparecer aqui para todos os clientes que têm esse plano.'
+             : 'Este plano foi escrito à mão e não existe na Precificação, então não tem descrição para mostrar. Cadastre o produto na Precificação e selecione ele aqui.') +
+        '</div></div></details>';
+    }
+    return '<details class="plano-desc"' + (i === 0 ? ' open' : '') + '>' +
+      '<summary><span class="pd-nome">' + escapeHtml(p.produto || nome) + '</span>' +
+        (p.categoria ? '<span class="pd-tag">' + escapeHtml(p.categoria) + '</span>' : '') + '</summary>' +
+      '<div class="pd-corpo"><div class="pd-texto">' + escapeHtml(desc) + '</div>' +
+        (isAdmin() ? '<button class="btn btn-sm" style="margin-top:12px" onclick="closeModal();comTab=\'precificacao\';goTo(\'comercial\')">Editar na Precificação</button>' : '') +
+      '</div></details>';
+  }).join('');
+
+  return '<div class="card mb-4" id="planoDescBox">' +
+    '<div class="section-title" style="margin-top:0">📋 O que está incluso</div>' +
+    '<div class="text-xs text-3" style="margin:-6px 0 12px;line-height:1.55">Texto da Precificação. Mudou lá, muda aqui e em todo cliente com o mesmo plano.</div>' +
+    blocos + '</div>';
+}
+if(typeof window!=='undefined'){ window._planoDescricoesHTML = _planoDescricoesHTML; window._planoProduto = _planoProduto; }
+
 // Filtra a lista de produtos do plano enquanto a pessoa digita.
 function _planoFiltrar(termo){
   const q = _planosNorm(termo || '').trim();
@@ -11278,6 +11407,8 @@ function paneFinanceiro(cli){
           <!-- Valor do plano removido — fica salvo no banco mas nao aparece na UI -->
         </div>
       </div>
+
+      ${_planoDescricoesHTML(cli)}
 
       <!-- ===== Observação do plano ===== -->
       <div class="card mb-4" data-field="plan_observacao">
@@ -17968,7 +18099,8 @@ if(typeof window!=='undefined'){ window.sincronizarOrcamentosLeads = sincronizar
 
 async function carregarOrcSalvo(id){
   const b = orcamentosSalvos.find(x=>x.id===id);
-  if(!b) return;
+  // Antes saía calado e o clique parecia não fazer nada.
+  if(!b){ toast('Não encontrei esse orçamento no histórico. Atualize a página e tente de novo.','info'); return; }
   // Tentar extrair cliente de varias fontes
   let cliente = b.client_data;
   if(!cliente || !cliente.nome){
