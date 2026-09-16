@@ -272,6 +272,44 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-sec:first-child{margin-top:2px}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* Relacionamento & entrega, dentro do Tráfego Pago */
+.traf-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 14px 14px}
+.traf-tile{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--border-strong,var(--border));
+  border-radius:10px;padding:12px 13px}
+.traf-tile.ok{border-left-color:#10B981}
+.traf-tile.atencao{border-left-color:#F59E0B}
+.traf-tile.alerta{border-left-color:#F05252}
+.traf-tile-rot{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+.traf-tile-val{font-family:var(--font-display,inherit);font-size:20px;font-weight:700;letter-spacing:-.02em;
+  margin:5px 0 3px;line-height:1.15}
+.traf-tile.ok .traf-tile-val{color:#10B981}
+.traf-tile.atencao .traf-tile-val{color:#F59E0B}
+.traf-tile.alerta .traf-tile-val{color:#F05252}
+.traf-tile-sub{font-size:11.5px;color:var(--text-3);line-height:1.4;overflow-wrap:anywhere}
+
+.traf-colunas{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;padding:0 14px 14px}
+.traf-sec{font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3);
+  margin-bottom:9px;padding-bottom:7px;border-bottom:1px solid var(--border)}
+.traf-item{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.traf-item:last-child{border-bottom:none}
+.traf-item.atrasada .traf-item-tit{color:#F05252}
+.traf-item-ico{flex:none;font-size:14px;line-height:1.35}
+.traf-item-txt{flex:1;min-width:0}
+.traf-item-tit{font-size:13px;font-weight:600;color:var(--text);line-height:1.35}
+.traf-item-sub{font-size:11.5px;color:var(--text-3);line-height:1.45;margin-top:2px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.traf-item-data{flex:none;font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums;padding-top:1px}
+.traf-vazio{font-size:12px;color:var(--text-3);line-height:1.55;padding:8px 0}
+
+.traf-selos{display:flex;flex-wrap:wrap;gap:6px;border-top:1px solid var(--border);padding-top:8px;margin-top:8px}
+.traf-selo{font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.traf-selo.ok{background:rgba(16,185,129,.14);color:#10B981}
+.traf-selo.atencao{background:rgba(245,158,11,.16);color:#F59E0B}
+.traf-selo.alerta{background:rgba(240,82,82,.16);color:#F05252}
+
+@media (max-width:900px){ .traf-tiles{grid-template-columns:repeat(2,1fr)} .traf-colunas{grid-template-columns:1fr} }
+@media (max-width:768px){ .traf-tiles{padding:0 12px 12px;gap:8px} .traf-colunas{padding:0 12px 12px;gap:16px} }
+
 /* Descrição do plano, puxada da Precificação */
 .plano-desc{border:1px solid var(--border);border-radius:11px;background:var(--surface-2);margin-bottom:8px;overflow:hidden}
 .plano-desc:last-child{margin-bottom:0}
@@ -2572,7 +2610,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.05 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.06 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -26403,6 +26441,195 @@ function _fmtTrafegoTs(ts){
 function _ultimaAtualizacaoTs(camps){
   return (camps||[]).reduce((m,c)=>{ const t=c.updated_at||c.created_at||''; return t>m?t:m; }, '');
 }
+// ===== RELACIONAMENTO & ENTREGA (dentro do Tráfego Pago) =====
+// De onde vem cada coisa, sem inventar tabela nova:
+//   reuniões e contatos  -> client_relationships (a mesma da aba Relacionamento)
+//   próxima reunião      -> proxima_acao + proxima_data do último registro
+//   relatório do mês     -> relatorios, pelo nome da empresa
+const _TRAF_TIPO_REUNIAO = ['reuniao','presencial'];
+const _TRAF_TIPO_ICONE = {whatsapp:'💚', ligacao:'📞', reuniao:'📹', email:'📧',
+  presencial:'🤝', feedback:'⭐', suporte:'🔧', aprovacao:'✓'};
+const _TRAF_TIPO_LABEL = {whatsapp:'WhatsApp', ligacao:'Ligação', reuniao:'Reunião', email:'E-mail',
+  presencial:'Presencial', feedback:'Feedback', suporte:'Suporte', aprovacao:'Aprovação'};
+
+function _trafDias(dataIso){
+  const d = (typeof dataLocal === 'function') ? dataLocal(dataIso) : new Date(dataIso);
+  if(!d || isNaN(d.getTime())) return null;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const alvo = new Date(d); alvo.setHours(0,0,0,0);
+  return Math.round((alvo - hoje) / 86400000);
+}
+
+// Tudo que a tela precisa saber sobre o relacionamento deste cliente.
+function _trafRelacStatus(cli){
+  const relacs = (typeof _relacionamentos !== 'undefined' && Array.isArray(_relacionamentos) ? _relacionamentos : [])
+    .filter(r => r.client_id && cli._dbId && r.client_id === cli._dbId)
+    .sort((a,b) => String(b.data_contato||'').localeCompare(String(a.data_contato||'')));
+
+  const reunioes = relacs.filter(r => _TRAF_TIPO_REUNIAO.indexOf(String(r.tipo||'').toLowerCase()) !== -1);
+  const ultimo = relacs[0] || null;
+  const diasUltimo = ultimo ? _trafDias(ultimo.data_contato) : null;
+
+  // A próxima é a ação marcada mais perto de hoje que ainda não passou.
+  const futuras = relacs.filter(r => r.proxima_acao && r.proxima_data && _trafDias(r.proxima_data) >= 0)
+    .sort((a,b) => String(a.proxima_data).localeCompare(String(b.proxima_data)));
+  const proxima = futuras[0] || null;
+  // Ação marcada que já passou e ninguém deu baixa.
+  const atrasadas = relacs.filter(r => r.proxima_acao && r.proxima_data && _trafDias(r.proxima_data) < 0);
+
+  // Relatório: o do mês corrente já foi feito?
+  const rels = (typeof _relatorios !== 'undefined' && Array.isArray(_relatorios) ? _relatorios : [])
+    .filter(r => (typeof _relEhDoCliente === 'function') ? _relEhDoCliente(r, cli) : false)
+    .sort((a,b) => String(b.data||'').localeCompare(String(a.data||'')));
+  const mesAtual = (typeof hojeBrasiliaStr === 'function' ? hojeBrasiliaStr() : new Date().toLocaleDateString('sv-SE')).slice(0,7);
+  const relDoMes = rels.find(r => String(r.data||'').slice(0,7) === mesAtual) || null;
+  const ultimoRel = rels[0] || null;
+
+  return { relacs, reunioes, ultimo, diasUltimo, proxima, atrasadas,
+           rels, relDoMes, ultimoRel, mesAtual };
+}
+
+// Um selo curto pra lista de clientes: dá pra ver quem está largado sem abrir.
+function _trafSeloRelac(cli){
+  const st = _trafRelacStatus(cli);
+  const partes = [];
+  if(st.diasUltimo === null){
+    partes.push('<span class="traf-selo alerta">sem contato registrado</span>');
+  } else {
+    const d = Math.abs(st.diasUltimo);
+    const txt = d === 0 ? 'contato hoje' : ('contato há ' + d + 'd');
+    partes.push('<span class="traf-selo ' + (d > 30 ? 'alerta' : d > 14 ? 'atencao' : 'ok') + '">' + txt + '</span>');
+  }
+  partes.push(st.relDoMes
+    ? '<span class="traf-selo ok">relatório do mês ✓</span>'
+    : '<span class="traf-selo atencao">relatório do mês pendente</span>');
+  if(st.atrasadas.length) partes.push('<span class="traf-selo alerta">' + st.atrasadas.length + ' ação(ões) atrasada(s)</span>');
+  return '<div class="traf-selos">' + partes.join('') + '</div>';
+}
+
+function _trafLinhaRelac(r){
+  const tipo = String(r.tipo||'').toLowerCase();
+  const quando = r.data_contato
+    ? new Date(r.data_contato).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+    : '';
+  return '<div class="traf-item">' +
+    '<span class="traf-item-ico">' + (_TRAF_TIPO_ICONE[tipo] || '•') + '</span>' +
+    '<div class="traf-item-txt">' +
+      '<div class="traf-item-tit">' + escapeHtml(_TRAF_TIPO_LABEL[tipo] || r.tipo || 'Contato') +
+        (r.responsavel_nome ? ' · ' + escapeHtml(String(r.responsavel_nome).split(' ')[0]) : '') + '</div>' +
+      (r.resumo ? '<div class="traf-item-sub">' + escapeHtml(r.resumo) + '</div>' : '') +
+    '</div>' +
+    '<span class="traf-item-data">' + quando + '</span>' +
+  '</div>';
+}
+
+// O bloco inteiro, que entra na página do cliente dentro do Tráfego.
+function _trafRelacionamentoHTML(cli){
+  const st = _trafRelacStatus(cli);
+  const nomesM = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const mesNome = nomesM[parseInt(st.mesAtual.slice(5,7),10) - 1] || '';
+
+  const tile = (rot, valor, sub, cor) =>
+    '<div class="traf-tile' + (cor ? ' ' + cor : '') + '">' +
+      '<div class="traf-tile-rot">' + rot + '</div>' +
+      '<div class="traf-tile-val">' + valor + '</div>' +
+      '<div class="traf-tile-sub">' + sub + '</div>' +
+    '</div>';
+
+  // último contato
+  let tUlt;
+  if(st.diasUltimo === null) tUlt = tile('Último contato', '—', 'nada registrado ainda', 'alerta');
+  else {
+    const d = Math.abs(st.diasUltimo);
+    tUlt = tile('Último contato', d === 0 ? 'hoje' : d + ' dias',
+      st.ultimo ? (_TRAF_TIPO_LABEL[String(st.ultimo.tipo||'').toLowerCase()] || 'contato') : '',
+      d > 30 ? 'alerta' : d > 14 ? 'atencao' : 'ok');
+  }
+
+  // próxima ação
+  let tProx;
+  if(st.proxima){
+    const dias = _trafDias(st.proxima.proxima_data);
+    tProx = tile('Próxima ação',
+      dias === 0 ? 'hoje' : (typeof dataBR === 'function' ? dataBR(st.proxima.proxima_data) : st.proxima.proxima_data),
+      escapeHtml(String(st.proxima.proxima_acao||'').slice(0,60)), dias <= 2 ? 'atencao' : 'ok');
+  } else if(st.atrasadas.length){
+    tProx = tile('Próxima ação', st.atrasadas.length + ' atrasada(s)', 'marcadas e não concluídas', 'alerta');
+  } else {
+    tProx = tile('Próxima ação', '—', 'nada agendado', 'atencao');
+  }
+
+  const painel =
+    '<div class="traf-tiles">' +
+      tUlt +
+      tile('Reuniões feitas', String(st.reunioes.length),
+        st.reunioes.length ? 'última em ' + new Date(st.reunioes[0].data_contato).toLocaleDateString('pt-BR') : 'nenhuma ainda',
+        st.reunioes.length ? '' : 'atencao') +
+      tProx +
+      tile('Relatório de ' + mesNome,
+        st.relDoMes ? 'entregue' : 'pendente',
+        st.relDoMes ? (typeof dataBR === 'function' ? dataBR(st.relDoMes.data) : '')
+                    : (st.ultimoRel ? 'último em ' + (typeof dataBR === 'function' ? dataBR(st.ultimoRel.data) : '') : 'nenhum relatório ainda'),
+        st.relDoMes ? 'ok' : 'atencao') +
+    '</div>';
+
+  const reunioesHTML = st.reunioes.length
+    ? st.reunioes.slice(0,6).map(_trafLinhaRelac).join('')
+    : '<div class="traf-vazio">Nenhuma reunião registrada com este cliente. Registre em <b>+ Registrar contato</b> escolhendo Reunião ou Presencial.</div>';
+
+  const contatosHTML = st.relacs.length
+    ? st.relacs.slice(0,8).map(_trafLinhaRelac).join('')
+    : '<div class="traf-vazio">Nenhum contato registrado ainda.</div>';
+
+  const agendaHTML = (st.proxima || st.atrasadas.length)
+    ? [].concat(st.atrasadas, st.proxima ? [st.proxima] : []).map(function(r){
+        const dias = _trafDias(r.proxima_data);
+        const atrasada = dias < 0;
+        return '<div class="traf-item' + (atrasada ? ' atrasada' : '') + '">' +
+          '<span class="traf-item-ico">' + (atrasada ? '⚠' : '🗓') + '</span>' +
+          '<div class="traf-item-txt">' +
+            '<div class="traf-item-tit">' + escapeHtml(r.proxima_acao||'Ação') + '</div>' +
+            '<div class="traf-item-sub">' + (atrasada ? 'venceu há ' + Math.abs(dias) + ' dia(s)' : (dias === 0 ? 'é hoje' : 'em ' + dias + ' dia(s)')) + '</div>' +
+          '</div>' +
+          '<span class="traf-item-data">' + (typeof dataBR === 'function' ? dataBR(r.proxima_data) : '') + '</span>' +
+        '</div>';
+      }).join('')
+    : '<div class="traf-vazio">Nada agendado. Ao registrar um contato, preencha <b>Próxima ação</b> para não perder o cliente de vista.</div>';
+
+  const relatoriosHTML = st.rels.length
+    ? st.rels.slice(0,6).map(function(r){
+        return '<div class="traf-item">' +
+          '<span class="traf-item-ico">📊</span>' +
+          '<div class="traf-item-txt"><div class="traf-item-tit">Relatório de ' +
+            (nomesM[parseInt(String(r.data||'').slice(5,7),10)-1] || '') + '</div></div>' +
+          '<span class="traf-item-data">' + (typeof dataBR === 'function' ? dataBR(r.data) : '') + '</span>' +
+        '</div>';
+      }).join('')
+    : '<div class="traf-vazio">Nenhum relatório mensal deste cliente ainda.</div>';
+
+  return '<div class="card" style="margin-bottom:14px">' +
+    '<div class="card-header" style="flex-wrap:wrap;gap:10px">' +
+      '<div class="card-title">🤝 Relacionamento & entrega</div>' +
+      '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
+        '<button class="btn btn-sm btn-primary" onclick="openNovoRelacionamentoModal(' + cli.id + ')">+ Registrar contato</button>' +
+        '<button class="btn btn-sm" onclick="goTo(\'relatorios\')">📊 Relatórios</button>' +
+      '</div>' +
+    '</div>' +
+    painel +
+    '<div class="traf-colunas">' +
+      '<div><div class="traf-sec">📹 Reuniões feitas (' + st.reunioes.length + ')</div>' + reunioesHTML + '</div>' +
+      '<div><div class="traf-sec">🗓 Agenda com o cliente</div>' + agendaHTML + '</div>' +
+      '<div><div class="traf-sec">📊 Relatórios entregues (' + st.rels.length + ')</div>' + relatoriosHTML + '</div>' +
+      '<div><div class="traf-sec">💬 Últimos contatos</div>' + contatosHTML + '</div>' +
+    '</div>' +
+  '</div>';
+}
+if(typeof window!=='undefined'){
+  window._trafRelacionamentoHTML = _trafRelacionamentoHTML;
+  window._trafRelacStatus = _trafRelacStatus;
+  window._trafSeloRelac = _trafSeloRelac;
+}
+
 function renderTrafegoPago(c){
   try {
     if(typeof _campanhas === 'undefined' || !Array.isArray(_campanhas)) _campanhas = [];
@@ -26461,6 +26688,7 @@ function renderTrafegoPago(c){
                   '<div><div class="text-xs text-3">Resultados</div><div style="font-weight:700">' + totalRes + '</div></div>' +
                 '</div>' +
                 (ultimaTxt ? '<div class="text-xs text-3" style="margin-bottom:4px">🗓 Última atualização: <b>' + ultimaTxt + '</b></div>' : '') +
+                _trafSeloRelac(cli) +
                 (plataformas ? '<div class="text-xs text-3" style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px">📍 ' + escapeHtml(plataformas) + '</div>' : '') +
               '</div>';
             }).join('') +
@@ -26553,6 +26781,7 @@ function renderTrafegoPagoCli(cliId){
         }).join('');
       })() +
 
+      _trafRelacionamentoHTML(cli) +
       cardUltimaAtualizacaoTrafego(cliCamps) +
       tabelaResumoTrafego(cliCamps, 'Relatório mensal & anual — ' + cli.name) +
 
