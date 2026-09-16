@@ -292,13 +292,7 @@ body.public-page #lembretesWidget{display:none!important}
 #cadPublicoTela .cad-luz2{width:860px;height:860px;bottom:-420px;left:-300px;
   background:radial-gradient(circle,rgba(41,171,226,.20),rgba(162,59,214,.16) 45%,transparent 70%)}
 
-#cadPublicoTela .cad-folha{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:56px 22px 0}
-
-#cadPublicoTela .cad-marca{display:flex;align-items:center;gap:11px;font-family:'Sora',sans-serif;
-  font-size:21px;font-weight:700;letter-spacing:-.02em;color:#fff;margin-bottom:38px}
-#cadPublicoTela .cad-marca b{font-weight:800}
-#cadPublicoTela .cad-quadro{width:20px;height:20px;border-radius:5px;flex:none;
-  background:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2)}
+#cadPublicoTela .cad-folha{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:78px 22px 0}
 
 #cadPublicoTela .cad-titulo{font-family:'Sora',sans-serif;font-weight:800;
   font-size:clamp(29px,6vw,43px);line-height:1.08;letter-spacing:-.03em;margin:0 0 14px;text-wrap:balance}
@@ -351,6 +345,22 @@ body.public-page #lembretesWidget{display:none!important}
 #cadPublicoTela .cad-op input{accent-color:#EC1E79;width:17px;height:17px;cursor:pointer;flex:none;margin:0}
 #cadPublicoTela .cad-op:has(input:checked){border-color:#EC1E79;background:rgba(236,30,121,.1)}
 
+#cadPublicoTela .cad-dias{display:grid;grid-template-columns:repeat(8,1fr);gap:8px;margin-top:11px;max-width:460px}
+#cadPublicoTela .cad-dia{position:relative;cursor:pointer}
+#cadPublicoTela .cad-dia input{position:absolute;opacity:0;width:0;height:0;pointer-events:none}
+#cadPublicoTela .cad-dia span{
+  display:grid;place-items:center;aspect-ratio:1;border-radius:10px;
+  background:#08080C;border:1px solid rgba(255,255,255,.16);
+  font-size:15px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums;
+  transition:border-color .16s ease,background .16s ease,transform .16s ease;
+}
+#cadPublicoTela .cad-dia:hover span{border-color:rgba(255,255,255,.38)}
+#cadPublicoTela .cad-dia input:checked + span{
+  border-color:#EC1E79;background:rgba(236,30,121,.16);color:#fff;
+  box-shadow:0 0 0 1px #EC1E79;
+}
+#cadPublicoTela .cad-dia input:focus-visible + span{box-shadow:0 0 0 3px rgba(236,30,121,.35)}
+
 #cadPublicoTela .cad-anivs{display:flex;flex-direction:column;gap:10px}
 #cadPublicoTela .cad-aniv{display:grid;grid-template-columns:1fr 172px;gap:10px}
 
@@ -373,7 +383,7 @@ body.public-page #lembretesWidget{display:none!important}
   font-size:38px;color:#10B981;background:rgba(16,185,129,.14);border:2px solid rgba(16,185,129,.4)}
 
 @media (max-width:640px){
-  #cadPublicoTela .cad-folha{padding:40px 16px 0}
+  #cadPublicoTela .cad-folha{padding:54px 16px 0}
   #cadPublicoTela .cad-grade{grid-template-columns:repeat(2,1fr)}
   #cadPublicoTela .cad-campo[style*="span 4"],
   #cadPublicoTela .cad-campo[style*="span 2"]{grid-column:span 2 !important}
@@ -381,9 +391,12 @@ body.public-page #lembretesWidget{display:none!important}
   #cadPublicoTela .cad-aniv{grid-template-columns:1fr}
   #cadPublicoTela .cad-escolhas{flex-direction:column}
   #cadPublicoTela .cad-op{width:100%}
+  #cadPublicoTela .cad-dias{grid-template-columns:repeat(5,1fr);max-width:none}
+  #cadPublicoTela .cad-dia span{font-size:16px}
 }
 @media (prefers-reduced-motion:reduce){
   #cadPublicoTela .cad-enviar{transition:none}
+  #cadPublicoTela .cad-dia span{transition:none}
   #cadPublicoTela .cad-enviar:hover:not(:disabled){transform:none}
 }
 
@@ -2527,7 +2540,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.01 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.02 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -21708,7 +21721,6 @@ function renderPublicCadastroCliente(){
     '<div class="cad-folha">' +
 
       '<header class="cad-topo">' +
-        '<div class="cad-marca"><span class="cad-quadro"></span><span>impulse<b>one</b></span></div>' +
         '<h1 class="cad-titulo">Cadastro do cliente</h1>' +
         '<p class="cad-sub">Precisamos destes dados para emitir seu contrato e sua nota. ' +
           'Leva menos de 5 minutos e você só preenche uma vez.</p>' +
@@ -21760,10 +21772,17 @@ function renderPublicCadastroCliente(){
           '</div>' +
           '<div class="cad-pergunta">' +
             '<div class="cad-rot">Melhor data de pagamento<span class="cad-req">*</span></div>' +
-            '<div class="cad-dica">A cobrança cai todo mês nesse dia.</div>' +
-            '<div class="cad-escolhas" id="cadDiaBox">' +
-              '<label class="cad-op"><input type="radio" name="cadDia" value="05" /><span>Dia 05</span></label>' +
-              '<label class="cad-op"><input type="radio" name="cadDia" value="15" /><span>Dia 15</span></label>' +
+            '<div class="cad-dica">Escolha um dia entre 1 e 15. A cobrança cai todo mês nesse dia.</div>' +
+            '<div class="cad-dias" id="cadDiaBox">' +
+              (function(){
+                let d = '';
+                for(let i = 1; i <= 15; i++){
+                  const v = String(i).padStart(2,'0');
+                  d += '<label class="cad-dia"><input type="radio" name="cadDia" value="' + v + '" />' +
+                       '<span>' + v + '</span></label>';
+                }
+                return d;
+              })() +
             '</div>' +
           '</div>' +
         '</section>' +
@@ -21934,7 +21953,6 @@ function _cadPronto(nome){
   if(!folha) return;
   folha.innerHTML =
     '<div class="cad-fim">' +
-      '<div class="cad-marca" style="justify-content:center;margin-bottom:34px"><span class="cad-quadro"></span><span>impulse<b>one</b></span></div>' +
       '<div class="cad-check">✓</div>' +
       '<h1 class="cad-titulo" style="margin-bottom:14px">Recebemos, obrigado!</h1>' +
       '<p class="cad-sub">O cadastro da <b>' + escapeHtml(nome) + '</b> já está no nosso sistema. ' +
