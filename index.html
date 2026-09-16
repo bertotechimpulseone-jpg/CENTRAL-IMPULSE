@@ -277,6 +277,9 @@ body.public-page #lembretesWidget{display:none!important}
 .melh-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .melh-tit{font-size:14.5px;font-weight:700;letter-spacing:-.01em;line-height:1.35}
 .melh-status{flex:none;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.melh-acoes{display:flex;align-items:center;gap:6px;flex:none}
+.melh-apagar{font-size:14px;opacity:.5;transition:opacity var(--dur,.16s) var(--ease,ease),color var(--dur,.16s) var(--ease,ease)}
+.melh-apagar:hover{opacity:1;color:var(--danger)}
 .melh-desc{font-size:13.5px;line-height:1.6;color:var(--text-2);margin-top:9px;white-space:pre-wrap}
 .melh-resposta{margin-top:12px;padding:11px 13px;border-radius:9px;background:var(--surface-2);
   border-left:2px solid var(--accent);font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap}
@@ -302,7 +305,7 @@ body.public-page #lembretesWidget{display:none!important}
 @media (max-width:768px){
   .melh-item{padding:14px}
   .melh-topo{flex-direction:column;gap:8px}
-  .melh-status{align-self:flex-start}
+  .melh-acoes{align-self:flex-start}
 }
 
 /* Planilha de relacionamento do Tráfego */
@@ -2672,7 +2675,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.08 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.09 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -21943,6 +21946,15 @@ async function loadMelhorias(){
   } catch(e){ console.warn('[melhorias]', e); _melhorias = []; }
 }
 
+// Quem abriu apaga a propria; a administracao apaga qualquer uma. A mesma
+// regra esta na politica melhorias_apagar, que e quem de fato decide.
+function _melhPodeApagar(m){
+  if(!m) return false;
+  if(typeof _ehDaAdministracao === 'function' && _ehDaAdministracao()) return true;
+  const meu = _meuEmailApp();
+  return !!meu && String(m.autor_email||'').toLowerCase() === meu;
+}
+
 function setMelhFiltro(v){
   _melhFiltro = v;
   renderMelhorias(document.getElementById('content'));
@@ -22013,7 +22025,13 @@ function renderMelhorias(c){
               escapeHtml(m.autor_nome || m.autor_email || 'sem autor') + ' · ' + quando +
               (m.area ? ' · ' + escapeHtml(m.area) : '') + '</div>' +
           '</div>' +
-          '<span class="melh-status" style="background:' + st.cor + '22;color:' + st.cor + '">' + st.rot + '</span>' +
+          '<div class="melh-acoes">' +
+            '<span class="melh-status" style="background:' + st.cor + '22;color:' + st.cor + '">' + st.rot + '</span>' +
+            (_melhPodeApagar(m)
+              ? '<button class="icon-btn melh-apagar" title="Apagar esta solicitação" ' +
+                'onclick="apagarMelhoria(\'' + m.id + '\')">🗑</button>'
+              : '') +
+          '</div>' +
         '</div>' +
         '<div class="melh-desc">' + escapeHtml(m.descricao||'') + '</div>' +
         (m.resposta
@@ -22026,6 +22044,39 @@ function renderMelhorias(c){
   c.innerHTML = html;
 }
 window.renderMelhorias = renderMelhorias;
+
+async function apagarMelhoria(id){
+  const m = (_melhorias||[]).find(x => String(x.id) === String(id));
+  if(!m){ toast('Solicitação não encontrada','info'); return; }
+  if(!_melhPodeApagar(m)){ toast('Só quem abriu ou a administração pode apagar','info'); return; }
+
+  // Se a Bertotech ja mexeu, avisa antes: apagar joga fora o que eles ja fizeram.
+  const jaMexeram = !!m.resposta || m.status !== 'recebida';
+  const aviso = jaMexeram
+    ? 'A Bertotech já está tratando esta solicitação' + (m.resposta ? ' e respondeu' : '') +
+      '. Apagar tira ela da lista dos dois lados e não dá pra desfazer.'
+    : 'Apagar tira ela da lista dos dois lados e não dá pra desfazer.';
+
+  // O mesmo modal que o resto do sistema usa pra apagar: exige digitar "apagar".
+  const ok = await confirmDelete(m.titulo || 'esta solicitação', {
+    titulo: 'Apagar solicitação?',
+    aviso: escapeHtml(aviso)
+  });
+  if(!ok) return;
+
+  try {
+    if(!_supa) throw new Error('sem conexão');
+    const { error } = await _supa.from('melhorias').delete().eq('id', id);
+    if(error) throw error;
+    _melhorias = (_melhorias||[]).filter(x => String(x.id) !== String(id));
+    toast('✓ Solicitação apagada','success');
+    if(currentPage === 'melhorias') renderMelhorias(document.getElementById('content'));
+  } catch(e){
+    console.warn('[apagarMelhoria]', e);
+    toast('Não consegui apagar: ' + (e.message || 'tente de novo'), 'info');
+  }
+}
+window.apagarMelhoria = apagarMelhoria;
 
 function abrirMelhoriaModal(){
   if(!_melhoriasTemAcesso()){ toast('Sem permissão','info'); return; }
