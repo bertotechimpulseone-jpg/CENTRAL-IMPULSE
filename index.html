@@ -272,6 +272,35 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-sec:first-child{margin-top:2px}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
+/* Planilha de relacionamento do Tráfego */
+.traf-rolo{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.traf-planilha{border-collapse:collapse;width:100%;min-width:940px;font-size:13px}
+.traf-planilha th{
+  text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text-3);padding:12px 14px;white-space:nowrap;background:var(--surface-2);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1;
+}
+.traf-planilha th.num,.traf-planilha td.num{text-align:right;font-variant-numeric:tabular-nums}
+.traf-planilha td{padding:11px 14px;border-bottom:1px solid rgba(255,255,255,.05);color:var(--text-2);vertical-align:top}
+.traf-planilha tbody tr{cursor:pointer;transition:background var(--dur,.15s) var(--ease,ease)}
+.traf-planilha tbody tr:hover{background:var(--surface-2)}
+.traf-planilha tbody tr:last-child td{border-bottom:none}
+.traf-planilha td.tp-cli{display:flex;align-items:center;gap:9px;color:var(--text);font-weight:600;white-space:nowrap}
+.tp-ini{flex:none;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+  font-size:10.5px;font-weight:700;color:#fff}
+.tp-sem{display:block;font-size:10px;font-weight:500;color:var(--text-3);margin-top:1px}
+.tp-marca{font-weight:600;white-space:nowrap}
+.tp-marca.ok{color:#10B981}
+.tp-marca.atencao{color:#F59E0B}
+.tp-marca.alerta{color:#F05252}
+.tp-sub{font-size:11px;color:var(--text-3);margin-top:2px;line-height:1.4;max-width:210px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tp-vazio{color:var(--text-3);font-weight:400}
+@media (max-width:768px){
+  .traf-planilha{font-size:12.5px}
+  .traf-planilha th,.traf-planilha td{padding:10px 11px}
+}
+
 /* Relacionamento & entrega, dentro do Tráfego Pago */
 .traf-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 14px 14px}
 .traf-tile{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--border-strong,var(--border));
@@ -2610,7 +2639,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.06 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.07 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -6952,6 +6981,7 @@ function _resetSubViews(page){
       // ATENCAO: quem escolhe a sub-aba antes de navegar precisa chamar
       // goTo(pagina, {skipReset:true}), senao a escolha e apagada aqui.
       case 'comercial': if(typeof comTab !== 'undefined') comTab = 'pipeline'; break;
+      case 'trafego': if(typeof _trafTab !== 'undefined') _trafTab = 'campanhas'; break;
       case 'captacao':
         if(typeof capView !== 'undefined') capView = 'lista';
         if(typeof capSelectedDay !== 'undefined') capSelectedDay = null;
@@ -26630,6 +26660,196 @@ if(typeof window!=='undefined'){
   window._trafSeloRelac = _trafSeloRelac;
 }
 
+// Aba Relacionamento: todos os clientes numa planilha só.
+let _trafTab = 'campanhas';
+let _trafRelacFiltro = 'todos';     // todos | pendentes
+let _trafRelacTodos = false;        // inclui clientes sem campanha de tráfego
+let _trafRelacOrdem = 'pior';       // pior | nome | contato
+
+function setTrafTab(aba){
+  _trafTab = aba;
+  renderTrafegoPago(document.getElementById('content'));
+}
+function setTrafRelac(campo, valor){
+  if(campo === 'filtro') _trafRelacFiltro = valor;
+  if(campo === 'ordem')  _trafRelacOrdem = valor;
+  if(campo === 'todos')  _trafRelacTodos = !!valor;
+  renderTrafegoPago(document.getElementById('content'));
+}
+window.setTrafTab = setTrafTab; window.setTrafRelac = setTrafRelac;
+
+// Uma linha por cliente, com tudo que interessa pro controle.
+function _trafRelacLinhas(){
+  const comCampanha = new Set((typeof _campanhas !== 'undefined' ? _campanhas : [])
+    .map(c => c.client_id).filter(Boolean));
+  const base = (clients||[]).filter(cli => {
+    if(cli.oculto || cli.status === 'cancelado') return false;
+    return _trafRelacTodos ? true : comCampanha.has(cli._dbId);
+  });
+
+  const linhas = base.map(function(cli){
+    const st = _trafRelacStatus(cli);
+    let situacao = 'ok', rotulo = 'Em dia';
+    if(st.atrasadas.length || st.diasUltimo === null || (st.diasUltimo !== null && Math.abs(st.diasUltimo) > 30)){
+      situacao = 'alerta'; rotulo = 'Precisa de ação';
+    } else if(!st.relDoMes || !st.proxima || (st.diasUltimo !== null && Math.abs(st.diasUltimo) > 14)){
+      situacao = 'atencao'; rotulo = 'Atenção';
+    }
+
+    // Ordem: primeiro a gravidade, depois o tempo em silêncio. Cliente que nunca
+    // teve contato registrado é o buraco maior, vem antes de quem só tem uma
+    // ação vencida: com um dá pra cobrar, com o outro não se sabe nem por onde.
+    const gravidade = situacao === 'alerta' ? 2 : situacao === 'atencao' ? 1 : 0;
+    const silencio = st.diasUltimo === null ? 400 : Math.min(Math.abs(st.diasUltimo), 365);
+    let peso = gravidade * 10000 + silencio;
+    peso += Math.min(st.atrasadas.length, 5) * 300;
+    if(!st.relDoMes) peso += 120;
+    if(!st.proxima) peso += 60;
+    return {cli, st, peso, situacao, rotulo, temCampanha: comCampanha.has(cli._dbId)};
+  });
+
+  const filtradas = _trafRelacFiltro === 'pendentes'
+    ? linhas.filter(l => l.situacao !== 'ok')
+    : linhas;
+
+  if(_trafRelacOrdem === 'nome') filtradas.sort((a,b) => _nomeCli(a.cli).localeCompare(_nomeCli(b.cli)));
+  else if(_trafRelacOrdem === 'contato') filtradas.sort((a,b) => {
+    const A = a.st.ultimo ? String(a.st.ultimo.data_contato) : '';
+    const B = b.st.ultimo ? String(b.st.ultimo.data_contato) : '';
+    return B.localeCompare(A);
+  });
+  else filtradas.sort((a,b) => b.peso - a.peso);
+  return filtradas;
+}
+
+function renderTrafegoRelacTabela(){
+  const linhas = _trafRelacLinhas();
+  const nomesM = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const mesAtual = (typeof hojeBrasiliaStr === 'function' ? hojeBrasiliaStr() : new Date().toLocaleDateString('sv-SE'));
+  const mesNome = nomesM[parseInt(mesAtual.slice(5,7),10)-1] || '';
+
+  const contagem = { ok:0, atencao:0, alerta:0 };
+  linhas.forEach(l => contagem[l.situacao]++);
+
+  const chip = (valor, rot, ativo) =>
+    '<span class="filter-chip' + (ativo ? ' active' : '') + '" onclick="setTrafRelac(\'filtro\',\'' + valor + '\')">' + rot + '</span>';
+  const chipOrd = (valor, rot) =>
+    '<span class="filter-chip' + (_trafRelacOrdem === valor ? ' active' : '') + '" onclick="setTrafRelac(\'ordem\',\'' + valor + '\')">' + rot + '</span>';
+
+  let html =
+    '<div class="filter-bar" style="flex-wrap:wrap;gap:8px">' +
+      chip('todos', 'Todos (' + linhas.length + ')', _trafRelacFiltro === 'todos') +
+      chip('pendentes', '⚠ Precisam de ação (' + (contagem.alerta + contagem.atencao) + ')', _trafRelacFiltro === 'pendentes') +
+      '<span style="flex:1"></span>' +
+      '<span class="text-xs text-3" style="align-self:center">Ordenar:</span>' +
+      chipOrd('pior', 'Pior primeiro') + chipOrd('contato', 'Contato recente') + chipOrd('nome', 'Nome') +
+    '</div>' +
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:-4px 0 12px">' +
+      '<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--text-2);cursor:pointer">' +
+        '<input type="checkbox" ' + (_trafRelacTodos ? 'checked' : '') + ' onchange="setTrafRelac(\'todos\', this.checked)" ' +
+        'style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer" />' +
+        'Mostrar também clientes sem campanha de tráfego</label>' +
+      '<span style="flex:1"></span>' +
+      '<button class="btn btn-sm" onclick="baixarRelacTrafegoCSV()">⬇ Baixar planilha</button>' +
+    '</div>';
+
+  if(!linhas.length){
+    return html + '<div class="empty-state" style="padding:50px 20px"><div class="ico">🤝</div>' +
+      '<div class="ttl">Nada para mostrar</div>' +
+      '<div class="desc">' + (_trafRelacFiltro === 'pendentes'
+        ? 'Nenhum cliente precisando de ação. Bom sinal.'
+        : 'Nenhum cliente com campanha de tráfego ainda.') + '</div></div>';
+  }
+
+  html += '<div class="card" style="padding:0;overflow:hidden">' +
+    '<div class="traf-rolo"><table class="traf-planilha">' +
+    '<thead><tr>' +
+      '<th>Cliente</th><th>Situação</th><th>Último contato</th><th class="num">Reuniões</th>' +
+      '<th>Última reunião</th><th>Próxima ação</th><th>Relatório de ' + mesNome + '</th><th>Último relatório</th>' +
+    '</tr></thead><tbody>';
+
+  linhas.forEach(function(l){
+    const st = l.st, cli = l.cli;
+    const dUlt = st.diasUltimo === null ? null : Math.abs(st.diasUltimo);
+    const corUlt = dUlt === null ? 'alerta' : dUlt > 30 ? 'alerta' : dUlt > 14 ? 'atencao' : 'ok';
+    const ultTxt = dUlt === null ? 'nunca'
+      : (dUlt === 0 ? 'hoje' : 'há ' + dUlt + ' dia' + (dUlt > 1 ? 's' : ''));
+    const ultData = st.ultimo && st.ultimo.data_contato
+      ? new Date(st.ultimo.data_contato).toLocaleDateString('pt-BR') : '';
+    const ultReu = st.reunioes.length
+      ? new Date(st.reunioes[0].data_contato).toLocaleDateString('pt-BR') : '—';
+
+    let proxHtml = '<span class="tp-vazio">nada agendado</span>';
+    if(st.atrasadas.length){
+      const a = st.atrasadas[0];
+      proxHtml = '<span class="tp-marca alerta">venceu ' + (typeof dataBR === 'function' ? dataBR(a.proxima_data) : '') + '</span>' +
+        '<div class="tp-sub">' + escapeHtml(String(a.proxima_acao||'').slice(0,50)) + '</div>';
+    } else if(st.proxima){
+      proxHtml = '<span class="tp-marca ok">' + (typeof dataBR === 'function' ? dataBR(st.proxima.proxima_data) : '') + '</span>' +
+        '<div class="tp-sub">' + escapeHtml(String(st.proxima.proxima_acao||'').slice(0,50)) + '</div>';
+    }
+
+    html += '<tr onclick="renderTrafegoPagoCli(' + cli.id + ')" title="Abrir ' + escapeHtml(_nomeCli(cli)) + ' no Tráfego">' +
+      '<td class="tp-cli"><span class="tp-ini" style="background:' + (cli.color||'#888') + '">' + escapeHtml(cli.init||'') + '</span>' +
+        '<span>' + escapeHtml(_nomeCli(cli)) + (l.temCampanha ? '' : '<span class="tp-sem">sem tráfego</span>') + '</span></td>' +
+      '<td><span class="traf-selo ' + l.situacao + '">' + l.rotulo + '</span></td>' +
+      '<td><span class="tp-marca ' + corUlt + '">' + ultTxt + '</span>' +
+        (ultData ? '<div class="tp-sub">' + ultData + '</div>' : '') + '</td>' +
+      '<td class="num">' + (st.reunioes.length || '<span class="tp-vazio">0</span>') + '</td>' +
+      '<td>' + ultReu + '</td>' +
+      '<td>' + proxHtml + '</td>' +
+      '<td>' + (st.relDoMes
+        ? '<span class="tp-marca ok">entregue</span><div class="tp-sub">' + (typeof dataBR === 'function' ? dataBR(st.relDoMes.data) : '') + '</div>'
+        : '<span class="tp-marca atencao">pendente</span>') + '</td>' +
+      '<td>' + (st.ultimoRel ? (typeof dataBR === 'function' ? dataBR(st.ultimoRel.data) : '') : '<span class="tp-vazio">nenhum</span>') + '</td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table></div></div>' +
+    '<div class="text-xs text-3" style="margin-top:10px;line-height:1.6">' +
+      'Clique em qualquer linha pra abrir o cliente. Os dados vêm da aba <b>Relacionamento</b> e da aba <b>Relatórios</b>: ' +
+      'o que o time registra lá aparece aqui na hora.' +
+    '</div>';
+  return html;
+}
+window.renderTrafegoRelacTabela = renderTrafegoRelacTabela;
+
+// A mesma planilha em arquivo, pra quem quiser abrir no Excel.
+function baixarRelacTrafegoCSV(){
+  const linhas = _trafRelacLinhas();
+  if(!linhas.length){ toast('Nada para baixar','info'); return; }
+  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
+  const cab = ['Cliente','Situacao','Ultimo contato','Dias sem contato','Tipo do ultimo contato',
+               'Reunioes feitas','Ultima reuniao','Proxima acao','Data da proxima acao',
+               'Acoes atrasadas','Relatorio do mes','Ultimo relatorio'];
+  const corpo = linhas.map(function(l){
+    const st = l.st;
+    const prox = st.atrasadas.length ? st.atrasadas[0] : st.proxima;
+    return [
+      _nomeCli(l.cli), l.rotulo,
+      st.ultimo && st.ultimo.data_contato ? new Date(st.ultimo.data_contato).toLocaleDateString('pt-BR') : '',
+      st.diasUltimo === null ? '' : Math.abs(st.diasUltimo),
+      st.ultimo ? (_TRAF_TIPO_LABEL[String(st.ultimo.tipo||'').toLowerCase()] || st.ultimo.tipo || '') : '',
+      st.reunioes.length,
+      st.reunioes.length ? new Date(st.reunioes[0].data_contato).toLocaleDateString('pt-BR') : '',
+      prox ? (prox.proxima_acao||'') : '',
+      prox ? (typeof dataBR === 'function' ? dataBR(prox.proxima_data) : prox.proxima_data) : '',
+      st.atrasadas.length,
+      st.relDoMes ? 'Entregue' : 'Pendente',
+      st.ultimoRel ? (typeof dataBR === 'function' ? dataBR(st.ultimoRel.data) : '') : ''
+    ].map(esc).join(';');
+  });
+  // BOM pro Excel abrir os acentos certos
+  const csv = '\ufeff' + cab.map(esc).join(';') + '\n' + corpo.join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'}));
+  a.download = 'relacionamento-trafego-' + hojeBrasiliaStr() + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+  toast('✓ Planilha baixada com ' + linhas.length + ' cliente(s)','success');
+}
+window.baixarRelacTrafegoCSV = baixarRelacTrafegoCSV;
+
 function renderTrafegoPago(c){
   try {
     if(typeof _campanhas === 'undefined' || !Array.isArray(_campanhas)) _campanhas = [];
@@ -26651,6 +26871,13 @@ function renderTrafegoPago(c){
       '<div class="page-head"><div><div class="page-title">📊 Tráfego Pago</div>' +
       '<div class="page-sub">Acompanhamento de campanhas por cliente — ' + _campanhas.length + ' campanha(s) cadastrada(s)</div></div>' +
       '<button class="btn btn-primary" onclick="novaCampanhaModal()">+ Nova campanha</button></div>' +
+
+      '<div class="filter-bar" style="margin-bottom:14px">' +
+        '<span class="filter-chip' + (_trafTab === 'campanhas' ? ' active' : '') + '" onclick="setTrafTab(\'campanhas\')">📊 Campanhas</span>' +
+        '<span class="filter-chip' + (_trafTab === 'relacionamento' ? ' active' : '') + '" onclick="setTrafTab(\'relacionamento\')">🤝 Relacionamento</span>' +
+      '</div>' +
+
+      (_trafTab === 'relacionamento' ? renderTrafegoRelacTabela() : (
 
       '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:16px">' +
         '<div class="stat-card"><div class="stat-value">R$ ' + totalGlobalGasto.toFixed(2) + '</div><div class="stat-label">Gasto acumulado atual</div></div>' +
@@ -26692,7 +26919,7 @@ function renderTrafegoPago(c){
                 (plataformas ? '<div class="text-xs text-3" style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px">📍 ' + escapeHtml(plataformas) + '</div>' : '') +
               '</div>';
             }).join('') +
-          '</div>');
+          '</div>')));
   } catch(e){
     console.error('[renderTrafegoPago]', e);
     c.innerHTML = '<div class="page-head"><div class="page-title">📊 Tráfego Pago</div></div><div class="card" style="border-left:3px solid var(--danger)"><div style="color:var(--danger);font-weight:600">Erro ao carregar: ' + (e.message||e) + '</div><div class="text-xs text-3 mt-2">Veja o console (F12) pra mais detalhes</div></div>';
