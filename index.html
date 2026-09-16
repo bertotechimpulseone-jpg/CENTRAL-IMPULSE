@@ -2540,7 +2540,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.02 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.03 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -4116,7 +4116,7 @@ async function saveTaskDone(collab, idx, done, done_at){
       title: item.t, assigned_to: tm?tm._dbId:null,
       priority: item.p, scheduled_time: item.time, is_daily: true,
       done, done_at: ts,
-      due_date: new Date().toISOString().split('T')[0]
+      due_date: hojeBrasiliaStr()
     });
     if(r) item._dbId = r.id;
   }
@@ -4687,7 +4687,7 @@ function renderRelatorios(c){
 function abrirRelatorioEditor(id){
   _relSetup();
   const r = id ? (_relatorios||[]).find(x=>String(x.id)===String(id)) : null;
-  _relEditando = r ? Object.assign({},r) : {empresa:'', client_id:null, data:new Date().toISOString().slice(0,10), texto:''};
+  _relEditando = r ? Object.assign({},r) : {empresa:'', client_id:null, data:hojeBrasiliaStr(), texto:''};
   const esc = escapeHtml;
   const cls = (typeof clients!=='undefined'?clients:[]).filter(c=>c.status!=='cancelado').slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','pt-BR',{sensitivity:'base'}));
   const ehDoSistema = cls.some(c=>c.name===_relEditando.empresa);
@@ -4729,7 +4729,7 @@ function _relColeta(){
   const sel=document.getElementById('relCli'), inp=document.getElementById('relEmpresa');
   const empresa = (sel && sel.value) ? sel.value : ((inp && inp.value || '').trim());
   // data automática: hoje pra relatório novo, ou a data original quando está editando
-  const data = String((_relEditando && _relEditando.data) || new Date().toISOString().slice(0,10)).slice(0,10);
+  const data = String((_relEditando && _relEditando.data) || hojeBrasiliaStr()).slice(0,10);
   const texto = (document.getElementById('relTexto')||{}).value || '';
   const cli = (typeof clients!=='undefined'?clients:[]).find(c=>c.name===empresa);
   return { empresa, data, texto, client_id: cli ? (cli._dbId||null) : null };
@@ -6409,6 +6409,10 @@ document.addEventListener('input', function(e){
   var el = e.target; if(!el || !el.classList) return;
   var dm = el.classList.contains('mask-data-dm');
   if(!dm && !el.classList.contains('mask-data')) return;
+  // Campo de data nativo NAO leva mascara: ele espera AAAA-MM-DD e limpa
+  // sozinho se receber "16/09/2026". Era esse o bug de "nao consigo por a data".
+  var tipo = (el.getAttribute('type') || 'text').toLowerCase();
+  if(tipo !== 'text' && tipo !== 'tel' && tipo !== 'search') return;
   var d = (el.value||'').replace(/\D/g,'').slice(0, dm?4:8);
   var out = d.slice(0,2);
   if(d.length>2) out += '/'+d.slice(2,4);
@@ -11168,7 +11172,7 @@ function exportarRespostasPDF(briefingId, cliId){
       doc.text(respLines, 20, y); y += respLines.length * 5 + 6;
       doc.setTextColor(0);
     });
-    doc.save(`briefing-${cli.name}-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`briefing-${cli.name}-${hojeBrasiliaStr()}.pdf`);
     toast('✓ PDF exportado','success');
   } catch(e){ console.error(e); toast('Erro ao gerar PDF: '+e.message,'info'); }
 }
@@ -13967,7 +13971,7 @@ function openNovoColaboradorModal(){
           </div>
           <div>
             <div class="info-label" style="margin-bottom:5px">Data admissão</div>
-            <input id="ncolSince" type="date" class="login-input" value="${new Date().toISOString().split('T')[0]}" style="background:var(--surface-2);width:100%" />
+            <input id="ncolSince" type="date" class="login-input" value="${hojeBrasiliaStr()}" style="background:var(--surface-2);width:100%" />
           </div>
           <div>
             <div class="info-label" style="margin-bottom:5px">Salário (R$)</div>
@@ -15298,7 +15302,7 @@ async function salvarCartao(){
 function novoGastoCartao(cartaoId){
   const cartoes = window._cartoes || [];
   if(!cartoes.length){ toast('Cadastre um cartão primeiro.','info'); return; }
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = hojeBrasiliaStr();
   const m = document.createElement('div'); m.id='novoGastoModal';
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:16px';
   m.innerHTML = `<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
@@ -16458,7 +16462,7 @@ if(typeof window!=='undefined'){
 let orcamento = {
   id: null,
   numero: 'ORC-' + String(Date.now()).slice(-6),
-  data: new Date().toISOString().split('T')[0],
+  data: hojeBrasiliaStr(),
   validade: new Date(Date.now() + 30*86400000).toISOString().split('T')[0],
   cliente: {nome:'', cnpj:'', endereco:'', email:'', telefone:'', logo:''},
   itens: [],
@@ -16709,7 +16713,7 @@ function abrirLeadDetalhe(leadId){
         '<div class="info-label" style="margin-bottom:7px">✅ Agendar tarefa deste card</div>' +
         '<div style="display:flex;gap:7px;flex-wrap:wrap">' +
           '<input id="ldTarefa" class="login-input" placeholder="O que precisa ser feito" style="background:var(--surface-2);flex:1;min-width:180px" />' +
-          '<input id="ldTarefaData" type="date" class="login-input mask-data" value="' + new Date().toISOString().slice(0,10) + '" style="background:var(--surface-2);width:150px" />' +
+          '<input id="ldTarefaData" type="date" class="login-input" value="' + hojeBrasiliaStr() + '" title="Dia em que a tarefa entra no checklist" style="background:var(--surface-2);width:150px;min-width:140px" />' +
           '<select id="ldTarefaQuem" class="login-input" style="background:var(--surface-2);width:150px">' +
             '<option value="">— quem faz —</option>' +
             (team||[]).filter(t=>t._dbId).map(t=>'<option value="'+t._dbId+'" '+(lead.responsible_id===t._dbId?'selected':'')+'>'+escapeHtml((t.name||'').split(' ')[0])+'</option>').join('') +
@@ -16830,8 +16834,9 @@ async function agendarTarefaDoLead(leadId){
   const dia    = (dtEl && dtEl.value || '').trim();
   const quem   = (qmEl && qmEl.value || '').trim();
   if(!titulo){ toast('Escreva o que precisa ser feito','info'); if(titEl) titEl.focus(); return; }
-  if(!dia){ toast('Escolha o dia da tarefa','info'); return; }
-  if(!quem){ toast('Escolha quem vai fazer','info'); return; }
+  if(!dia){ toast('Escolha o dia da tarefa','info'); if(dtEl) dtEl.focus(); return; }
+  if(!quem){ toast('Escolha quem vai fazer','info'); if(qmEl) qmEl.focus(); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(dia)){ toast('Data inválida. Escolha o dia no calendário.','info'); if(dtEl) dtEl.focus(); return; }
   const cli = (clients||[]).find(c => (c.name||'').toLowerCase() === (lead.name||'').toLowerCase());
   const r = await dbCreate('tasks', {
     title: titulo + ' · ' + (lead.name||'card'),
@@ -16844,7 +16849,7 @@ async function agendarTarefaDoLead(leadId){
     done: false
   });
   if(!r){ toast('Não consegui agendar a tarefa','info'); return; }
-  if(titEl) titEl.value = '';
+  if(titEl){ titEl.value = ''; titEl.focus(); }   // pronto pra agendar a proxima
   const tm = (team||[]).find(x => x._dbId === quem);
   const primeiro = tm ? (tm.name||'').split(' ')[0] : 'a pessoa';
   const [a,m,d] = dia.split('-');
@@ -16861,8 +16866,10 @@ async function _leadTarefasRender(leadId){
   const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
   if(!box || !lead || !_supa) return;
   try{
+    // % e _ sao curingas na busca: um cliente chamado "50% OFF" quebrava a lista.
+    const alvo = String(lead.name || '').replace(/([%_\\])/g, '\\$1');
     const { data } = await _supa.from('tasks').select('id,title,due_date,done,assigned_to')
-      .ilike('title', '%· ' + (lead.name||'') ).order('due_date',{ascending:true});
+      .ilike('title', '%· ' + alvo).order('due_date',{ascending:true});
     const itens = (data||[]).filter(x=>x.due_date);
     if(!itens.length){ box.innerHTML = ''; return; }
     box.innerHTML = itens.map(function(x){
@@ -17785,7 +17792,7 @@ function limparOrcamento(){
   orcamento = {
     id: null,
     numero: 'ORC-' + String(Date.now()).slice(-6),
-    data: new Date().toISOString().split('T')[0],
+    data: hojeBrasiliaStr(),
     validade: new Date(Date.now() + 30*86400000).toISOString().split('T')[0],
     cliente: {nome:'', cnpj:'', endereco:'', email:'', telefone:'', logo:''},
     itens: [], desconto: 0, descontoTipo: 'percentual',
@@ -19357,7 +19364,7 @@ function exportPontoExcel(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'ponto-historico-'+new Date().toISOString().split('T')[0]+'.csv';
+  a.download = 'ponto-historico-'+hojeBrasiliaStr()+'.csv';
   a.click();
   toast('CSV gerado','success');
 }
@@ -21506,7 +21513,7 @@ const NR1_EXCECOES = [                   // exceções por primeiro nome: só ob
   { nomes: ['gabi','gaby','gabrielly','gabriely','gabriela','gabrielle','gabriella'], desde: '2026-08-01' }
 ];
 // Data de hoje no fuso de Brasília (YYYY-MM-DD) — evita virada de dia por UTC.
-function _nr1HojeBR(){ try { return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); } catch(e){ return new Date().toISOString().slice(0,10); } }
+function _nr1HojeBR(){ try { return new Date().toLocaleDateString('en-CA',{timeZone:'America/Sao_Paulo'}); } catch(e){ return hojeBrasiliaStr(); } }
 // A partir de que dia ESTE colaborador passa a ser obrigado (exceção por primeiro nome, senão a data geral).
 function _nr1ObrigDesdeParaMim(){
   try {
@@ -23574,7 +23581,7 @@ async function salvarFeedbackPlanilha(){
     const { data, error } = await _supa.from('feedbacks').insert({ collaborator_id:dbId, type:'development', period, score, text:JSON.stringify(est) }).select().single();
     if(error) throw error;
     if(!feedbackData[tm.name]) feedbackData[tm.name]=[];
-    feedbackData[tm.name].unshift({ id:data.id, _dbId:data.id, type:'development', author:'Equipe', date:new Date().toISOString().slice(0,10), period, score:(score!==null?score:0), text:est.resumo_executivo, est });
+    feedbackData[tm.name].unshift({ id:data.id, _dbId:data.id, type:'development', author:'Equipe', date:hojeBrasiliaStr(), period, score:(score!==null?score:0), text:est.resumo_executivo, est });
     toast('✓ Feedback salvo','success');
     renderFeedback(document.getElementById('content'));
   }catch(e){ toast('Erro ao salvar: '+(e.message||e),'info'); if(btn){ btn.disabled=false; btn.textContent='💾 Salvar feedback'; } }
@@ -23737,7 +23744,7 @@ async function salvarFeedbackEstruturado(){
     _dbId: saved?saved.id:null,
     type: _fbSentToType(est.sentimento),
     author: (typeof getMeuNome==='function' && getMeuNome()) || 'Gestor',
-    date: new Date().toISOString().split('T')[0],
+    date: hojeBrasiliaStr(),
     period: _fbPeriodoAtual(),
     score: est.nota_sugerida,
     text: est.resumo_executivo || '',
@@ -23948,7 +23955,7 @@ async function openCaptacaoFormModal(cap){
   }
   const c = cap || {
     client_id:null, client_custom_name:'', client_custom_company:'',
-    type:'', date:new Date().toISOString().split('T')[0], time:'10:00',
+    type:'', date:hojeBrasiliaStr(), time:'10:00',
     addr:'', priority:'high', status:'agendada', brief:'',
     responsavel_nome:'', responsavel_telefone:'',
     contato_local_nome:'', contato_local_telefone:'',
@@ -24325,7 +24332,7 @@ function openNovaReuniaoModal(reuniaoExistente){
   const editing = !!reuniaoExistente;
   const r = reuniaoExistente || {};
   const mod = document.getElementById('clientModal');
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeBrasiliaStr();
   mod.innerHTML = `
     <div class="modal-head">
       <div style="width:42px;height:42px;border-radius:10px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px">📹</div>
@@ -24459,7 +24466,7 @@ function openNovaTransacaoModal(type){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Descrição *</div><input id="ntDesc" class="login-input" placeholder="${isIn?'Ex: Mensalidade maio - ITD':'Ex: Aluguel da sede'}" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Valor *</div><input id="ntAmt" class="login-input" type="number" step="0.01" placeholder="0,00" style="background:var(--surface-2)" /></div>
-        <div><div class="info-label" style="margin-bottom:5px">Data *</div><input id="ntDate" class="login-input" type="date" value="${new Date().toISOString().split('T')[0]}" style="background:var(--surface-2)" /></div>
+        <div><div class="info-label" style="margin-bottom:5px">Data *</div><input id="ntDate" class="login-input" type="date" value="${hojeBrasiliaStr()}" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Categoria</div><select id="ntCat" class="login-input" style="background:var(--surface-2)">${isIn?'<option>recorrente</option><option>projeto</option><option>extra</option>':'<option>aluguel</option><option>salarios</option><option>ferramentas</option><option>trafego</option><option>impostos</option><option>outras</option>'}</select></div>
         <div><div class="info-label" style="margin-bottom:5px">Status</div><select id="ntStatus" class="login-input" style="background:var(--surface-2)"><option value="paid" selected>Pago</option><option value="pending">Pendente</option><option value="late">Atrasado</option></select></div>
         ${isIn?`<div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Cliente</div><select id="ntCli" class="login-input" style="background:var(--surface-2)"><option value="">—</option>${clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>`:`<div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Fornecedor</div><input id="ntSup" class="login-input" placeholder="Ex: Adobe, INSS" style="background:var(--surface-2)" /></div>`}
@@ -24639,7 +24646,7 @@ function openNovaTarefaModal(opts){
         <div><div class="info-label" style="margin-bottom:5px">Prioridade</div><select id="ntkPrio" class="login-input" style="background:var(--surface-2)"><option value="urgent">🔴 Urgente</option><option value="high">🟠 Alta</option><option value="med" selected>🔵 Média</option><option value="low">⚪ Baixa</option></select></div>
         <div><div class="info-label" style="margin-bottom:5px">Status</div><select id="ntkStatus" class="login-input" style="background:var(--surface-2)"><option value="todo" ${presetStatus==='todo'?'selected':''}>📋 A fazer</option><option value="doing" ${presetStatus==='doing'?'selected':''}>🎬 Em andamento</option><option value="review" ${presetStatus==='review'?'selected':''}>👁 Em revisão</option><option value="done" ${presetStatus==='done'?'selected':''}>✅ Concluída</option></select></div>
         <div><div class="info-label" style="margin-bottom:5px">Horário</div><input id="ntkTime" class="login-input" type="time" value="09:00" style="background:var(--surface-2)" /></div>
-        <div><div class="info-label" style="margin-bottom:5px">Data</div><input id="ntkDate" class="login-input" type="date" value="${new Date().toISOString().split('T')[0]}" style="background:var(--surface-2)" /></div>
+        <div><div class="info-label" style="margin-bottom:5px">Data</div><input id="ntkDate" class="login-input" type="date" value="${hojeBrasiliaStr()}" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Tag (opcional)</div><input id="ntkTag" class="login-input" placeholder="Conteúdo / Design / Vídeo..." style="background:var(--surface-2)" /></div>
         <div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Descrição (opcional)</div><textarea id="ntkDesc" class="login-input" rows="2" placeholder="Detalhes adicionais..." style="background:var(--surface-2);resize:vertical;min-height:60px"></textarea></div>
       </div>
@@ -25438,7 +25445,7 @@ function renderLembretesList(){
     wrap.innerHTML = '<div style="padding:30px 14px;text-align:center;color:var(--text-3);font-size:13px">🎉 Nenhum lembrete pendente</div>';
     return;
   }
-  const hojeISO = new Date().toISOString().slice(0,10);
+  const hojeISO = hojeBrasiliaStr();
   const agoraMs = Date.now();
   wrap.innerHTML = pendentes.map(l => {
     const dt = l.data_hora ? new Date(l.data_hora) : null;
@@ -26524,7 +26531,7 @@ function novaCampanhaModal(presetCliId){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
 
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeBrasiliaStr();
   const plataformas = ['Meta Ads','Google Ads','TikTok Ads','LinkedIn Ads','YouTube Ads','Outros'];
   const objetivos = ['Leads','Vendas','Conversas','Engajamento','Seguidores','Reconhecimento','Trafego','Vendas no Site','Outros'];
   const statuses = ['Ativa','Pausada','Encerrada','Planejada'];
@@ -27462,7 +27469,7 @@ function addResultadoParceria(parceriaId){
   const descricao = prompt('Descrição do resultado:');
   if(!descricao) return;
   const valor = parseFloat(prompt('Valor R$ (deixe 0 se nao aplicavel):','0')) || 0;
-  const dataStr = prompt('Data (YYYY-MM-DD):', new Date().toISOString().split('T')[0]);
+  const dataStr = prompt('Data (YYYY-MM-DD):', hojeBrasiliaStr());
   if(!dataStr) return;
   const contato = prompt('Nome do cliente/lead (opcional):','') || null;
 
@@ -27826,7 +27833,7 @@ async function salvarProxAcaoRapido(clientDbId){
     toast('✓ Próxima ação atualizada','success');
   } else {
     // Cria um registro novo "ancora" pra essa proxima acao (sem contato passado)
-    const hojeStr = new Date().toISOString().split('T')[0];
+    const hojeStr = hojeBrasiliaStr();
     const payload = {
       client_id: clientDbId,
       tipo: 'whatsapp',
@@ -27882,7 +27889,7 @@ function openNovoRelacionamentoModal(presetCliId){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
 
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeBrasiliaStr();
   modal.innerHTML =
     '<div style="background:var(--surface);border-radius:14px;max-width:580px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)">' +
       '<div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
@@ -27925,7 +27932,7 @@ async function salvarRelacionamento(){
   let data_contato = document.getElementById('rlData').value;
   if(!data_contato){
     // Forca data de hoje se input ficou vazio por algum motivo
-    data_contato = new Date().toISOString().slice(0,10);
+    data_contato = hojeBrasiliaStr();
     console.warn('[salvarRelacionamento] rlData vazio, usando hoje:', data_contato);
   }
   const responsavel_nome = document.getElementById('rlResp').value.trim() || null;
@@ -28923,7 +28930,7 @@ function openAlmocoModal(id){
 
   // Lista de internos predefinidos
   const internosPadrao = ['Francielle', 'Haisa', 'Heidy', 'Vinicius'];
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = hojeBrasiliaStr();
   const tipoInit = a ? a.tipo : 'interno';
 
   modal.innerHTML =
@@ -30499,7 +30506,7 @@ async function renderI3(c){
         (learning.length === 0
           ? '<div class="empty-state" style="padding:24px"><div class="ttl">Nenhuma reunião agendada</div><div class="desc">Clique em "+ Impulse Learning" pra agendar a próxima — defina responsável, tema e data.</div></div>'
           : (() => {
-              const hojeISO = new Date().toISOString().slice(0,10);
+              const hojeISO = hojeBrasiliaStr();
               // Separa futuras (>= hoje) e passadas (< hoje)
               const futuras = learning.filter(l => (l.data||'') >= hojeISO).sort((a,b) => (a.data||'').localeCompare(b.data||''));
               const passadas = learning.filter(l => (l.data||'') < hojeISO).sort((a,b) => (b.data||'').localeCompare(a.data||''));
@@ -30544,7 +30551,7 @@ async function renderI3(c){
       (reunioes.length === 0
         ? '<div class="card empty-state" style="padding:36px"><div class="ico">📋</div><div class="ttl">Nenhuma reunião registrada ainda</div><div class="desc">Clique em "+ Nova reunião mensal" pra começar a primeira ata.</div></div>'
         : (() => {
-            const hojeISO2 = new Date().toISOString().slice(0,10);
+            const hojeISO2 = hojeBrasiliaStr();
             // Ata "futura" = data_reuniao no futuro OU encontro_data no futuro
             const futurasR = reunioes.filter(r => (r.data_reuniao||'') >= hojeISO2 || (r.encontro_data||'') >= hojeISO2).sort((a,b) => (a.data_reuniao||'').localeCompare(b.data_reuniao||''));
             const passadasR = reunioes.filter(r => !((r.data_reuniao||'') >= hojeISO2 || (r.encontro_data||'') >= hojeISO2)).sort((a,b) => (b.data_reuniao||'').localeCompare(a.data_reuniao||''));
@@ -30650,7 +30657,7 @@ function openI3ReuniaoModal(reuniaoId){
   modal.className = 'modal-bg open';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto';
   modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
-  const hoje = new Date().toISOString().slice(0,10);
+  const hoje = hojeBrasiliaStr();
   modal.innerHTML =
     '<div class="modal" style="max-width:760px;width:100%;background:var(--surface);border-radius:14px;padding:24px;max-height:90vh;overflow-y:auto">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">' +
@@ -32713,7 +32720,7 @@ function novoPagamentoVariavelModal(presetColabId){
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px';
   modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
   const mesAtual = (typeof _pagFiltroMes !== 'undefined' && _pagFiltroMes) ? _pagFiltroMes : new Date().toISOString().slice(0,7);
-  const hojeStr = new Date().toISOString().split('T')[0];
+  const hojeStr = hojeBrasiliaStr();
   modal.innerHTML =
     '<div style="background:var(--surface);border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)">' +
       '<div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
@@ -32832,7 +32839,7 @@ async function marcarComoPago(id){
   // Sem nota o sistema avisa, mas a administração decide se paga assim mesmo
   const _semNF = !p.nf_url && !(_nfDoMes(p.profile_id, p.mes_ref) || {}).url;
   if(_semNF && !confirm('Esse pagamento ainda não tem nota fiscal do mês.' + String.fromCharCode(10,10) + 'Marcar como pago mesmo assim?')) return;
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeBrasiliaStr();
   const dataInput = prompt('Data do pagamento (YYYY-MM-DD):', p.data_pagamento || hoje);
   if(!dataInput) return;
   if(_supa){
