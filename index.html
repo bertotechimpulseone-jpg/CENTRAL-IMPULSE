@@ -273,18 +273,45 @@ body.public-page #lembretesWidget{display:none!important}
 .dash-barra{height:4px;border-radius:99px;background:var(--surface-3);margin-top:6px;overflow:hidden}
 .dash-barra span{display:block;height:100%;border-radius:99px;background:var(--grad)}
 /* Melhorias & bugs */
-.melh-item{padding:16px 18px}
-.melh-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.melh-lista{display:flex;flex-direction:column;gap:10px}
+.melh-item{padding:16px 18px;transition:border-color var(--dur,.16s) var(--ease,ease),transform var(--dur,.16s) var(--ease,ease)}
+.melh-item:hover{border-color:var(--border-strong,var(--border));transform:translateY(-1px)}
+.melh-topo{display:flex;align-items:flex-start;gap:12px}
+.melh-ico{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px}
+.melh-item.bug .melh-ico{background:rgba(240,82,82,.13)}
+.melh-item.melhoria .melh-ico{background:rgba(162,59,214,.16)}
 .melh-tit{font-size:14.5px;font-weight:700;letter-spacing:-.01em;line-height:1.35}
 .melh-status{flex:none;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
 .melh-acoes{display:flex;align-items:center;gap:6px;flex:none}
 .melh-apagar{font-size:14px;opacity:.5;transition:opacity var(--dur,.16s) var(--ease,ease),color var(--dur,.16s) var(--ease,ease)}
-.melh-apagar:hover{opacity:1;color:var(--danger)}
-.melh-desc{font-size:13.5px;line-height:1.6;color:var(--text-2);margin-top:9px;white-space:pre-wrap}
-.melh-resposta{margin-top:12px;padding:11px 13px;border-radius:9px;background:var(--surface-2);
-  border-left:2px solid var(--accent);font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap}
+.melh-apagar:hover,.melh-apagar:focus-visible{opacity:1;color:var(--danger)}
+.melh-desc{font-size:13.5px;line-height:1.6;color:var(--text-2);margin:10px 0 0 48px;white-space:pre-wrap}
+.melh-resposta{margin:12px 0 0 48px;padding:12px 14px;border-radius:10px;background:var(--accent-soft);
+  border:1px solid var(--accent-border,var(--border));font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap}
 .melh-resposta-rot{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
   color:var(--accent);margin-bottom:5px}
+.melh-aguarda{margin:10px 0 0 48px;font-size:12px;color:var(--text-3)}
+
+/* entrada curta, item a item; quem pediu menos movimento nao ve nada disso */
+@media (prefers-reduced-motion: no-preference){
+  .melh-lista .melh-item{animation:melhIn .26s cubic-bezier(.22,.61,.36,1) both}
+  .melh-lista .melh-item:nth-child(2){animation-delay:.04s}
+  .melh-lista .melh-item:nth-child(3){animation-delay:.08s}
+  .melh-lista .melh-item:nth-child(4){animation-delay:.12s}
+  .melh-lista .melh-item:nth-child(n+5){animation-delay:.15s}
+  @keyframes melhIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+}
+
+/* esqueleto enquanto carrega */
+.melh-skel{display:flex;gap:12px;padding:16px 18px}
+.melh-skel .mk{border-radius:8px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface-3,rgba(255,255,255,.06)) 50%,var(--surface-2) 75%);
+  background-size:200% 100%}
+@media (prefers-reduced-motion: no-preference){ .melh-skel .mk{animation:melhOnda 1.3s linear infinite} }
+@keyframes melhOnda{from{background-position:200% 0}to{background-position:-200% 0}}
+.melh-skel .mk-ico{width:36px;height:36px;border-radius:10px;flex:none}
+.melh-skel .mk-a{height:14px;width:55%;margin-bottom:8px}
+.melh-skel .mk-b{height:11px;width:35%;margin-bottom:12px}
+.melh-skel .mk-c{height:11px;width:85%}
 
 .melh-escolhas{display:flex;flex-direction:column;gap:8px}
 .melh-op{display:flex;align-items:flex-start;gap:10px;cursor:pointer;background:var(--surface-2);
@@ -292,6 +319,7 @@ body.public-page #lembretesWidget{display:none!important}
   transition:border-color var(--dur,.16s) var(--ease,ease),background var(--dur,.16s) var(--ease,ease)}
 .melh-op:hover{border-color:var(--border-strong,var(--border))}
 .melh-op:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.melh-op:has(input:focus-visible){box-shadow:0 0 0 3px rgba(236,30,121,.28)}
 .melh-op input{accent-color:var(--accent);width:16px;height:16px;cursor:pointer;flex:none;margin:2px 0 0}
 .melh-op span{display:flex;flex-direction:column;gap:2px;min-width:0}
 .melh-op b{font-size:13.5px;font-weight:600}
@@ -302,10 +330,21 @@ body.public-page #lembretesWidget{display:none!important}
 .melh-erro{background:rgba(240,82,82,.12);border:1px solid rgba(240,82,82,.4);color:#FCA5A5;
   border-radius:9px;padding:11px 14px;font-size:13px;line-height:1.5}
 
+/* O rodape acompanha a rolagem: num formulario longo, no celular, os botoes
+   ficavam abaixo da dobra e so apareciam depois de rolar ate o fim. */
+.melh-rodape{position:sticky;bottom:-20px;display:flex;gap:8px;justify-content:flex-end;
+  border-top:1px solid var(--border);padding:14px 0 4px;margin-top:2px;
+  background:var(--surface);box-shadow:0 -14px 20px -14px rgba(0,0,0,.55)}
+@media (max-width:768px){
+  .melh-rodape{padding-bottom:calc(4px + env(safe-area-inset-bottom,0px))}
+  .melh-rodape .btn{flex:1}
+}
+
 @media (max-width:768px){
   .melh-item{padding:14px}
-  .melh-topo{flex-direction:column;gap:8px}
-  .melh-acoes{align-self:flex-start}
+  .melh-desc,.melh-resposta,.melh-aguarda{margin-left:0}
+  .melh-acoes{margin-left:48px}
+  .melh-topo{flex-wrap:wrap}
 }
 
 /* Planilha de relacionamento do Tráfego */
@@ -339,12 +378,13 @@ body.public-page #lembretesWidget{display:none!important}
 
 /* Relacionamento & entrega, dentro do Tráfego Pago */
 .traf-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 14px 14px}
-.traf-tile{background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--border-strong,var(--border));
-  border-radius:10px;padding:12px 13px}
-.traf-tile.ok{border-left-color:#10B981}
-.traf-tile.atencao{border-left-color:#F59E0B}
-.traf-tile.alerta{border-left-color:#F05252}
-.traf-tile-rot{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+.traf-tile{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 13px}
+.traf-tile-rot{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);
+  display:flex;align-items:center;gap:6px}
+.traf-tile-rot::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--border-strong,var(--border));flex:none}
+.traf-tile.ok .traf-tile-rot::before{background:#10B981}
+.traf-tile.atencao .traf-tile-rot::before{background:#F59E0B}
+.traf-tile.alerta .traf-tile-rot::before{background:#F05252}
 .traf-tile-val{font-family:var(--font-display,inherit);font-size:20px;font-weight:700;letter-spacing:-.02em;
   margin:5px 0 3px;line-height:1.15}
 .traf-tile.ok .traf-tile-val{color:#10B981}
@@ -2675,7 +2715,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.09 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.10 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -21975,8 +22015,11 @@ function renderMelhorias(c){
     loadMelhorias().then(function(){
       if(currentPage === 'melhorias') renderMelhorias(document.getElementById('content'));
     });
-    c.innerHTML = '<div class="page-head"><div class="page-title">🐞 Melhorias & bugs</div></div>' +
-      '<div class="card" style="padding:40px;text-align:center" class="text-mu">Carregando…</div>';
+    const osso = '<div class="card melh-skel"><div class="mk mk-ico"></div>' +
+      '<div style="flex:1"><div class="mk mk-a"></div><div class="mk mk-b"></div><div class="mk mk-c"></div></div></div>';
+    c.innerHTML = '<div class="page-head"><div><div class="page-title">🐞 Melhorias & bugs</div>' +
+      '<div class="page-sub">O que a gente pede pra Bertotech. Eles respondem aqui mesmo.</div></div></div>' +
+      '<div class="melh-lista">' + osso + osso + osso + '</div>';
     return;
   }
 
@@ -22013,31 +22056,33 @@ function renderMelhorias(c){
     return;
   }
 
-  html += '<div style="display:flex;flex-direction:column;gap:10px">' +
+  html += '<div class="melh-lista">' +
     lista.map(function(m){
       const st = _MELH_STATUS[m.status] || _MELH_STATUS.recebida;
       const quando = m.criado_em ? new Date(m.criado_em).toLocaleDateString('pt-BR') : '';
-      return '<div class="card melh-item" style="border-left:3px solid ' + (m.tipo === 'bug' ? '#F05252' : '#A23BD6') + '">' +
+      const tipoRot = m.tipo === 'bug' ? 'Bug' : 'Melhoria';
+      return '<div class="card melh-item ' + (m.tipo === 'bug' ? 'bug' : 'melhoria') + '">' +
         '<div class="melh-topo">' +
-          '<div style="min-width:0">' +
-            '<div class="melh-tit">' + (m.tipo === 'bug' ? '🐞' : '✨') + ' ' + escapeHtml(m.titulo||'') + '</div>' +
-            '<div class="text-xs text-3" style="margin-top:3px">' +
+          '<span class="melh-ico" aria-hidden="true">' + (m.tipo === 'bug' ? '🐞' : '✨') + '</span>' +
+          '<div style="min-width:0;flex:1">' +
+            '<div class="melh-tit">' + escapeHtml(m.titulo||'') + '</div>' +
+            '<div class="text-xs text-3" style="margin-top:3px">' + tipoRot + ' · ' +
               escapeHtml(m.autor_nome || m.autor_email || 'sem autor') + ' · ' + quando +
               (m.area ? ' · ' + escapeHtml(m.area) : '') + '</div>' +
           '</div>' +
           '<div class="melh-acoes">' +
             '<span class="melh-status" style="background:' + st.cor + '22;color:' + st.cor + '">' + st.rot + '</span>' +
             (_melhPodeApagar(m)
-              ? '<button class="icon-btn melh-apagar" title="Apagar esta solicitação" ' +
-                'onclick="apagarMelhoria(\'' + m.id + '\')">🗑</button>'
+              ? '<button class="icon-btn melh-apagar" title="Apagar esta solicitação" aria-label="Apagar ' +
+                escapeHtml(m.titulo||'solicitação') + '" onclick="apagarMelhoria(\'' + m.id + '\')">🗑</button>'
               : '') +
           '</div>' +
         '</div>' +
         '<div class="melh-desc">' + escapeHtml(m.descricao||'') + '</div>' +
         (m.resposta
-          ? '<div class="melh-resposta"><div class="melh-resposta-rot">Resposta da Bertotech</div>' +
+          ? '<div class="melh-resposta"><div class="melh-resposta-rot">💬 Resposta da Bertotech</div>' +
             escapeHtml(m.resposta) + '</div>'
-          : '<div class="text-xs text-3" style="margin-top:10px">Ainda sem resposta.</div>') +
+          : '<div class="melh-aguarda">⏳ Ainda sem resposta da Bertotech</div>') +
       '</div>';
     }).join('') + '</div>';
 
@@ -22129,7 +22174,7 @@ function abrirMelhoriaModal(){
 
         '<div class="melh-erro" id="melhErro" hidden></div>' +
 
-        '<div style="display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);padding-top:14px">' +
+        '<div class="melh-rodape">' +
           '<button class="btn" onclick="document.getElementById(\'melhoriaModal\').remove()">Cancelar</button>' +
           '<button class="btn btn-primary" id="melhEnviar" onclick="enviarMelhoria()">Enviar pra Bertotech</button>' +
         '</div>' +
