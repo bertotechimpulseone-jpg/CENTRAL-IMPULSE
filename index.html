@@ -2715,7 +2715,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.10 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.11 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
     </div>
   </aside>
 
@@ -21959,9 +21959,11 @@ async function renderPublicPesquisa(gateMode){
 window.renderPublicPesquisa = renderPublicPesquisa;
 
 // ===== MELHORIAS & BUGS =====
-// O que a equipe pede pra Bertotech. Fica no banco daqui; o painel deles le e
-// responde pelo servidor. Bug e melhoria sao filas diferentes e o tipo vem
-// marcado na abertura, pra chegar la ja separado.
+// O que a equipe pede pro suporte. Na tela deles isso e "Suporte da Central":
+// quem atende por tras nao aparece em lugar nenhum aqui, so no painel de quem
+// responde. Este arquivo e publico: nenhum nome de fornecedor entra nele, nem
+// em comentario. Bug e melhoria sao filas diferentes e o tipo vem marcado na
+// abertura, pra chegar la ja separado.
 let _melhorias = null;
 let _melhFiltro = 'todas';        // todas | bug | melhoria
 const _MELH_STATUS = {
@@ -22018,7 +22020,7 @@ function renderMelhorias(c){
     const osso = '<div class="card melh-skel"><div class="mk mk-ico"></div>' +
       '<div style="flex:1"><div class="mk mk-a"></div><div class="mk mk-b"></div><div class="mk mk-c"></div></div></div>';
     c.innerHTML = '<div class="page-head"><div><div class="page-title">🐞 Melhorias & bugs</div>' +
-      '<div class="page-sub">O que a gente pede pra Bertotech. Eles respondem aqui mesmo.</div></div></div>' +
+      '<div class="page-sub">Peça uma correção ou uma melhoria. O suporte responde aqui mesmo.</div></div></div>' +
       '<div class="melh-lista">' + osso + osso + osso + '</div>';
     return;
   }
@@ -22033,7 +22035,7 @@ function renderMelhorias(c){
     '" onclick="setMelhFiltro(\'' + v + '\')">' + rot + '</span>';
 
   let html = '<div class="page-head"><div><div class="page-title">🐞 Melhorias & bugs</div>' +
-    '<div class="page-sub">O que a gente pede pra Bertotech. Eles respondem aqui mesmo.</div></div>' +
+    '<div class="page-sub">Peça uma correção ou uma melhoria. O suporte responde aqui mesmo.</div></div>' +
     '<button class="btn btn-primary" onclick="abrirMelhoriaModal()">+ Nova solicitação</button></div>' +
 
     '<div class="stat-grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:14px">' +
@@ -22051,7 +22053,7 @@ function renderMelhorias(c){
     html += '<div class="empty-state" style="padding:50px 20px"><div class="ico">🐞</div>' +
       '<div class="ttl">Nenhuma solicitação ainda</div>' +
       '<div class="desc">Achou um erro ou pensou numa melhoria? Clique em <b>+ Nova solicitação</b>. ' +
-      'Ela chega na hora no painel da Bertotech.</div></div>';
+      'Ela chega na hora pro suporte.</div></div>';
     c.innerHTML = html;
     return;
   }
@@ -22080,9 +22082,9 @@ function renderMelhorias(c){
         '</div>' +
         '<div class="melh-desc">' + escapeHtml(m.descricao||'') + '</div>' +
         (m.resposta
-          ? '<div class="melh-resposta"><div class="melh-resposta-rot">💬 Resposta da Bertotech</div>' +
+          ? '<div class="melh-resposta"><div class="melh-resposta-rot">💬 Resposta do suporte</div>' +
             escapeHtml(m.resposta) + '</div>'
-          : '<div class="melh-aguarda">⏳ Ainda sem resposta da Bertotech</div>') +
+          : '<div class="melh-aguarda">⏳ Ainda sem resposta do suporte</div>') +
       '</div>';
     }).join('') + '</div>';
 
@@ -22095,10 +22097,10 @@ async function apagarMelhoria(id){
   if(!m){ toast('Solicitação não encontrada','info'); return; }
   if(!_melhPodeApagar(m)){ toast('Só quem abriu ou a administração pode apagar','info'); return; }
 
-  // Se a Bertotech ja mexeu, avisa antes: apagar joga fora o que eles ja fizeram.
+  // Se o suporte ja mexeu, avisa antes: apagar joga fora o que ja foi feito.
   const jaMexeram = !!m.resposta || m.status !== 'recebida';
   const aviso = jaMexeram
-    ? 'A Bertotech já está tratando esta solicitação' + (m.resposta ? ' e respondeu' : '') +
+    ? 'O suporte já está tratando esta solicitação' + (m.resposta ? ' e respondeu' : '') +
       '. Apagar tira ela da lista dos dois lados e não dá pra desfazer.'
     : 'Apagar tira ela da lista dos dois lados e não dá pra desfazer.';
 
@@ -22139,7 +22141,7 @@ function abrirMelhoriaModal(){
     '<div style="background:var(--surface);border-radius:16px;max-width:520px;width:100%;max-height:90dvh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.35)">' +
       '<div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
         '<div style="flex:1"><div style="font-size:17px;font-weight:700">Nova solicitação</div>' +
-        '<div class="text-xs text-3" style="margin-top:2px">Vai direto pro painel da Bertotech</div></div>' +
+        '<div class="text-xs text-3" style="margin-top:2px">Vai direto pro suporte da Central</div></div>' +
         '<button class="icon-btn" onclick="document.getElementById(\'melhoriaModal\').remove()" style="font-size:20px">×</button>' +
       '</div>' +
       '<div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">' +
@@ -22176,7 +22178,7 @@ function abrirMelhoriaModal(){
 
         '<div class="melh-rodape">' +
           '<button class="btn" onclick="document.getElementById(\'melhoriaModal\').remove()">Cancelar</button>' +
-          '<button class="btn btn-primary" id="melhEnviar" onclick="enviarMelhoria()">Enviar pra Bertotech</button>' +
+          '<button class="btn btn-primary" id="melhEnviar" onclick="enviarMelhoria()">Enviar solicitação</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -22219,11 +22221,11 @@ async function enviarMelhoria(){
     if(error) throw error;
     const m = document.getElementById('melhoriaModal'); if(m) m.remove();
     _melhorias = null;                       // recarrega do banco
-    toast('✓ Enviado pra Bertotech. Você acompanha a resposta aqui.','success');
+    toast('✓ Enviado pro suporte. Você acompanha a resposta aqui.','success');
     if(currentPage === 'melhorias') renderMelhorias(document.getElementById('content'));
   } catch(e){
     console.warn('[enviarMelhoria]', e);
-    btn.disabled = false; btn.textContent = 'Enviar pra Bertotech';
+    btn.disabled = false; btn.textContent = 'Enviar solicitação';
     falhar('Não consegui enviar agora: ' + (e.message || 'tente de novo') + '. O que você escreveu continua aqui.');
   }
 }
