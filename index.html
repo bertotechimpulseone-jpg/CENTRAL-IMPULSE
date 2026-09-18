@@ -2549,6 +2549,29 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
   .btn:active,.filter-chip:active,.nav-item:active{opacity:.85}
 }
 
+
+/* Linha do tempo do cliente (aba Histórico) — prefixo lnh pra não bater com .tl-item da .timeline */
+.lnh{position:relative;padding-left:2px}
+.lnh-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--border)}
+.lnh-item:last-child{border-bottom:none}
+.lnh-dot{width:32px;height:32px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;font-size:14px;flex-shrink:0}
+.lnh-body{flex:1;min-width:0}
+.lnh-title{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.lnh-meta{font-size:11.5px;color:var(--text-3);margin-top:2px;overflow-wrap:anywhere}
+.lnh-when{font-size:11px;color:var(--text-3);white-space:nowrap;flex-shrink:0;padding-top:6px}
+/* Arquivos do cliente */
+.arq-lista{display:flex;flex-direction:column;gap:6px}
+.arq-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;background:var(--surface-2);cursor:pointer;transition:background .15s}
+.arq-item:hover{background:var(--surface-3,var(--surface-2));filter:brightness(1.08)}
+.arq-ico{font-size:15px;flex-shrink:0}
+.arq-nome{flex:1;min-width:0}
+.arq-t{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.arq-s{font-size:10.5px;color:var(--text-3);margin-top:1px}
+.arq-abrir{font-size:10.5px;color:var(--text-3);flex-shrink:0}
+@media (max-width:640px){
+  .lnh-item{flex-wrap:wrap}
+  .lnh-when{width:100%;padding-left:44px;padding-top:0;margin-top:-2px}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -2715,7 +2738,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.11 · Manual Jeito Impulse na aba Materiais (acesso: administradores)
+      v4.12 · Histórico e Arquivos do cliente agora saem do banco, sem dado de exemplo
     </div>
   </aside>
 
@@ -3309,6 +3332,7 @@ async function loadDataFromSupabase(){
       _cliVisiveis.forEach((cl, idx) => {
         clients.push({
           id: idx + 1, _dbId: cl.id, origIdx: idx,
+          created_at: cl.created_at || '',
           name: cl.name, nome_social: cl.nome_social || '', segment: cl.segment || '', color: cl.color || '#1d1d1f',
           init: cl.initials || cl.name.substring(0,2).toUpperCase(),
           logo_url: cl.logo_url || '',
@@ -9509,6 +9533,8 @@ function cliTab(el,pane){
   el.parentNode.querySelectorAll('.modal-tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   document.querySelectorAll('.modal-pane').forEach(p=>p.classList.toggle('active',p.dataset.pane===pane));
+  // Arquivos busca no banco, entao so carrega quando alguem abre a aba.
+  if(pane === 'arquivos' && typeof carregarArquivosCliente === 'function') carregarArquivosCliente();
 }
 
 // Aba "Orçamentos" do cliente — lista os orçamentos enviados pra ele
@@ -11665,22 +11691,224 @@ async function removerServicoCliente(cliId, servico){
   _refreshPanePlano(cli);
 }
 
+// ===== Linha do tempo do cliente =====
+// Tudo aqui sai do banco. Se o cliente nao tem registro, a tela diz isso em vez
+// de preencher com exemplo.
+function _histQuando(v){
+  if(!v) return '';
+  var d = (typeof dataLocal === 'function') ? dataLocal(v) : new Date(v);
+  if(!d || isNaN(d.getTime())) return '';
+  var dia = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+  var temHora = typeof v === 'string' && v.indexOf('T') > 0 && !/T00:00:00/.test(v);
+  if(temHora) dia += ' · ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  return dia;
+}
+function _histOrdem(v){
+  var d = (typeof dataLocal === 'function') ? dataLocal(v) : new Date(v);
+  return (d && !isNaN(d.getTime())) ? d.getTime() : 0;
+}
+// cat: reuniao | entrega | comercial | tarefa | cadastro — vira filtro na tela
+function _historicoEventos(cli){
+  var ev = [], dbId = cli._dbId;
+  var add = function(quando, cat, ico, titulo, texto){
+    if(!quando) return;
+    ev.push({q:quando, cat:cat, ico:ico, t:titulo, m:texto||''});
+  };
+
+  if(cli.created_at) add(cli.created_at, 'cadastro', '🏁', 'Cliente cadastrado no sistema', '');
+  if(cli.contract_start) add(cli.contract_start, 'cadastro', '📄', 'Início do contrato', '');
+
+  // Relacionamento: reunioes, calls e mensagens registradas no Tráfego
+  if(dbId && typeof _relacionamentos !== 'undefined' && Array.isArray(_relacionamentos)){
+    var ROT = {reuniao:'Reunião', whatsapp:'Contato por WhatsApp', ligacao:'Ligação',
+               email:'E-mail', relatorio:'Relatório apresentado', visita:'Visita'};
+    var ICO = {reuniao:'🤝', whatsapp:'💬', ligacao:'📞', email:'✉️', relatorio:'📊', visita:'📍'};
+    _relacionamentos.filter(function(r){ return r.client_id === dbId; }).forEach(function(r){
+      var quem = r.responsavel_nome ? ' · ' + r.responsavel_nome : '';
+      add(r.data_contato || r.created_at, 'reuniao', ICO[r.tipo] || '•',
+          (ROT[r.tipo] || 'Contato') + quem, r.resumo || '');
+    });
+  }
+
+  // Relatorios mensais entregues
+  if(dbId && typeof _relatorios !== 'undefined' && Array.isArray(_relatorios)){
+    _relatorios.filter(function(r){ return r.client_id === dbId; }).forEach(function(r){
+      add(r.data || r.created_at, 'entrega', '📊', 'Relatório mensal registrado', '');
+    });
+  }
+
+  // Captacoes: agendamento e entrega do material
+  if(dbId && typeof captacoes !== 'undefined' && Array.isArray(captacoes)){
+    captacoes.filter(function(c){ return c.client_id === dbId; }).forEach(function(c){
+      add(c.date, 'entrega', '🎬', 'Captação agendada',
+          (c.type || '') + (c.resp ? ' · ' + c.resp : ''));
+      if(c.entregue && c.entregue_em) add(c.entregue_em, 'entrega', '✅', 'Material da captação entregue', '');
+    });
+  }
+
+  // Orcamentos
+  if(dbId && typeof orcamentosSalvos !== 'undefined' && Array.isArray(orcamentosSalvos)){
+    orcamentosSalvos.filter(function(b){ return b.client_id === dbId; }).forEach(function(b){
+      var num = b.numero ? '#' + b.numero : '';
+      var val = b.total ? 'R$ ' + Number(b.total).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';
+      add(b.created_at, 'comercial', '📄', 'Orçamento criado ' + num, val);
+      if(b.sent_at) add(b.sent_at, 'comercial', '📤', 'Orçamento enviado ' + num, '');
+      if(b.accepted && b.status === 'aprovado') add(b.sent_at || b.created_at, 'comercial', '🎉', 'Orçamento aprovado ' + num, val);
+    });
+  }
+
+  // Tarefas concluidas pra esse cliente
+  if(dbId && window._tasksRaw && Array.isArray(window._tasksRaw)){
+    window._tasksRaw.filter(function(k){ return k.client_id === dbId && k.done && k.done_at; })
+      .forEach(function(k){
+        var quem = '';
+        if(typeof team !== 'undefined' && Array.isArray(team)){
+          var tm = team.find(function(x){ return x._dbId === k.assigned_to; });
+          if(tm) quem = tm.name;
+        }
+        add(k.done_at, 'tarefa', '✔️', k.title || 'Tarefa concluída', quem);
+      });
+  }
+
+  ev.sort(function(a,b){ return _histOrdem(b.q) - _histOrdem(a.q); });
+  return ev;
+}
+
+var _histFiltro = 'todos';
+var _HIST_CHIPS = [['todos','Tudo'],['reuniao','Reuniões'],['entrega','Entregas'],
+                   ['comercial','Comercial'],['tarefa','Tarefas'],['cadastro','Cadastro']];
+function histFiltrar(cat){
+  _histFiltro = cat;
+  var cli = window._cliAberto;
+  if(!cli) return;
+  var box = document.getElementById('histBox');
+  if(box) box.innerHTML = _histListaHTML(cli);
+  document.querySelectorAll('#histChips .filter-chip').forEach(function(c){
+    c.classList.toggle('active', c.dataset.cat === cat);
+  });
+}
+function _histListaHTML(cli){
+  var todos = _historicoEventos(cli);
+  var ev = _histFiltro === 'todos' ? todos : todos.filter(function(e){ return e.cat === _histFiltro; });
+  if(!ev.length){
+    return '<div class="empty-state" style="padding:36px 16px">' +
+      '<div class="ico">🕓</div>' +
+      '<div class="ttl">' + (todos.length ? 'Nada neste filtro' : 'Ainda não há histórico') + '</div>' +
+      '<div class="desc">' + (todos.length
+        ? 'Este cliente tem registros em outras categorias.'
+        : 'A linha do tempo se preenche sozinha conforme a equipe registra reuniões no Tráfego, entrega captações, fecha tarefas e cria orçamentos.') +
+      '</div></div>';
+  }
+  return '<div class="lnh">' + ev.map(function(e){
+    return '<div class="lnh-item">' +
+      '<div class="lnh-dot">' + e.ico + '</div>' +
+      '<div class="lnh-body">' +
+        '<div class="lnh-title">' + escapeHtml(e.t) + '</div>' +
+        (e.m ? '<div class="lnh-meta">' + escapeHtml(e.m) + '</div>' : '') +
+      '</div>' +
+      '<div class="lnh-when">' + _histQuando(e.q) + '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
 function paneArquivos(cli){
-  return `
-    <div class="modal-pane" data-pane="arquivos">
-      <div class="filter-bar">
-        <span class="filter-chip active">Todas</span>
-        <span class="filter-chip">Criativos</span>
-        <span class="filter-chip">Contratos</span>
-        <span class="filter-chip">Vídeos</span>
-        <span class="filter-chip">Relatórios</span>
-        <span class="filter-chip">Briefing</span>
-      </div>
-      <div class="file-grid">
-        ${[['📁','Criativos maio','42 arquivos'],['📁','Identidade visual','18 arquivos'],['📁','Vídeos','7 arquivos'],['📄','Contrato 2026.pdf','1.2 MB'],['📊','Relatório abril.pdf','3.4 MB'],['🖼','Logo final.png','280 KB'],['🎬','Reels 17mai.mp4','24 MB'],['📕','Manual da marca.pdf','8.1 MB']].map(f=>`<div class="file" onclick="openLinksManager('dashboard-drive','📁 Google Drive','https://drive.google.com')"><div class="file-icon">${f[0]}</div><div class="file-name">${f[1]}</div><div class="file-meta">${f[2]}</div></div>`).join('')}
-      </div>
-    </div>
-  `;
+  return '<div class="modal-pane" data-pane="arquivos">' +
+    '<div id="arqBox"><div class="empty-state" style="padding:40px"><div class="ico">⏳</div>' +
+    '<div class="desc">Carregando os arquivos deste cliente…</div></div></div>' +
+  '</div>';
+}
+
+// O contrato mora em custom_links, na mesma chave que o botao Contrato da Visão
+// usa. Ler daqui e nao de outro lugar e o que faz o que foi anexado num canto
+// aparecer no outro.
+function _arqSecao(titulo, itens, vazio, extra){
+  return '<div class="card mb-3">' +
+    '<div class="card-header" style="margin-bottom:10px">' +
+      '<div class="card-title">' + titulo + '</div>' + (extra || '') +
+    '</div>' +
+    (itens.length
+      ? '<div class="arq-lista">' + itens.join('') + '</div>'
+      : '<div class="text-xs text-3">' + vazio + '</div>') +
+  '</div>';
+}
+function _arqItem(ico, nome, sub, url){
+  var u = (url||'').replace(/'/g,"\\'");
+  return '<div class="arq-item" onclick="openLink(\'' + u + '\')" title="' + escapeHtml(url||'') + '">' +
+    '<div class="arq-ico">' + ico + '</div>' +
+    '<div class="arq-nome"><div class="arq-t">' + escapeHtml(nome) + '</div>' +
+    (sub ? '<div class="arq-s">' + escapeHtml(sub) + '</div>' : '') + '</div>' +
+    '<div class="arq-abrir">abrir ↗</div>' +
+  '</div>';
+}
+async function carregarArquivosCliente(){
+  var cli = window._cliAberto, box = document.getElementById('arqBox');
+  if(!cli || !box) return;
+  var html = '';
+
+  // --- Contratos (mesma fonte do botao Contrato) ---
+  var podeVer = (typeof isGestor === 'function') ? isGestor() : true;
+  if(podeVer){
+    var contratos = [];
+    if(cli._dbId && typeof loadLinksByGroup === 'function'){
+      try { contratos = await loadLinksByGroup('client-' + cli._dbId + '-contrato') || []; }
+      catch(e){ console.warn('[arquivos] contratos:', e); }
+    }
+    var gerenciar = cli._dbId
+      ? '<button class="btn btn-sm" onclick="openLinksManager(\'client-' + cli._dbId + '-contrato\', \'📄 Contrato\', \'\')">+ Anexar</button>'
+      : '';
+    html += _arqSecao('📄 Contratos <span class="badge" style="background:var(--surface-2);color:var(--text-3);font-size:9px;margin-left:6px">restrito</span>',
+      contratos.map(function(l){ return _arqItem('📄', l.label || 'Contrato', l.description || '', l.url); }),
+      'Nenhum contrato anexado ainda. Use "+ Anexar" para adicionar o link do arquivo.',
+      gerenciar);
+  }
+
+  // --- Pastas e links fixos do cadastro ---
+  var fixos = [];
+  if(cli.drive_url) fixos.push(_arqItem('📁', 'Pasta no Google Drive', '', cli.drive_url));
+  if(cli.conhecendo_url) fixos.push(_arqItem('📘', 'Conhecendo o Cliente', '', cli.conhecendo_url));
+  if(cli.site_url) fixos.push(_arqItem('🌐', 'Site', '', cli.site_url));
+  if(cli.instagram_url) fixos.push(_arqItem('📷', 'Instagram', '', cli.instagram_url));
+  if(cli.mlabs_url) fixos.push(_arqItem('📅', 'mLabs', '', cli.mlabs_url));
+  html += _arqSecao('📁 Pastas e links', fixos,
+    'Nenhum link preenchido no cadastro. Eles ficam na aba Visão, nos atalhos.');
+
+  // --- Anexos que vieram das reunioes (Tráfego · Relacionamento) ---
+  var anexos = [];
+  if(cli._dbId && typeof _relacionamentos !== 'undefined' && Array.isArray(_relacionamentos)){
+    _relacionamentos.filter(function(r){ return r.client_id === cli._dbId && r.arquivo_url; })
+      .forEach(function(r){
+        anexos.push(_arqItem('📎', r.arquivo_nome || 'Anexo da reunião',
+          _histQuando(r.data_contato || r.created_at), r.arquivo_url));
+      });
+  }
+  html += _arqSecao('📎 Anexos de reuniões', anexos,
+    'Nada anexado. Os arquivos que a equipe sobe no Relacionamento aparecem aqui.');
+
+  // --- Captacoes ---
+  var caps = [];
+  if(cli._dbId && typeof captacoes !== 'undefined' && Array.isArray(captacoes)){
+    captacoes.filter(function(c){ return c.client_id === cli._dbId; }).forEach(function(c){
+      var u = c.drive || c.material_url || c.referencia_url;
+      if(u) caps.push(_arqItem('🎬', (c.type || 'Captação') + (c.date ? ' · ' + _histQuando(c.date) : ''),
+        c.entregue ? 'entregue' : 'em andamento', u));
+    });
+  }
+  html += _arqSecao('🎬 Material de captação', caps,
+    'Nenhuma captação com material vinculado.');
+
+  // --- Relatorios (moram na aba própria) ---
+  var nRel = 0;
+  if(cli._dbId && typeof _relatorios !== 'undefined' && Array.isArray(_relatorios)){
+    nRel = _relatorios.filter(function(r){ return r.client_id === cli._dbId; }).length;
+  }
+  html += '<div class="card">' +
+    '<div class="card-header" style="margin-bottom:6px"><div class="card-title">📊 Relatórios</div>' +
+    (nRel ? '<button class="btn btn-sm" onclick="abrirRelatoriosDoCliente(' + cli.id + ')">Abrir</button>' : '') +
+    '</div><div class="text-xs text-3">' +
+    (nRel ? nRel + ' relatório(s) registrado(s) na aba Relatórios.' : 'Nenhum relatório registrado ainda.') +
+    '</div></div>';
+
+  box.innerHTML = html;
 }
 
 // ===== Aniversários dos contatos do cliente (até 5) =====
@@ -12012,24 +12240,18 @@ async function uploadAntesPrint(clienteId, input){
 }
 
 function paneHistorico(cli){
-  return `
-    <div class="modal-pane" data-pane="historico">
-      ${[
-        {d:'Hoje · 10:23',t:'Conteúdo aprovado',m:'Reels promoção foi aprovado pelo cliente'},
-        {d:'Hoje · 09:00',t:'Reunião realizada',m:'Alinhamento mensal — 42min'},
-        // linha de pagamento removida
-        {d:'14 mai',t:'Briefing atualizado',m:cli.owner+' atualizou campos do briefing'},
-        {d:'10 mai',t:'Avançou de etapa',m:'Cliente passou para "Aprovação"'},
-        {d:'02 mai',t:'Relatório mensal enviado',m:'Relatório de abril foi entregue'},
-      ].map(h=>`
-        <div class="list-item">
-          <div class="list-icon">•</div>
-          <div class="list-content"><div class="list-title">${h.t}</div><div class="list-meta">${h.m}</div></div>
-          <div class="list-right text-xs">${h.d}</div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+  _histFiltro = 'todos';
+  var total = _historicoEventos(cli).length;
+  return '<div class="modal-pane" data-pane="historico">' +
+    '<div class="filter-bar" id="histChips">' +
+      _HIST_CHIPS.map(function(c){
+        return '<span class="filter-chip' + (c[0]==='todos'?' active':'') + '" data-cat="' + c[0] +
+               '" onclick="histFiltrar(\'' + c[0] + '\')">' + c[1] + '</span>';
+      }).join('') +
+    '</div>' +
+    '<div class="text-xs text-3" style="margin:0 0 12px">' + total + ' registro(s) · tudo que o sistema guardou deste cliente</div>' +
+    '<div id="histBox">' + _histListaHTML(cli) + '</div>' +
+  '</div>';
 }
 
 async function loadTransactions(){
