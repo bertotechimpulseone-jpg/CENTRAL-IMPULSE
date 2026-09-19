@@ -2738,7 +2738,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.12 · Histórico e Arquivos do cliente agora saem do banco, sem dado de exemplo
+      v4.13 · Calendário editorial no mesmo padrão: cores iguais, fim de semana só com data comemorativa, slides separados, salva sozinho
     </div>
   </aside>
 
@@ -34778,7 +34778,49 @@ window.copiarLinkCalendarioMes = copiarLinkCalendarioMes;
 
 /* ---------- criar calendário (colar os conteúdos) ---------- */
 /* ---- Construtor visual: monta o calendário clicando nos dias do mês ---- */
-const _CAL_FORMATOS = ['Carrossel','Estático','Reels','Story','Destaque','Foto','Vídeo'];
+const _CAL_FORMATOS = ['Carrossel','Estático','Reels','Story','Foto','Vídeo','Destaque','Data comemorativa'];
+
+/* ===== PADRAO DE CORES DO CALENDARIO — vale pra TODO cliente =====
+   Uma tabela so. Antes a tela da equipe e a do cliente tinham cada uma a sua,
+   e o mesmo formato aparecia de cor diferente em cada lugar.
+   Amarelo e exclusivo de Data comemorativa: nenhum outro formato usa. */
+const _CAL_CORES = [
+  { teste:/reel|v[íi]deo|motion/i,            cor:'#FF3B30', nome:'Reels e vídeo' },
+  { teste:/carros/i,                          cor:'#7C5CFF', nome:'Carrossel' },
+  { teste:/comemora|sazonal|feriado|data/i,   cor:'#FFC300', nome:'Data comemorativa' },
+  { teste:/est[áa]tic|^post$|feed/i,          cor:'#0EA5E9', nome:'Estático' },
+  { teste:/story|stories/i,                   cor:'#F97316', nome:'Story' },
+  { teste:/foto/i,                            cor:'#14B8A6', nome:'Foto' },
+  { teste:/destaque/i,                        cor:'#6366F1', nome:'Destaque' }
+];
+const _CAL_COR_PADRAO = '#8A8497';
+function _CAL_COR(f){
+  const s = (f == null ? '' : String(f));
+  for(const r of _CAL_CORES){ if(r.teste.test(s)) return r.cor; }
+  return _CAL_COR_PADRAO;
+}
+// A legenda que aparece do lado do calendario, na mesma ordem em todo lugar.
+const _CAL_LEGENDA_PADRAO = _CAL_CORES.map(r => [r.cor, r.nome]);
+
+// ===== Regra: fim de semana so recebe data comemorativa =====
+function _calEhComemorativa(p){
+  return /comemora|sazonal|feriado/i.test(String((p && p.formato) || ''));
+}
+function _calEhFimDeSemana(ano, mes0, dia){
+  const d = new Date(ano, mes0, dia);
+  const w = d.getDay();
+  return w === 0 || w === 6;
+}
+// Post fora da regra: caiu no fim de semana e nao e data comemorativa.
+function _calForaDaRegra(p, ano, mes0, dia){
+  return _calEhFimDeSemana(ano, mes0, dia) && !_calEhComemorativa(p);
+}
+if(typeof window !== 'undefined'){
+  window._CAL_COR = _CAL_COR;
+  window._CAL_LEGENDA_PADRAO = _CAL_LEGENDA_PADRAO;
+  window._calEhComemorativa = _calEhComemorativa;
+  window._calEhFimDeSemana = _calEhFimDeSemana;
+}
 const _CAL_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 window._calNovo = null;   // { ano, mes(0-11), dias: { 4: {chamada, formato, legenda, slides[]} } }
 
@@ -34792,16 +34834,8 @@ function _calTituloAuto(s){
   return txt + ' ' + s.ano;
 }
 
-function _calCorFormato(f){
-  const s = (f||'').toLowerCase();
-  if(s.includes('carros')) return '#7C5CFF';
-  if(s.includes('reel')||s.includes('víde')||s.includes('vide')) return '#EC1E79';
-  if(s.includes('destaque')) return '#eab308';
-  if(s.includes('story')) return '#f59e0b';
-  if(s.includes('foto')) return '#22c55e';
-  if(s.includes('está')||s.includes('esta')) return '#0ea5e9';
-  return '#8a8497';
-}
+// Mantido pelo nome antigo (varios lugares chamam), mas agora e a tabela unica.
+function _calCorFormato(f){ return _CAL_COR(f); }
 
 function _calNovoCSS(){
   if(document.getElementById('calNovoCSS')) return;
@@ -34827,6 +34861,29 @@ function _calNovoCSS(){
     .cn-add{position:absolute;bottom:8px;right:9px;width:26px;height:26px;border-radius:9px;border:1px dashed var(--border-strong);color:var(--text-3);background:transparent;font-size:16px;display:grid;place-items:center;opacity:0;transition:opacity .15s;pointer-events:none}
     .cn-cell:not(.tem):hover .cn-add{opacity:.6}
     .cn-fmt-pill{border:1px solid;border-radius:99px;padding:8px 14px;font-size:12.5px;font-weight:700;cursor:pointer;transition:.15s}
+    /* fim de semana: fundo apagado, pra bater o olho e ver que ali nao vai post */
+    .cn-cell.fds{background:rgba(127,127,140,.10);border-style:dashed}
+    .cn-cell.fds.tem{background:var(--surface)}
+    .cn-cell.fora{border-color:#FFC300!important;box-shadow:inset 0 0 0 1px #FFC300}
+    .cn-alerta{position:absolute;bottom:7px;left:9px;font-size:12px;color:#FFC300}
+    .cn-post .cn-sl{display:block;font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--fmt);opacity:.85;margin-top:4px}
+    .cn-avisofds{background:rgba(255,195,0,.12);border:1px solid rgba(255,195,0,.45);color:var(--text-2);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.5;margin-bottom:14px}
+    .cn-sl-item{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px}
+    .cn-sl-n{flex:0 0 24px;height:24px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;font-size:11px;font-weight:800;color:var(--text-3);margin-top:5px}
+    /* o min-height de 80px que vale pros textarea grandes no celular deixava cada
+       slide do tamanho de um parágrafo; aqui o campo é de uma linha. */
+    .cn-sl-in{flex:1;min-width:0;min-height:0!important;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:8px 10px;font-size:13px;color:var(--text);font-family:inherit;resize:none;overflow:hidden;line-height:1.5}
+    @media(max-width:640px){ .cn-sl-in{font-size:16px;line-height:1.4} }
+    .cn-sl-in:focus{outline:none;border-color:var(--accent)}
+    .cn-sl-x{flex:0 0 26px;height:26px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:11px;margin-top:4px}
+    .cn-sl-x:hover{color:var(--danger);border-color:var(--danger)}
+    .cn-slvazio{font-size:11.5px;color:var(--text-3);padding:9px 11px;border:1px dashed var(--border);border-radius:9px}
+    .cn-legenda{display:flex;flex-wrap:wrap;gap:7px 14px;margin-bottom:9px}
+    .cn-lg{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--text-3)}
+    .cn-lg i{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+    .cn-regra{font-size:12px;line-height:1.5;border-radius:10px;padding:9px 11px}
+    .cn-regra.ok{color:var(--text-3)}
+    .cn-regra.alerta{background:rgba(255,195,0,.10);border:1px solid rgba(255,195,0,.4);color:var(--text-2)}
     @media(max-width:640px){ .cn-cell{min-height:88px} }
   `;
   document.head.appendChild(st);
@@ -34852,6 +34909,18 @@ function novoCalendario(cliId, calEdit){
       window._calNovo.dias[mo + '-' + d] = Object.assign({}, p);
     });
     if(primeiroMes !== null) window._calNovo.mes = primeiroMes;
+  }
+  // Calendário novo: se ficou rascunho de uma sessão anterior, devolve o que foi digitado.
+  if(!calEdit){
+    try {
+      const r = JSON.parse(localStorage.getItem(_cnRascunhoKey(cliId)) || 'null');
+      if(r && r.dias && Object.keys(r.dias).length){
+        window._calNovo.dias = r.dias;
+        if(typeof r.ano === 'number') window._calNovo.ano = r.ano;
+        if(typeof r.mes === 'number') window._calNovo.mes = r.mes;
+        setTimeout(function(){ try{ toast('Recuperei o rascunho que você tinha começado.','info'); }catch(e){} }, 400);
+      }
+    } catch(e){ console.warn('[cal] rascunho', e); }
   }
   const _edit = !!window._calNovo.editId;
   const m = document.createElement('div');
@@ -34881,7 +34950,10 @@ function novoCalendario(cliId, calEdit){
       <div id="cnResumo" class="text-xs text-3" style="margin-top:12px"></div>
     </div>
     <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;align-items:center">
-      <span id="cnContador" class="text-xs text-3" style="margin-right:auto"></span>
+      <span style="margin-right:auto;display:flex;flex-direction:column;gap:2px">
+        <span id="cnContador" class="text-xs text-3"></span>
+        <span id="cnSalvoEm" class="text-xs" style="color:var(--text-3)">${_edit?'salva sozinho a cada mudança':'rascunho guardado neste navegador até você criar'}</span>
+      </span>
       <button class="btn" type="button" onclick="document.getElementById('novoCalendarioModal').remove()">Cancelar</button>
       <button class="btn btn-primary" type="button" onclick="salvarNovoCalendario(${cli.id})">${_edit?'Salvar alterações':'Criar e gerar link'}</button>
     </div>
@@ -34889,6 +34961,105 @@ function novoCalendario(cliId, calEdit){
   document.body.appendChild(m);
   _calNovoPintar();
 }
+
+/* ===== Salvamento automático do construtor =====
+   Antes, tudo ficava só na memória até alguém clicar em "Salvar". Fechou a aba,
+   caiu a internet ou deu erro no meio: perdia. Agora cada mexida agenda uma
+   gravação. Calendário que já existe vai direto pro banco; calendário novo
+   (que ainda não tem link) fica guardado no próprio navegador até ser criado. */
+let _cnSaveT = null, _cnSavePend = false;
+
+function _cnRascunhoKey(cliId){ return 'impulse_cal_rascunho_' + cliId; }
+function _cnSalvarRascunho(){
+  const s = window._calNovo; if(!s || s.editId) return;
+  try { localStorage.setItem(_cnRascunhoKey(s.cliId), JSON.stringify({ ano:s.ano, mes:s.mes, dias:s.dias, em:Date.now() })); }
+  catch(e){ console.warn('[cal] rascunho', e); }
+}
+function _cnLimparRascunho(cliId){
+  try { localStorage.removeItem(_cnRascunhoKey(cliId)); } catch(e){}
+}
+function _cnStatus(txt, cor){
+  const el = document.getElementById('cnSalvoEm');
+  if(el){ el.textContent = txt; el.style.color = cor || 'var(--text-3)'; }
+}
+function _cnPostsDaGrade(s){
+  const chaves = Object.keys(s.dias).map(k=>{ const [m,d]=k.split('-').map(Number); return {k,m,d}; })
+                 .sort((a,b)=> a.m-b.m || a.d-b.d);
+  return chaves.map((info,i)=>{
+    const p = s.dias[info.k] || {};
+    return {
+      ref: String(i+1).padStart(2,'0'),
+      data: String(info.d).padStart(2,'0') + '/' + String(info.m+1).padStart(2,'0'),
+      formato: p.formato || 'Post',
+      chamada: p.chamada || '',
+      legenda: p.legenda || '',
+      midia: p.midia || '',
+      slides: Array.isArray(p.slides) ? p.slides : [],
+      chamada_orig: p.chamada_orig !== undefined ? p.chamada_orig : (p.chamada || ''),
+      legenda_orig: p.legenda_orig !== undefined ? p.legenda_orig : (p.legenda || ''),
+      slides_orig: p.slides_orig !== undefined ? p.slides_orig : (Array.isArray(p.slides) ? p.slides.slice() : []),
+      status: p.status || 'pendente',
+      comentario: p.comentario || '',
+      editado: !!p.editado,
+      decidido_em: p.decidido_em || null,
+      ajuste_feito: !!p.ajuste_feito,
+      ajuste_feito_em: p.ajuste_feito_em || null
+    };
+  });
+}
+async function _cnGravarAgora(){
+  const s = window._calNovo; if(!s) return;
+  _cnSavePend = false;
+  if(!s.editId){ _cnSalvarRascunho(); _cnStatus('rascunho guardado neste navegador'); return; }
+  let posts = _cnPostsDaGrade(s);
+  const atual = (typeof _calendarios!=='undefined' ? _calendarios : []).find(c=>c.id===s.editId);
+  const mats = ((atual && atual.posts) || []).filter(p => p && p.formato==='__material');
+  if(mats.length) posts = mats.concat(posts);
+  try {
+    const { error } = await _supa.from('calendarios')
+      .update({ titulo:_calTituloAuto(s), posts, updated_at:new Date().toISOString() })
+      .eq('id', s.editId);
+    if(error) throw error;
+    if(atual) atual.posts = posts;
+    const h = new Date();
+    _cnStatus('salvo às ' + String(h.getHours()).padStart(2,'0') + ':' + String(h.getMinutes()).padStart(2,'0'), 'var(--success)');
+  } catch(e){
+    console.error('[cal autosave]', e);
+    _cnStatus('não consegui salvar — confira a internet', 'var(--danger)');
+  }
+}
+function _cnAgendarSalvar(){
+  const s = window._calNovo; if(!s) return;
+  _cnSavePend = true;
+  _cnStatus('salvando…');
+  clearTimeout(_cnSaveT);
+  _cnSaveT = setTimeout(_cnGravarAgora, 700);
+}
+function _cnFlush(){
+  if(_cnSaveT){ clearTimeout(_cnSaveT); _cnSaveT = null; }
+  if(_cnSavePend) _cnGravarAgora();
+}
+if(typeof window!=='undefined' && !window._cnFlushLigado){
+  window._cnFlushLigado = true;
+  const f = ()=>{ try{ _cnFlush(); }catch(e){} };
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') f(); });
+  window.addEventListener('pagehide', f);
+}
+
+/* ===== Histórico: o que a equipe faz também fica registrado =====
+   Vai como lido:true — é registro, não notificação (notificação é do cliente). */
+async function _calLogEquipe(calId, calNome, tipo, ref, titulo, detalhe){
+  if(!calId || !_supa) return;
+  const quem = (typeof _currentProfile!=='undefined' && _currentProfile && _currentProfile.name) ? _currentProfile.name : 'Equipe';
+  try {
+    await _supa.from('calendario_eventos').insert({
+      calendario_id: calId, cliente_nome: calNome || '',
+      post_ref: ref || '—', post_titulo: (titulo||'').slice(0,140),
+      tipo: tipo, detalhe: (quem + (detalhe ? ' · ' + detalhe : '')).slice(0,600), lido: true
+    });
+  } catch(e){ console.warn('[cal log]', e); }
+}
+if(typeof window!=='undefined'){ window._calLogEquipe = _calLogEquipe; }
 
 function _calNovoMes(delta){
   const s = window._calNovo; if(!s) return;
@@ -34912,22 +35083,56 @@ function _calNovoPintar(){
   for(let d=1; d<=totalDias; d++){
     const p = s.dias[s.mes+'-'+d];
     const cor = p ? _calCorFormato(p.formato) : '';
-    html += `<div class="cn-cell${p?' tem':''}" data-d="${d}" onclick="_calNovoDia(${d})">
+    const fds = _calEhFimDeSemana(s.ano, s.mes, d);
+    const fora = p && _calForaDaRegra(p, s.ano, s.mes, d);
+    const nSl = p && Array.isArray(p.slides) ? p.slides.filter(x=>String(x||'').trim()).length : 0;
+    html += `<div class="cn-cell${p?' tem':''}${fds?' fds':''}${fora?' fora':''}" data-d="${d}" onclick="_calNovoDia(${d})"${fds?' title="Fim de semana: só data comemorativa entra aqui"':''}>
       <span class="cn-daynum">${d}</span>
-      ${p ? `<div class="cn-post" onpointerdown="_cnPointerDown(event,${d})" title="Arraste pra outro dia pra mudar a data" style="touch-action:none;--fmt:${cor};background:${cor}1c;border-color:${cor}40"><span class="cn-fmt">${escapeHtml(p.formato||'Post')}${p.midia?' 🎥':''}</span><span class="cn-tit">${escapeHtml(p.chamada||'')}</span></div>`
+      ${p ? `<div class="cn-post" onpointerdown="_cnPointerDown(event,${d})" title="Arraste pra outro dia pra mudar a data" style="touch-action:none;--fmt:${cor};background:${cor}1c;border-color:${cor}40"><span class="cn-fmt">${escapeHtml(p.formato||'Post')}${p.midia?' 🎥':''}</span><span class="cn-tit">${escapeHtml(p.chamada||'')}</span>${nSl?`<span class="cn-sl">${nSl} ${nSl===1?'slide':'slides'}</span>`:''}</div>`
              : '<div class="cn-add">+</div>'}
+      ${fora ? '<span class="cn-alerta" title="Fim de semana sem data comemorativa">⚠</span>' : ''}
     </div>`;
   }
   grid.innerHTML = html;
   const n = Object.keys(s.dias).length;
   const cont = document.getElementById('cnContador');
   if(cont) cont.textContent = n ? `${n} ${n===1?'conteúdo':'conteúdos'} no calendário` : 'Nenhum conteúdo ainda';
+  _calNovoAvisoRegra();
+}
+
+// Conta, no calendario inteiro, o que esta fora da regra do fim de semana.
+function _calPostsForaDaRegra(){
+  const s = window._calNovo; if(!s) return [];
+  return Object.keys(s.dias).map(function(k){
+    const parts = k.split('-'), mes0 = +parts[0], dia = +parts[1];
+    const p = s.dias[k];
+    return _calForaDaRegra(p, s.ano, mes0, dia) ? { k, p, mes0, dia } : null;
+  }).filter(Boolean);
+}
+function _calNovoAvisoRegra(){
+  const box = document.getElementById('cnResumo'); if(!box) return;
+  const fora = _calPostsForaDaRegra();
+  const legenda = '<div class="cn-legenda">' + _CAL_LEGENDA_PADRAO.map(function(l){
+      return '<span class="cn-lg"><i style="background:' + l[0] + '"></i>' + l[1] + '</span>';
+    }).join('') + '</div>';
+  if(!fora.length){
+    box.innerHTML = legenda + '<div class="cn-regra ok">✓ Nenhum conteúdo em fim de semana. É esse o padrão.</div>';
+    return;
+  }
+  const lista = fora.map(function(f){
+    return String(f.dia).padStart(2,'0') + '/' + String(f.mes0+1).padStart(2,'0');
+  }).join(', ');
+  box.innerHTML = legenda +
+    '<div class="cn-regra alerta">⚠ ' + fora.length + (fora.length===1?' conteúdo cai':' conteúdos caem') +
+    ' em fim de semana sem ser data comemorativa: <b>' + lista + '</b>. ' +
+    'Mude a data ou marque como Data comemorativa.</div>';
 }
 
 function _calNovoDia(dia){
   if(window._cnJustDropped){ window._cnJustDropped=false; return; }   // não abrir modal logo depois de soltar
   const s = window._calNovo; if(!s) return;
-  const p = s.dias[s.mes+'-'+dia] || { chamada:'', formato:'Carrossel', legenda:'', slides:[], midia:'' };
+  const _fds = _calEhFimDeSemana(s.ano, s.mes, dia);
+  const p = s.dias[s.mes+'-'+dia] || { chamada:'', formato:(_fds ? 'Data comemorativa' : 'Carrossel'), legenda:'', slides:[], midia:'' };
   const dd = String(dia).padStart(2,'0') + '/' + String(s.mes+1).padStart(2,'0');
   const ex = document.getElementById('cnDiaModal'); if(ex) ex.remove();
   const m = document.createElement('div');
@@ -34936,19 +35141,28 @@ function _calNovoDia(dia){
   m.innerHTML = `<div style="background:var(--surface);border-radius:16px;max-width:520px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="flex:1"><div style="font-size:15px;font-weight:700">Conteúdo de ${dd}</div>
-      <div class="text-xs text-3" style="margin-top:2px">${_CAL_MESES[s.mes]} ${s.ano}</div></div>
+      <div class="text-xs text-3" style="margin-top:2px">${_CAL_MESES[s.mes]} ${s.ano}${_fds?' · fim de semana':''}</div></div>
       <button class="modal-close" type="button" onclick="document.getElementById('cnDiaModal').remove()">✕</button>
     </div>
     <div style="padding:16px 20px;overflow:auto;flex:1">
+      ${_fds ? '<div class="cn-avisofds">⚠ <b>Fim de semana.</b> O padrão é não publicar sábado e domingo. Só entra aqui se for <b>data comemorativa</b>.</div>' : ''}
       <label class="text-xs text-3">Formato</label>
       <div id="cnFmts" style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">
         ${_CAL_FORMATOS.map(f=>{ const c=_calCorFormato(f); const on=(p.formato===f);
           return `<button type="button" class="cn-fmt" data-f="${f}" onclick="_calNovoFmt('${f}')" style="border:1px solid ${on?c:'var(--border)'};background:${on?c+'22':'var(--surface-2)'};color:${on?c:'var(--text-2)'};border-radius:99px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer">${f}</button>`;
         }).join('')}
       </div>
-      <label class="text-xs text-3">Descrição do conteúdo</label>
+      <label class="text-xs text-3" style="display:block">Chamada <span style="color:var(--text-3);font-weight:400">(o título do conteúdo)</span></label>
       <textarea id="cnChamada" rows="2" placeholder="Ex: Tesoura, lança ou mastro? O guia rápido pra escolher a certa." style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:var(--text);margin:5px 0 14px;resize:vertical">${escapeHtml(p.chamada||'')}</textarea>
-      <label class="text-xs text-3">Legenda</label>
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+        <label class="text-xs text-3" style="flex:1">Slides <span style="color:var(--text-3);font-weight:400">(um por vez — no carrossel é isso que vira cada arte)</span></label>
+        <button type="button" class="btn btn-sm" onclick="_cnSlidesDaLegenda()" title="Se os slides estiverem escritos dentro da descrição como 'Slide 1: ...', separa cada um aqui">⇅ Separar da descrição</button>
+      </div>
+      <div id="cnSlides" style="margin-bottom:7px"></div>
+      <div style="margin:0 0 14px"><button type="button" class="btn btn-sm" onclick="_cnSlideAdd()">+ Adicionar slide</button></div>
+
+      <label class="text-xs text-3" style="display:block">Descrição <span style="color:var(--text-3);font-weight:400">(a legenda que vai no post)</span></label>
       <textarea id="cnLegenda" rows="5" placeholder="O texto que vai na legenda do post…" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:13.5px;color:var(--text);margin:5px 0 14px;resize:vertical">${escapeHtml(p.legenda||'')}</textarea>
       <label class="text-xs text-3">Link do vídeo / mídia <span style="color:var(--text-3);font-weight:400">(Drive, YouTube, arte…)</span></label>
       <div style="display:flex;gap:8px;align-items:center;margin:5px 0 14px">
@@ -34969,7 +35183,58 @@ function _calNovoDia(dia){
   </div>`;
   document.body.appendChild(m);
   window._calNovoFmtSel = p.formato || 'Carrossel';
+  window._cnSlides = Array.isArray(p.slides) ? p.slides.slice() : [];
+  _cnSlidesPintar();
   setTimeout(()=>{ document.getElementById('cnChamada')?.focus(); }, 60);
+}
+
+// ===== Slides: cada um é um campo, nunca um bloco de texto colado =====
+function _cnSlidesPintar(){
+  const box = document.getElementById('cnSlides'); if(!box) return;
+  const arr = window._cnSlides || [];
+  if(!arr.length){
+    box.innerHTML = '<div class="cn-slvazio">Nenhum slide. No carrossel, cada slide precisa ser um item aqui.</div>';
+    return;
+  }
+  box.innerHTML = arr.map((v,n)=>
+    '<div class="cn-sl-item">' +
+      '<span class="cn-sl-n">' + (n+1) + '</span>' +
+      '<textarea class="cn-sl-in" rows="1" data-n="' + n + '" placeholder="Escreva o slide ' + (n+1) + '…">' + escapeHtml(v||'') + '</textarea>' +
+      '<button type="button" class="cn-sl-x" data-n="' + n + '" title="Remover este slide">✕</button>' +
+    '</div>').join('');
+  box.querySelectorAll('.cn-sl-in').forEach(function(ta){
+    const auto = function(){
+      ta.style.height = 'auto';
+      ta.style.height = Math.max(34, Math.min(ta.scrollHeight, 190)) + 'px';
+    };
+    // medir antes do navegador desenhar dá altura errada (o modal ainda está
+    // entrando) e o campo nasce gigante no celular
+    requestAnimationFrame(auto);
+    ta.oninput = function(){ window._cnSlides[+ta.dataset.n] = ta.value; auto(); };
+  });
+  box.querySelectorAll('.cn-sl-x').forEach(function(b){
+    b.onclick = function(){ window._cnSlides.splice(+b.dataset.n, 1); _cnSlidesPintar(); };
+  });
+}
+function _cnSlideAdd(){
+  window._cnSlides = window._cnSlides || [];
+  window._cnSlides.push('');
+  _cnSlidesPintar();
+  const ins = document.querySelectorAll('#cnSlides .cn-sl-in');
+  if(ins.length) ins[ins.length-1].focus();
+}
+// Separa "Slide 1: ... Slide 2: ..." que estiver escrito dentro da descrição.
+function _cnSlidesDaLegenda(){
+  const el = document.getElementById('cnLegenda'); if(!el) return;
+  const txt = el.value || '';
+  const partes = txt.split(/\s*slide\s*\d+\s*[:.\-–)]\s*/i).map(x=>x.trim()).filter(Boolean);
+  if(!/slide\s*\d/i.test(txt) || partes.length < 2){
+    toast('Não achei "Slide 1:", "Slide 2:"… dentro da descrição.','info');
+    return;
+  }
+  window._cnSlides = partes;
+  _cnSlidesPintar();
+  toast('✓ ' + partes.length + ' slides separados. A descrição continua como está — apague dela o que virou slide, se quiser.','success');
 }
 
 function _calNovoFmt(f){
@@ -34999,15 +35264,26 @@ function _calNovoSalvarDia(dia){
   const novoDia = parseInt(document.getElementById('cnDataDia')?.value) || dia;
   let novoMes = parseInt(document.getElementById('cnDataMes')?.value);
   if(isNaN(novoMes)) novoMes = s.mes;
+  // Regra do fim de semana: avisa uma vez e só deixa passar se a pessoa insistir.
+  const _fmtEscolhido = window._calNovoFmtSel || 'Carrossel';
+  if(_calEhFimDeSemana(s.ano, novoMes, novoDia) && !_calEhComemorativa({formato:_fmtEscolhido})){
+    if(!window._cnFdsOk || window._cnFdsOk !== (novoMes+'-'+novoDia)){
+      window._cnFdsOk = novoMes + '-' + novoDia;
+      toast('Fim de semana: o padrão é não publicar. Marque como Data comemorativa, ou clique em Salvar de novo pra colocar assim mesmo.','info');
+      return;
+    }
+  }
+  window._cnFdsOk = null;
   const keyAntiga = s.mes + '-' + dia;
   const keyNova   = novoMes + '-' + novoDia;
   const anterior = s.dias[keyAntiga] || {};   // preserva status/comentário/original (modo edição)
+  const _slides = (window._cnSlides || []).map(x=>String(x||'').trim()).filter(Boolean);
   const conteudo = Object.assign({}, anterior, {
     chamada,
-    formato: window._calNovoFmtSel || 'Carrossel',
+    formato: _fmtEscolhido,
     legenda: (document.getElementById('cnLegenda').value||'').trim(),
-    midia: (document.getElementById('cnMidia')?.value||'').trim()
-    // slides removidos da criação — preserva os que já existirem (via anterior)
+    midia: (document.getElementById('cnMidia')?.value||'').trim(),
+    slides: _slides
   });
   if(keyNova !== keyAntiga){
     delete s.dias[keyAntiga];
@@ -35018,6 +35294,13 @@ function _calNovoSalvarDia(dia){
   if(novoMes !== s.mes) s.mes = novoMes;   // navega pro mês novo pra ver onde caiu
   document.getElementById('cnDiaModal')?.remove();
   _calNovoPintar();
+  _cnAgendarSalvar();
+  if(s.editId){
+    _calLogEquipe(s.editId, '', anterior && anterior.chamada ? 'editou_post' : 'novo_post',
+      String(novoDia).padStart(2,'0') + '/' + String(novoMes+1).padStart(2,'0'), chamada,
+      (anterior && anterior.chamada ? 'editou o conteúdo' : 'colocou o conteúdo') +
+      (_slides.length ? ' · ' + _slides.length + ' slides' : ''));
+  }
   if(keyNova !== keyAntiga){ try{ toast('Conteúdo movido de data','success'); }catch(e){} }
 }
 
@@ -35078,11 +35361,16 @@ function _cnPointerUp(ev){
   s.dias[kDest] = orig;
   if(dest) s.dias[kOrig] = dest; else delete s.dias[kOrig];   // troca se o dia destino já tinha conteúdo
   _calNovoPintar();
+  _cnAgendarSalvar();
+  if(s.editId) _calLogEquipe(s.editId, '', 'moveu_post',
+    String(diaDest).padStart(2,'0')+'/'+String(s.mes+1).padStart(2,'0'),
+    (orig.chamada||''), 'mudou a data do conteúdo');
   try{ toast(dest?'Conteúdos trocados de dia':'Conteúdo movido de dia','success'); }catch(e){}
 }
 if(typeof window!=='undefined'){ window._cnPointerDown=_cnPointerDown; }
 
 function _calNovoRemoverDia(dia){
+  try { setTimeout(function(){ _cnAgendarSalvar(); }, 0); } catch(e){}
   const s = window._calNovo; if(!s) return;
   delete s.dias[s.mes+'-'+dia];
   document.getElementById('cnDiaModal')?.remove();
@@ -35127,7 +35415,10 @@ async function salvarNovoCalendario(cliId){
   const titulo = _calTituloAuto(s);   // sempre o nome do(s) mês(es)
   // chaves "mes-dia" (0-11) → ordena por mês depois dia → posts com data "DD/MM"
   const chaves = Object.keys(s.dias).map(k=>{ const [m,d]=k.split('-').map(Number); return {k,m,d}; }).sort((a,b)=> a.m-b.m || a.d-b.d);
-  const posts = chaves.map((info,i)=>{
+  // `let` e nao `const`: mais abaixo os materiais anexados sao colocados na
+  // frente da lista. Com const isso virava TypeError e o calendario do cliente
+  // com material anexado simplesmente nao salvava.
+  let posts = chaves.map((info,i)=>{
     const p = s.dias[info.k] || {};
     return {
       ref: String(i+1).padStart(2,'0'),
@@ -35160,6 +35451,7 @@ async function salvarNovoCalendario(cliId){
     const r = await gravarSeguro({ tabela:'calendarios', tipo:'update', id:s.editId, payload:{ titulo, posts, updated_at: new Date().toISOString() }, descricao:'editar calendário' });
     if(!r.ok) return;
     document.getElementById('novoCalendarioModal')?.remove();
+    _calLogEquipe(s.editId, _nomeCli(cli), 'salvou', '—', titulo, 'salvou o calendário com ' + posts.length + ' conteúdos');
     await carregarCalendariosCliente(cli);
     toast('✓ Calendário atualizado. O link continua o mesmo.','success');
     return;
@@ -35177,8 +35469,10 @@ async function salvarNovoCalendario(cliId){
   if(!r.ok){ return; }
   document.getElementById('novoCalendarioModal')?.remove();
   const criado = r.data && r.data[0];
+  _cnLimparRascunho(cliId);
   await carregarCalendariosCliente(cli);
   if(criado){
+    _calLogEquipe(criado.id, criado.cliente_nome, 'criou', '—', titulo, 'criou o calendário com ' + posts.length + ' conteúdos');
     await copiarLinkCalendario(criado.token);
     toast('✓ Calendário criado. O link já está copiado.','success');
   }
@@ -35201,7 +35495,7 @@ async function verCalendario(id){
   try { const { data } = await _supa.from('calendarios').select('*').eq('id', id).maybeSingle(); if(data) cal = data; } catch(e){}
   if(!cal){ toast('Calendário não encontrado.','info'); return; }
   let eventos = [];
-  try { const { data } = await _supa.from('calendario_eventos').select('*').eq('calendario_id', id).order('created_at',{ascending:false}).limit(60); eventos = data||[]; } catch(e){}
+  try { const { data } = await _supa.from('calendario_eventos').select('*').eq('calendario_id', id).order('created_at',{ascending:false}).limit(400); eventos = data||[]; } catch(e){}
   const c = _calContagem(cal);
   const m = document.createElement('div');
   m.id = 'verCalendarioModal';
@@ -35229,12 +35523,34 @@ async function verCalendario(id){
       ${p.decidido_em?`<div class="text-xs text-3" style="margin-top:6px">${_calDataHora(p.decidido_em)}</div>`:''}
     </div>`;
   }).join('');
-  const evHtml = eventos.length ? eventos.map(e=>`<div style="display:flex;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12.5px">
-      <span>${e.tipo==='aprovado'?'✓':e.tipo==='ajuste'?'✎':'✏️'}</span>
-      <div style="flex:1"><b>${escapeHtml(e.post_ref||'')}</b> ${escapeHtml(e.post_titulo||'')}
-      ${e.detalhe?`<div class="text-xs text-3">${escapeHtml(e.detalhe)}</div>`:''}</div>
+  // Todo evento tem rótulo e ícone: dá pra ler o histórico sem adivinhar o que
+  // é "editou_slide" ou "moveu_post".
+  const _EV = {
+    aprovado:      ['✓','Aprovou',                 'var(--success)'],
+    ajuste:        ['✎','Pediu alteração',         '#FF9100'],
+    ajuste_feito:  ['🔁','Ajuste feito pelo time',  'var(--success)'],
+    editou:        ['✏️','Editou o texto',          'var(--warning)'],
+    editou_slide:  ['✏️','Editou um slide',         'var(--warning)'],
+    editou_post:   ['✏️','Time editou o conteúdo',  'var(--text-2)'],
+    novo_post:     ['➕','Time colocou o conteúdo',  'var(--text-2)'],
+    moveu_post:    ['📆','Time mudou a data',        'var(--text-2)'],
+    criou:         ['🗓','Calendário criado',        'var(--text-2)'],
+    salvou:        ['💾','Time salvou o calendário', 'var(--text-2)'],
+    finalizou:     ['🏁','Cliente concluiu a revisão','var(--accent)']
+  };
+  const evHtml = eventos.length ? eventos.map(e=>{
+    const meta = _EV[e.tipo] || ['•', e.tipo || 'Mexeu', 'var(--text-3)'];
+    return `<div style="display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12.5px">
+      <span style="flex:0 0 18px;text-align:center">${meta[0]}</span>
+      <div style="flex:1;min-width:0">
+        <b style="color:${meta[2]}">${meta[1]}</b>
+        ${e.post_ref && e.post_ref!=='—' ? ` · <b>${escapeHtml(e.post_ref)}</b>` : ''}
+        ${e.post_titulo ? ' ' + escapeHtml(e.post_titulo) : ''}
+        ${e.detalhe?`<div class="text-xs text-3" style="margin-top:2px">${escapeHtml(e.detalhe)}</div>`:''}
+      </div>
       <span class="text-xs text-3" style="white-space:nowrap">${_calDataHora(e.created_at)}</span>
-    </div>`).join('') : '<div class="text-xs text-3" style="padding:14px;text-align:center">O cliente ainda não mexeu.</div>';
+    </div>`;
+  }).join('') : '<div class="text-xs text-3" style="padding:14px;text-align:center">Nada registrado ainda.</div>';
   m.innerHTML = `<div style="background:var(--surface);border-radius:16px;max-width:720px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
     <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${escapeHtml(cal.titulo||'')}</div>
@@ -35249,7 +35565,8 @@ async function verCalendario(id){
         ${c.pend?`<span class="badge b-default">${c.pend} pendentes</span>`:''}
       </div>
       ${postsHtml}
-      <div class="card-title" style="margin:18px 0 6px;font-size:13px">🔔 O que o cliente fez</div>
+      <div class="card-title" style="margin:18px 0 6px;font-size:13px">🕓 Histórico · ${eventos.length} ${eventos.length===1?'registro':'registros'}</div>
+      <div class="text-xs text-3" style="margin-bottom:8px">Tudo que aconteceu neste calendário, do cliente e da equipe, com data e hora.</div>
       ${evHtml}
     </div>
     <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px">
@@ -35453,28 +35770,17 @@ async function renderPublicAprovarCalendario(token){
     return;
   }
   window._calPublico = cal;   // página pública NÃO depende de array em memória
+  if(window._calVerTudo === undefined){
+    try { window._calVerTudo = localStorage.getItem('impulse_cal_vertudo') === '1'; } catch(e){ window._calVerTudo = false; }
+  }
 
   function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
   // ===== helpers da grade (visão ampla) =====
   // PADRAO DE CORES DO CALENDARIO (vale pra todo cliente)
   // Reels/Vídeo vermelho · Carrossel roxo · Estático azul · Data comemorativa amarelo
-  const _corFmt = (f)=>{
-    const s=(f||'').toString().toLowerCase();
-    if(s.includes('reel')||s.includes('vídeo')||s.includes('video')||s.includes('motion')) return '#FF3B30';
-    if(s.includes('carros')) return '#7C5CFF';
-    if(s.includes('está')||s.includes('esta')||s.includes('post')||s.includes('feed')) return '#0EA5E9';
-    if(s.includes('comemora')||s.includes('data')||s.includes('sazonal')) return '#FFC300';
-    if(s.includes('story')) return '#F59E0B';
-    if(s.includes('foto')) return '#14B8A6';
-    return '#8A8497';
-  };
-  const CAL_LEGENDA_FMT = [
-    ['#FF3B30','Reels e vídeo'],
-    ['#7C5CFF','Carrossel'],
-    ['#0EA5E9','Estático'],
-    ['#FFC300','Data comemorativa']
-  ];
+  const _corFmt = (f)=> _CAL_COR(f);
+  const CAL_LEGENDA_FMT = _CAL_LEGENDA_PADRAO;
   const _mesN = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const _statCor = (st)=> st==='aprovado'?'#22c55e': st==='ajustar'?'#FF9100':'#c9c6d6';
   const _statTxt = (st)=> st==='aprovado'?'✓ Aprovado': st==='ajustar'?'✎ Ajuste pedido':'• Pendente';
@@ -35549,6 +35855,33 @@ async function renderPublicAprovarCalendario(token){
         .cal-legenda .sep{display:none}
       }
       /* Navegação de mês (um calendário por página) */
+      /* Ver o calendário inteiro numa tela só */
+      .cal-modo{display:flex;align-items:center;justify-content:center;gap:11px;margin:22px 0 4px;flex-wrap:wrap}
+      .cal-modo-bt{border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);border-radius:99px;padding:9px 18px;font:700 12.5px 'Sora',sans-serif;cursor:pointer;transition:.15s}
+      .cal-modo-bt:hover{border-color:var(--accent);color:var(--text)}
+      .cal-modo-bt.on{background:var(--accent-soft);border-color:var(--accent);color:var(--text)}
+      .cal-modo-hint{font-size:11.5px;color:var(--text-3)}
+      /* No modo "calendário inteiro" o cabeçalho sai da frente: a tela é do calendário. */
+      #aprovarCalPage.modo-tudo .cal-hero{display:none}
+      #aprovarCalPage.modo-tudo .cal-legenda{flex-direction:row;flex-wrap:wrap;position:static;width:100%;flex:none;gap:8px 16px;padding:9px 13px;margin-bottom:4px}
+      #aprovarCalPage.modo-tudo .cal-legenda .grupo{flex-direction:row;flex-wrap:wrap;gap:8px 13px;align-items:center}
+      #aprovarCalPage.modo-tudo .cal-legenda .sep{display:none}
+      #aprovarCalPage.modo-tudo .cal-legenda .item{font-size:11px}
+      #aprovarCalPage.modo-tudo .cal-modo{margin:10px 0 6px}
+      .cal-tudo-wrap{--cal-k:1;display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px;align-items:start;
+        transform:scale(var(--cal-k));transform-origin:top left;width:calc(100% / var(--cal-k));margin-top:14px}
+      .cal-tudo-mes{min-width:0}
+      .cal-tudo-tit{font:800 14px 'Sora',sans-serif;letter-spacing:-.02em;color:var(--text);margin:0 0 8px}
+      .cal-tudo-wrap .cal-cell{min-height:58px;padding:4px 4px 5px;gap:2px}
+      .cal-tudo-wrap .cal-daynum{width:18px;height:18px;font-size:10px;margin-bottom:0}
+      .cal-tudo-wrap .cal-chip{padding:2px 4px 3px;border-radius:4px}
+      .cal-tudo-wrap .cal-chip .cal-fmt{font-size:7.5px;letter-spacing:.02em}
+      .cal-tudo-wrap .cal-chip .cal-tit{font-size:9px;line-height:1.25;max-height:23px;overflow:hidden}
+      .cal-tudo-wrap .cal-ok,.cal-tudo-wrap .cal-alt{width:13px;height:13px;font-size:8px;line-height:13px;top:1px;right:1px}
+      .cal-tudo-wrap .cal-grid-head>div{padding:6px 0 5px;font-size:8.5px;letter-spacing:.06em}
+      .cal-tudo-wrap .cal-grid-head,.cal-tudo-wrap .cal-grid{border-radius:9px}
+      .cal-tudo-wrap .cal-grid-head{border-radius:9px 9px 0 0}
+      .cal-tudo-wrap .cal-grid{border-radius:0 0 9px 9px}
       .cal-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin:26px 0 16px}
       .cal-seta{width:44px;height:44px;border-radius:14px;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);font-size:24px;line-height:1;cursor:pointer;transition:.15s;display:grid;place-items:center;font-family:'Sora',sans-serif}
       .cal-seta:hover:not(:disabled){background:var(--accent);border-color:var(--accent);color:#fff;transform:scale(1.06)}
@@ -35672,8 +36005,19 @@ async function renderPublicAprovarCalendario(token){
         + '<span class="item"><span class="pt neon-v"></span>Aprovado</span>'
         + '<span class="item">✎ Alteração pedida</span>'
         + '</div></div>';
-      chaves = [kAtivo];   // renderiza SÓ o mês ativo
-      let out = navHTML;
+      // "Ver tudo": todos os meses com conteúdo de uma vez, encolhidos pra caber na tela.
+      const verTudo = !!window._calVerTudo;
+      const comConteudo = chaves.filter(k => (grupos[k] || {items:[]}).items.length);
+      const btnTudo = '<div class="cal-modo">'
+        + '<button type="button" id="calVerTudo" class="cal-modo-bt' + (verTudo ? ' on' : '') + '">'
+        + (verTudo ? '◫ Ver um mês por vez' : '▦ Ver o calendário inteiro')
+        + '</button>'
+        + (verTudo ? '<span class="cal-modo-hint">' + comConteudo.length + (comConteudo.length===1?' mês':' meses') + ' na tela</span>' : '')
+        + '</div>';
+      chaves = verTudo ? (comConteudo.length ? comConteudo : [kAtivo]) : [kAtivo];
+      let out = verTudo
+        ? btnTudo + legendaHTML + '<div class="cal-tudo-wrap" id="calTudoWrap">'
+        : btnTudo + navHTML;
       chaves.forEach(k=>{
         const info = grupos[k] || { items:[] };                          // mês ainda sem conteúdo
         const d0 = k ? { ano: Math.floor(k/100), mes: k%100 } : null;    // sempre monta o mês, mesmo vazio
@@ -35682,7 +36026,7 @@ async function renderPublicAprovarCalendario(token){
           : '';
         const _badge = (st)=> st==='aprovado'?'<span class="cal-ok">✓</span>': st==='ajustar'?'<span class="cal-alt">✎</span>':'';
         const _emoji = (st)=> st==='aprovado'?'<span class="cal-ok">✓</span>': st==='ajustar'?'<span class="cal-alt">✎</span>':'<span style="color:var(--text-3);font-size:9px">●</span>';
-        if(mobile || !d0){
+        if((mobile && !verTudo) || !d0){
           const its=info.items.slice().sort((a,b)=>((a.d?a.d.dia:0)-(b.d?b.d.dia:0)));
           out += legendaHTML + tituloHTML + its.map((x,idx)=>{
             const ap=x.p.status==='aprovado';
@@ -35713,11 +36057,13 @@ async function renderPublicAprovarCalendario(token){
                 }).join('')
               +'</div>';
           }
-          out += '<div class="cal-comLegenda"><div class="cal-area">'
-            + tituloHTML+'<div class="cal-grid-head">'+['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(x=>'<div>'+x+'</div>').join('')+'</div><div class="cal-grid">'+cel+'</div>'
-            + '</div>' + legendaHTML + '</div>';
+          const gradeHTML = '<div class="cal-grid-head">'+['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(x=>'<div>'+x+'</div>').join('')+'</div><div class="cal-grid">'+cel+'</div>';
+          out += verTudo
+            ? '<div class="cal-tudo-mes"><div class="cal-tudo-tit">'+_lbl(k)+'</div>'+tituloHTML+gradeHTML+'</div>'
+            : ('<div class="cal-comLegenda"><div class="cal-area">' + tituloHTML + gradeHTML + '</div>' + legendaHTML + '</div>');
         }
       });
+      if(verTudo) out += '</div>';
       return out || '<div style="text-align:center;color:var(--text-3);padding:60px 20px">Nenhum conteúdo neste calendário ainda.</div>';
     }
 
@@ -35734,6 +36080,7 @@ async function renderPublicAprovarCalendario(token){
         </div>
       </div>
       <div style="max-width:min(1320px, 100%);margin:0 auto;padding:34px 16px 0;color:var(--text)">
+        <div class="cal-hero">
         <div style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--accent-2,#F25FA8);background:var(--accent-soft);padding:6px 13px;border-radius:99px;border:1px solid var(--accent-border)">📅 Calendário editorial · ${esc(cal.cliente_nome||'')}</div>
         <h1 style="font-family:'Sora',sans-serif;font-size:clamp(30px,7.5vw,50px);font-weight:800;line-height:1.02;letter-spacing:-.038em;margin:16px 0 12px;text-wrap:balance">${esc((cal.titulo||'').length > 26 ? 'Seu calendário' : (cal.titulo||'Seu calendário'))}<span style="color:var(--text-3);font-weight:600"> · pra você aprovar</span></h1>
         <p style="color:var(--text-2);font-size:15px;margin:0 0 24px;line-height:1.6;max-width:58ch">Toque em cada post pra ver a arte e o texto. Você pode <b style="color:var(--text)">aprovar</b>, <b style="color:var(--text)">pedir alteração</b> ou <b style="color:var(--text)">editar</b> direto — cada mudança fica registrada com data e hora.</p>
@@ -35767,6 +36114,7 @@ async function renderPublicAprovarCalendario(token){
             <span style="font:700 10.5px 'Sora',sans-serif;letter-spacing:.1em;color:var(--text-3);flex-shrink:0">PDF</span>
           </button>`;
         })()}
+        </div>
         ${_calBuildCorpo(window._calPublico)}
         <div style="text-align:center;color:var(--text-3);font-size:12.5px;padding:28px 0 14px">Suas respostas salvam sozinhas. Pode fechar e voltar depois. 💾</div>
       </div>
@@ -35958,6 +36306,39 @@ async function renderPublicAprovarCalendario(token){
       else { const c=document.getElementById('calDetCm'); if(c) c.focus(); }
     };
   }
+  // Encolhe o conjunto ate caber na altura da janela. Sem isso "ver tudo" seria
+  // so um monte de mes empilhado, que e exatamente o que queriamos evitar.
+  function _calCaberNaTela(){
+    const pag = document.getElementById('aprovarCalPage');
+    if(pag) pag.classList.toggle('modo-tudo', !!window._calVerTudo);
+    const w = document.getElementById('calTudoWrap');
+    if(!w) return;
+    w.style.setProperty('--cal-k', 1);
+    w.style.height = '';
+    if(pag) pag.scrollTop = 0;               // mede com a pagina no topo
+    const topo = w.getBoundingClientRect().top;
+    const sobra = window.innerHeight - topo - 92;        // 92 = barra de baixo + respiro
+    const alt = w.scrollHeight;
+    if(alt <= 0 || sobra < 160) return;                  // tela curta demais: deixa rolar
+    let k = Math.min(1, sobra / alt);
+    const por = function(v){ w.style.setProperty('--cal-k', v); w.style.height = (alt * v) + 'px'; };
+    if(k < 0.999) por(k);
+    // Segunda passada: o rodapé ("suas respostas salvam sozinhas") também ocupa
+    // espaço. Se ainda sobrou rolagem, tira exatamente o que sobrou.
+    if(pag){
+      const resto = pag.scrollHeight - pag.clientHeight;
+      if(resto > 8){
+        const k2 = Math.max(0.35, (alt * k - resto) / alt);
+        if(k2 < k){ k = k2; por(k); }
+      }
+    }
+  }
+  window._calCaberNaTela = _calCaberNaTela;
+  if(!window._calTudoResize){
+    window._calTudoResize = true;
+    let tR = null;
+    window.addEventListener('resize', ()=>{ clearTimeout(tR); tR = setTimeout(()=>{ try{ _calCaberNaTela(); }catch(e){} }, 180); });
+  }
   window._calRepintar=()=>{ try{ pintar(); }catch(e){} };
   // Grade (desktop) x lista (celular) é decidido no render. Sem isso, quem gira o celular
   // ou redimensiona a janela fica preso no layout errado.
@@ -36035,6 +36416,16 @@ async function renderPublicAprovarCalendario(token){
   function ligar(){
     wrap.querySelectorAll('.cal-clic').forEach(b=>{ b.onclick=()=>{ if(_pubDragJust){ _pubDragJust=false; return; } abrirDetalhe(+b.dataset.i); }; });
     ligarDrag();
+    // Ver o calendário inteiro x um mês por vez (a escolha fica guardada)
+    const bTudo = document.getElementById('calVerTudo');
+    if(bTudo) bTudo.onclick = ()=>{
+      window._calVerTudo = !window._calVerTudo;
+      try { localStorage.setItem('impulse_cal_vertudo', window._calVerTudo ? '1' : '0'); } catch(e){}
+      pintar();
+      wrap.scrollTo({top:0,behavior:'smooth'});
+    };
+    // depois de desenhar, encolhe pra caber na tela
+    setTimeout(()=>{ try{ _calCaberNaTela(); }catch(e){} }, 30);
     // Setas ‹ › : troca o mês exibido (um calendário por página; o link é sempre o mesmo)
     const _irMes = (delta)=>{
       const ks=_calChavesMeses(), i=ks.indexOf(window._calMesAtivo);
