@@ -6447,7 +6447,9 @@ const _RAIL = [
     itens:['i3','equipe','feedback','desabafo','melhorias','atalhos','patrimonio','pesquisa','desligamento','pagamentos','financeiro','usuarios','config'] }
 ];
 // Itens que a equipe abre o dia inteiro: ganham um azulejo colorido no menu.
-const _NAV_DESTAQUE = { calendario:'#EC1E79', solicitacoes:'#29ABE2', cronograma:'#A23BD6', operacional:'#34d399' };
+// So o Cronograma tem cor de destaque no menu (pedido do Vini, 19/09). Os
+// outros itens ficam com o icone comum.
+const _NAV_DESTAQUE = { cronograma:'#A23BD6' };
 const navItems = [
   {group:'Principal',items:[
     {id:'dashboard',label:'Dashboard',icon:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'},
