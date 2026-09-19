@@ -2442,6 +2442,60 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .nav-item.active svg{color:var(--accent-2)}
 .nav-item:active{background:var(--surface-3)}
 
+/* --- 6b. Shell no jeito macOS: sidebar flutuante e translúcida, pílulas, movimento curto --- */
+.app{background:var(--bg);gap:0}
+.sidebar{
+  margin:10px 0 10px 10px;border-radius:20px;
+  border:1px solid var(--border);
+  background:color-mix(in srgb,var(--surface) 78%,transparent);
+  -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);
+  box-shadow:0 1px 0 rgba(255,255,255,.04) inset,0 10px 40px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+:root[data-theme="light"] .sidebar{
+  background:color-mix(in srgb,#ffffff 72%,transparent);
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 10px 34px rgba(16,16,20,.10);
+}
+.brand{border-bottom:none;padding:18px 16px 10px}
+.brand-logo{border-radius:11px}
+.nav{padding:6px 10px 12px}
+.nav-label{padding:12px 12px 6px;font-size:10px;letter-spacing:.07em;font-weight:700}
+.nav-item{
+  border-radius:11px;padding:8px 10px;margin-bottom:2px;gap:10px;
+  transition:background var(--dur) var(--ease),color var(--dur) var(--ease),transform .12s var(--ease);
+}
+.nav-item:hover{background:color-mix(in srgb,var(--text) 6%,transparent);color:var(--text)}
+.nav-item:active{transform:scale(.985);background:color-mix(in srgb,var(--text) 9%,transparent)}
+.nav-item.active{background:var(--accent-soft);box-shadow:inset 0 0 0 1px var(--accent-border);font-weight:600}
+.nav-item.active svg{color:var(--accent-2)}
+.nav-item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nav-item svg{width:16px;height:16px}
+/* azulejo do item de destaque: quadrado arredondado colorido com o ícone branco */
+.nav-item.destaque svg{
+  width:26px;height:26px;padding:5px;border-radius:8px;box-sizing:border-box;
+  background:var(--tile);color:#fff!important;stroke:#fff;
+  box-shadow:0 1px 0 rgba(255,255,255,.18) inset,0 2px 6px color-mix(in srgb,var(--tile) 45%,transparent);
+  margin-left:-4px;
+}
+.nav-item.destaque{font-weight:600;color:var(--text)}
+.nav-item.destaque.active{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--tile) 55%,transparent);background:color-mix(in srgb,var(--tile) 13%,transparent)}
+.nav-badge{border-radius:99px;padding:2px 7px}
+.user-card{margin:6px 10px 10px;padding:9px;border-top:none;border-radius:14px;background:color-mix(in srgb,var(--text) 5%,transparent)}
+.avatar{border-radius:11px}
+/* topbar e conteúdo acompanham o raio */
+.topbar{background:transparent;border-bottom:none;height:62px;padding:0 24px 0 20px}
+.content{padding:14px 30px 30px}
+/* no celular a sidebar é gaveta: sem margem, raio só no lado que aparece */
+@media(max-width:900px){
+  .sidebar{margin:0;border-radius:0 22px 22px 0;border-left:none}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border)}
+  .content{padding-top:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  .nav-item,.nav-item:active{transition:none;transform:none}
+  .sidebar{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--surface)}
+}
+
 /* --- 7. Tabelas: números alinhados e cabeçalho que acompanha a rolagem --- */
 .table{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"cv05" 1}
 .table th{position:sticky;top:0;z-index:1;background:var(--surface);backdrop-filter:saturate(180%) blur(6px)}
@@ -2767,7 +2821,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.17 · Calendários dos clientes: visão geral por cliente com o mês e o status, detalhe ao clicar; Controle de Calendários unificado aqui
+      v4.18 · Menu no jeito macOS: sidebar flutuante e translúcida, azulejos em Calendário, Solicitações, Cronograma e Checklist
     </div>
   </aside>
 
@@ -6238,6 +6292,8 @@ if(document.readyState === 'loading'){
 
 
 // ============ DATA ============
+// Itens que a equipe abre o dia inteiro: ganham um azulejo colorido no menu.
+const _NAV_DESTAQUE = { calendario:'#EC1E79', solicitacoes:'#29ABE2', cronograma:'#A23BD6', operacional:'#34d399' };
 const navItems = [
   {group:'Principal',items:[
     {id:'dashboard',label:'Dashboard',icon:'<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>'},
@@ -6857,7 +6913,7 @@ function renderNav(){
       } catch(e){}
       return it.badge || '';
     };
-    return `<div class="nav-group"><div class="nav-label">${g.group}</div>${visibleItems.map(it=>{const bd=_navBadge(it);return `<div class="nav-item ${it.id===currentPage?'active':''}" data-page="${it.id}" onclick="goTo('${it.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${it.icon}</svg><span>${it.label}</span>${bd?`<span class="nav-badge">${bd}</span>`:''}</div>`;}).join('')}</div>`;
+    return `<div class="nav-group"><div class="nav-label">${g.group}</div>${visibleItems.map(it=>{const bd=_navBadge(it);return `<div class="nav-item ${it.id===currentPage?'active':''}${_NAV_DESTAQUE[it.id]?' destaque':''}" data-page="${it.id}" onclick="goTo('${it.id}')"${_NAV_DESTAQUE[it.id]?` style="--tile:${_NAV_DESTAQUE[it.id]}"`:''}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${it.icon}</svg><span>${it.label}</span>${bd?`<span class="nav-badge">${bd}</span>`:''}</div>`;}).join('')}</div>`;
   }).join('');
   // Atualiza user-card com nome real do usuario logado
   updateUserCard();
