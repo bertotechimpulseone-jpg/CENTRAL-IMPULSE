@@ -2595,7 +2595,8 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .flyout{left:calc(100% + 14px);top:-8px}
 /* celular: a gaveta segue como esta (fundo do tema, blocos abertos) */
 @media(max-width:900px){
-  .sidebar{width:288px;margin:0;height:auto;border-radius:0 22px 22px 0;background:var(--surface)!important;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  /* gaveta: volta a ser fixa e acima do overlay (a regra do desktop tinha vazado pra ca) */
+  .sidebar{position:fixed;z-index:9999;width:288px;margin:0;height:auto;border-radius:0 22px 22px 0;background:var(--surface)!important;box-shadow:0 20px 60px rgba(0,0,0,.4)}
   .nav{align-items:stretch}
   .nav-item.rail-solo,.rail-btn{width:auto;height:auto;padding:9px 10px;margin:0;justify-content:flex-start;color:var(--text-2)}
   .nav-item.rail-solo span,.rail-btn small{display:inline}
