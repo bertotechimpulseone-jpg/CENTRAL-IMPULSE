@@ -2667,6 +2667,8 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
 }
 
 
+/* Selo do status do orçamento — o mesmo no pipeline, na ficha e no histórico */
+.orc-selo{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;letter-spacing:.02em;padding:2px 8px;border-radius:99px;color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);margin-bottom:6px;vertical-align:middle}
 /* Aba Calendários dos clientes — visão geral em cartões, como a tela Clientes */
 .cals-visao{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .cals-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:18px 14px 14px;
@@ -2876,7 +2878,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.19 · Menu em trilho: ícones, e ao passar o mouse abre Operacional, Comercial e Interna</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.20 · Relacionamento vira tarefa e tem aba na ficha; status do orçamento integrado ao pipeline; contrato com data e upload</div>
   </aside>
 
   <div class="main">
@@ -2996,7 +2998,7 @@ async function openLinksManager(groupKey, groupLabel, defaultUrl){
       <div style="width:42px;height:42px;border-radius:11px;background:var(--accent);color:var(--surface);display:grid;place-items:center;font-size:18px">🔗</div>
       <div style="flex:1">
         <div style="font-size:17px;font-weight:700;letter-spacing:-.02em">${groupLabel}</div>
-        <div class="text-xs text-3" style="margin-top:3px">${links.length} link(s) salvo(s) · clique em "Abrir" para acessar</div>
+        <div class="text-xs text-3" style="margin-top:3px">${links.length} link(s) salvo(s)${(function(){ const u = links.slice().sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')))[0]; return u && u.created_at ? ' · último envio em <b>' + _calDataHora(u.created_at) + '</b>' : ''; })()}</div>
       </div>
       <button class="modal-close" onclick="closeModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
     </div>
@@ -3021,11 +3023,52 @@ async function openLinksManager(groupKey, groupLabel, defaultUrl){
           <input id="newLinkDesc" class="login-input" placeholder="Descrição (opcional) — ex: Contrato anual, válido até dez/26" style="background:var(--surface)" />
           <button class="btn btn-primary" onclick="addLinkToGroup('${groupKey.replace(/'/g,"\\'")}', '${groupLabel.replace(/'/g,"\\'")}')">+ Adicionar</button>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap">
+          <span class="text-xs text-3">ou suba o arquivo aqui:</span>
+          <input id="newLinkArq" type="file" accept="image/*,.pdf" style="font-size:12px;max-width:260px" />
+          <button class="btn" type="button" id="newLinkUpBt" onclick="subirArquivoDoGrupo('${groupKey.replace(/'/g,"\\'")}', '${groupLabel.replace(/'/g,"\\'")}')">📎 Subir arquivo</button>
+          <span class="text-xs text-3">PDF ou imagem (print de contratação avulsa)</span>
+        </div>
         ${defaultUrl ? `<div class="text-xs text-3 mt-3">💡 Link padrão sugerido: <a href="${defaultUrl}" target="_blank" style="color:var(--text-2);text-decoration:underline">${defaultUrl}</a></div>` : ''}
       </div>
     </div>
   `;
 }
+
+// Sobe um PDF/imagem pro bucket e grava como link do grupo (mesma lista, mesma
+// data de envio). É o caminho pra Heidy anexar um print de contratação avulsa.
+async function subirArquivoDoGrupo(groupKey, groupLabel){
+  const inp = document.getElementById('newLinkArq');
+  const f = inp && inp.files && inp.files[0];
+  if(!f){ toast('Escolha o arquivo primeiro.','info'); return; }
+  if(f.size > 15 * 1024 * 1024){ toast('Arquivo grande demais (máx. 15 MB).','info'); return; }
+  if(!_supa){ toast('Sem conexão com o banco.','info'); return; }
+  const bt = document.getElementById('newLinkUpBt'); if(bt){ bt.disabled = true; bt.textContent = 'Subindo…'; }
+  try {
+    const path = 'contratos/' + groupKey.replace(/[^a-zA-Z0-9_-]/g,'_') + '/' + Date.now() + '_' + f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    const { error: upErr } = await _supa.storage.from('uploads').upload(path, f, { upsert:false, contentType: f.type || 'application/octet-stream' });
+    if(upErr) throw upErr;
+    const { data: pub } = _supa.storage.from('uploads').getPublicUrl(path);
+    const url = pub && pub.publicUrl;
+    if(!url) throw new Error('não consegui o link do arquivo');
+    const labelEl = document.getElementById('newLinkLabel');
+    const label = (labelEl && labelEl.value.trim()) || f.name.replace(/\.[^.]+$/,'');
+    const descEl = document.getElementById('newLinkDesc');
+    const description = (descEl && descEl.value.trim()) || '';
+    const payload = { group_key: groupKey, label: label, url: url, link_key: groupKey + '-' + Date.now() };
+    if(description) payload.description = description;
+    let { data, error } = await _supa.from('custom_links').insert(payload).select().single();
+    if(error && description && /description/i.test(error.message||'')){ delete payload.description; const r2 = await _supa.from('custom_links').insert(payload).select().single(); data = r2.data; error = r2.error; }
+    if(error) throw error;
+    toast('✓ Arquivo enviado e anexado.','success');
+    openLinksManager(groupKey, groupLabel, '');
+  } catch(e){
+    console.error('[upload grupo]', e);
+    toast('Não consegui subir: ' + (e.message || e), 'info');
+    if(bt){ bt.disabled = false; bt.textContent = '📎 Subir arquivo'; }
+  }
+}
+if(typeof window!=='undefined'){ window.subirArquivoDoGrupo = subirArquivoDoGrupo; }
 
 function linkRowHTML(l){
   const safeId = l.id;
@@ -3034,8 +3077,9 @@ function linkRowHTML(l){
   const safeDesc = (l.description||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
   return `
     <div class="card mb-2" id="link-row-${safeId}" style="padding:12px;display:flex;align-items:flex-start;gap:11px">
-      <div style="width:34px;height:34px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-size:14px;flex-shrink:0;margin-top:2px">🔗</div>
+      <div style="width:34px;height:34px;border-radius:8px;background:var(--surface-2);display:grid;place-items:center;font-size:14px;flex-shrink:0;margin-top:2px">${/\.(png|jpe?g|webp|gif)(\?|$)/i.test(l.url||'')?'🖼':/\.pdf(\?|$)/i.test(l.url||'')?'📄':'🔗'}</div>
       <div style="flex:1;min-width:0">
+        ${l.created_at?`<div class="text-xs text-3" style="padding:2px 7px 0">enviado em ${_calDataHora(l.created_at)}</div>`:''}
         <input class="cron-obs-input" value="${safeLabel}" placeholder="Nome do link" onblur="updateLink('${safeId}', 'label', this.value)" style="width:100%;font-weight:600;font-size:13px;padding:5px 7px;background:transparent;border:none;border-bottom:1px dashed transparent;outline:none" onfocus="this.style.borderBottomColor='var(--accent-border)'" />
         <input class="cron-obs-input" value="${safeUrl}" placeholder="URL (https://...)" onblur="updateLink('${safeId}', 'url', this.value)" style="width:100%;font-size:11.5px;color:var(--text-2);padding:5px 7px;background:transparent;margin-top:2px;border:none;border-bottom:1px dashed transparent;outline:none" onfocus="this.style.borderBottomColor='var(--accent-border)'" />
         <input class="cron-obs-input" value="${safeDesc}" placeholder="📝 descrição (opcional) — ex: contrato anual" onblur="updateLink('${safeId}', 'description', this.value)" style="width:100%;font-size:11px;color:var(--text-3);padding:4px 7px;background:transparent;margin-top:2px;border:none;border-bottom:1px dashed transparent;outline:none;font-style:italic" onfocus="this.style.borderBottomColor='var(--accent-border)';this.style.fontStyle='normal'" />
@@ -9594,6 +9638,7 @@ function openClient(id, targetPane){
     <div class="modal-tabs">
       <div class="modal-tab active" onclick="cliTab(this,'visao')">Visão</div>
       <div class="modal-tab" onclick="cliTab(this,'acessos')">🔐 Acessos</div>
+      <div class="modal-tab" onclick="cliTab(this,'relacionamento')">🤝 Relacionamento</div>
       <div class="modal-tab" onclick="cliTab(this,'jornada')">Jornada</div>
       <div class="modal-tab" onclick="cliTab(this,'briefing')">Briefing</div>
       <div class="modal-tab" onclick="cliTab(this,'calendario')">🗓 Calendário</div>
@@ -9608,6 +9653,7 @@ function openClient(id, targetPane){
     <div class="modal-body">
       ${paneVisao(cli)}
       ${paneAcessos(cli)}
+      ${paneRelacionamentoCli(cli)}
       ${paneJornada(cli)}
       ${paneBriefing(cli)}
       ${paneCalendario(cli)}
@@ -9739,7 +9785,7 @@ function _orcClienteHTML(budgets, leads, cli){
     const total = parseFloat(b.total)||0; const st = b.status || 'enviado';
     return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
       <div style="min-width:0"><div style="font-weight:600;font-size:13.5px">${escapeHtml(b.numero||'Orçamento')}</div>
-      <div class="text-xs text-3">${fmt(b.created_at)} · ${(b.services||[]).length} item(ns) · ${escapeHtml(st)}</div></div>
+      <div class="text-xs text-3">${fmt(b.created_at)} · ${(b.services||[]).length} item(ns) · ${_orcSelo(st)}</div></div>
       <div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><strong style="font-size:14px">R$ ${total.toLocaleString('pt-BR')}</strong>
       <button class="btn btn-sm" onclick="closeModal();comTab='orcamento';goTo('comercial',{skipReset:true});carregarOrcSalvo('${b.id}')">Abrir</button></div>
     </div>`;
@@ -12016,8 +12062,10 @@ async function carregarArquivosCliente(){
     var gerenciar = cli._dbId
       ? '<button class="btn btn-sm" onclick="openLinksManager(\'client-' + cli._dbId + '-contrato\', \'📄 Contrato\', \'\')">+ Anexar</button>'
       : '';
-    html += _arqSecao('📄 Contratos <span class="badge" style="background:var(--surface-2);color:var(--text-3);font-size:9px;margin-left:6px">restrito</span>',
-      contratos.map(function(l){ return _arqItem('📄', l.label || 'Contrato', l.description || '', l.url); }),
+    const _ult = contratos.slice().sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); })[0];
+    html += _arqSecao('📄 Contratos <span class="badge" style="background:var(--surface-2);color:var(--text-3);font-size:9px;margin-left:6px">restrito</span>' +
+        (_ult && _ult.created_at ? '<span class="text-xs text-3" style="margin-left:8px;font-weight:400">último envio ' + _calDataHora(_ult.created_at) + '</span>' : ''),
+      contratos.map(function(l){ return _arqItem(/\.(png|jpe?g|webp|gif)(\?|$)/i.test(l.url||'')?'🖼':'📄', l.label || 'Contrato', (l.created_at ? 'enviado em ' + _calDataHora(l.created_at) : '') + (l.description ? ' · ' + l.description : ''), l.url); }),
       'Nenhum contrato anexado ainda. Use "+ Anexar" para adicionar o link do arquivo.',
       gerenciar);
   }
@@ -12070,6 +12118,65 @@ async function carregarArquivosCliente(){
 
   box.innerHTML = html;
 }
+
+// ===== Aba Relacionamento na ficha do cliente =====
+// Tudo num lugar: o que foi feito, quando, quem participou, as tarefas que
+// nasceram de cada contato (e se já foram concluídas) e os próximos contatos.
+function _relacTarefasDoCliente(cli){
+  const raw = (window._tasksRaw || []);
+  return raw.filter(function(k){ return k.client_id === cli._dbId && (k.tag === 'relacionamento' || /relacionamento/i.test(k.tag||'')); });
+}
+function _relacRegistrosDoCliente(cli){
+  if(typeof _relacionamentos === 'undefined' || !Array.isArray(_relacionamentos)) return [];
+  return _relacionamentos.filter(function(r){ return r.client_id === cli._dbId; })
+    .slice().sort(function(a,b){ return String(b.data_contato||b.created_at||'').localeCompare(String(a.data_contato||a.created_at||'')); });
+}
+function _relacPaneHTML(cli){
+  const regs = _relacRegistrosDoCliente(cli);
+  const tarefas = _relacTarefasDoCliente(cli);
+  const hoje = hojeBrasiliaStr();
+  const ROT = {reuniao:'🤝 Reunião', whatsapp:'💬 WhatsApp', ligacao:'📞 Ligação', email:'✉️ E-mail', visita:'📍 Visita', relatorio:'📊 Relatório'};
+  const proximos = regs.filter(function(r){ return r.proxima_acao && r.proxima_data && r.proxima_data >= hoje; })
+    .sort(function(a,b){ return String(a.proxima_data).localeCompare(String(b.proxima_data)); });
+  const atrasados = regs.filter(function(r){ return r.proxima_acao && r.proxima_data && r.proxima_data < hoje && !tarefas.some(function(k){ return k.title === r.proxima_acao && k.done; }); });
+  const nomeResp = function(id){ const t = (team||[]).find(function(x){ return x._dbId === id; }); return t ? t.name.split(' ')[0] : ''; };
+  let html = '<div class="card-header" style="margin-bottom:12px"><div class="card-title">🤝 Relacionamento com ' + escapeHtml(_nomeCli(cli)) + '</div>' +
+    '<button class="btn btn-primary btn-sm" type="button" onclick="openNovoRelacionamentoModal(\'' + (cli._dbId||'') + '\')">+ Registrar contato</button></div>';
+  // proximos contatos
+  html += '<div class="card" style="margin-bottom:12px"><div class="card-title" style="font-size:13px;margin-bottom:8px">📆 Próximos contatos' + (atrasados.length ? ' <span class="badge b-danger">' + atrasados.length + ' atrasado' + (atrasados.length===1?'':'s') + '</span>' : '') + '</div>';
+  const lista = atrasados.concat(proximos);
+  html += lista.length ? lista.map(function(r){
+      const atras = r.proxima_data < hoje;
+      const tk = tarefas.find(function(k){ return k.title === r.proxima_acao; });
+      return '<div class="lnh-item"><div class="lnh-dot">' + (atras ? '⚠' : '📌') + '</div><div class="lnh-body"><div class="lnh-title">' + escapeHtml(r.proxima_acao) + '</div>' +
+        '<div class="lnh-meta">' + (tk ? (tk.done ? '✓ tarefa concluída' : '⏳ tarefa de ' + (nomeResp(tk.assigned_to) || 'alguém')) : 'sem tarefa criada') + '</div></div>' +
+        '<div class="lnh-when" style="color:' + (atras ? 'var(--danger)' : 'var(--text-3)') + '">' + dataBR(r.proxima_data) + '</div></div>';
+    }).join('') : '<div class="text-xs text-3">Nenhum contato programado. Registre um contato com "Próxima ação" e data.</div>';
+  html += '</div>';
+  // historico
+  html += '<div class="card"><div class="card-title" style="font-size:13px;margin-bottom:8px">🕓 Histórico · ' + regs.length + ' ' + (regs.length===1?'contato':'contatos') + '</div>';
+  html += regs.length ? '<div class="lnh">' + regs.map(function(r){
+      const tks = tarefas.filter(function(k){ return k.title === r.proxima_acao; });
+      const part = (r.observacoes_internas||'').match(/👥 Participaram: ([^\n]+)/);
+      return '<div class="lnh-item"><div class="lnh-dot">' + (ROT[r.tipo]||'•').slice(0,2) + '</div><div class="lnh-body">' +
+        '<div class="lnh-title">' + escapeHtml((ROT[r.tipo]||r.tipo||'Contato').replace(/^\S+\s/,'')) + (r.responsavel_nome ? ' · ' + escapeHtml(r.responsavel_nome) : '') + '</div>' +
+        (r.resumo ? '<div class="lnh-meta">' + escapeHtml(r.resumo) + '</div>' : '') +
+        (part ? '<div class="lnh-meta">👥 ' + escapeHtml(part[1]) + '</div>' : '') +
+        (r.proxima_acao ? '<div class="lnh-meta">→ ' + escapeHtml(r.proxima_acao) + (r.proxima_data ? ' · ' + dataBR(r.proxima_data) : '') +
+            (tks.length ? tks.map(function(k){ return ' · <b style="color:' + (k.done?'var(--success)':'var(--warning)') + '">' + (k.done?'✓ feita':'⏳ ' + (nomeResp(k.assigned_to)||'tarefa')) + '</b>'; }).join('') : '') + '</div>' : '') +
+        '</div><div class="lnh-when">' + dataBR(r.data_contato || r.created_at) + '</div></div>';
+    }).join('') + '</div>'
+    : '<div class="text-xs text-3">Nenhum contato registrado ainda.</div>';
+  html += '</div>';
+  return html;
+}
+function paneRelacionamentoCli(cli){
+  return '<div class="modal-pane" data-pane="relacionamento"><div id="relacPaneBox">' + _relacPaneHTML(cli) + '</div></div>';
+}
+function _relacPaneRefresh(cli){
+  const box = document.getElementById('relacPaneBox'); if(box) box.innerHTML = _relacPaneHTML(cli);
+}
+if(typeof window!=='undefined'){ window._relacPaneRefresh = _relacPaneRefresh; }
 
 // ===== Aniversários dos contatos do cliente (até 5) =====
 const _ANIV_MAX = 5;
@@ -17186,7 +17293,7 @@ function renderPipelineCom(){
       stageKey: l.stage||(STAGES[0]&&STAGES[0].key)||'lead',
       funil: l.funil || 'venda',
       resp: rm ? (rm.name||'').split(' ')[0] : 'Equipe',
-      p: l.priority||'med', ap: !!l.aprovado,
+      p: l.priority||'med', ap: !!l.aprovado, raw: l,
       ig: (typeof _igLimpo === 'function') ? _igLimpo(l.instagram||'') : ''
     };
   });
@@ -17196,11 +17303,13 @@ function renderPipelineCom(){
   leads.forEach(l=>{ if(_chaves.indexOf(l.stageKey)===-1) l.stageKey = _chaves[0]; });
 
   const ultKey = _chaves[_chaves.length-1];
-  const emAberto  = leads.filter(l=>l.stageKey!==ultKey);
+  // Proposta recusada sai da conta de "em aberto": o status do orçamento manda.
+  const _recusada = function(l){ const b = _leadOrcamento(l); return !!(b && String(b.status||'').toLowerCase() === 'recusado'); };
+  const emAberto  = leads.filter(l=>l.stageKey!==ultKey && !_recusada(l.raw||l));
   const naUltima  = leads.filter(l=>l.stageKey===ultKey);
   const aprovados = leads.filter(l=>l.ap);
   const propostaEt = STAGES.find(x=>/proposta/i.test(x.label));
-  const propostas = propostaEt ? leads.filter(l=>l.stageKey===propostaEt.key) : [];
+  const propostas = propostaEt ? leads.filter(l=>l.stageKey===propostaEt.key && !_recusada(l.raw||l)) : [];
   const soma = (arr)=> arr.reduce((t,l)=>t+l.v,0);
   // guarda os grupos pra explicar o numero quando clicar
   window._comStats = {
@@ -17241,7 +17350,7 @@ function renderPipelineCom(){
     return `<div class="kanban-col" ondragover="comKanbanOver(event,this)" ondragleave="comKanbanLeave(this)" ondrop="comKanbanDrop(event,'${st.key}',this)">
       <div class="kanban-head"><div class="kanban-title">${escapeHtml(st.label)} <span class="kanban-count">${list.length}</span></div></div>
       ${colSum>0?`<div style="font-size:11.5px;margin:-2px 2px 9px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 9px">R$ <strong>${colSum.toLocaleString('pt-BR')}</strong></div>`:''}
-      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div>${l.ig?`<a href="${_igLink(l.ig)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir o perfil no Instagram" style="display:inline-block;font-size:11.5px;color:var(--accent);text-decoration:none;margin-bottom:4px">@${escapeHtml(l.ig)}</a>`:''}<div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
+      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${(function(){ const b=_leadOrcamento(l); return b ? _orcSelo(b.status, ' title="Orçamento ' + escapeHtml(b.numero||'') + '"') : ''; })()}${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div>${l.ig?`<a href="${_igLink(l.ig)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir o perfil no Instagram" style="display:inline-block;font-size:11.5px;color:var(--accent);text-decoration:none;margin-bottom:4px">@${escapeHtml(l.ig)}</a>`:''}<div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
       <div class="kanban-add" onclick="openNovoLeadModal('${st.key}')">+ Adicionar card</div></div></div>`;
   }).join('')}</div>`;
 }
@@ -19046,6 +19155,38 @@ async function refreshHistorico(){
 }
 
 
+// Orçamento de um card do pipeline: pelo vínculo direto (origem_orcamento_id)
+// ou, na falta dele, pelo cliente/nome. Devolve o mais recente.
+function _leadOrcamento(l){
+  const lista = (typeof orcamentosSalvos !== 'undefined' ? orcamentosSalvos : []);
+  let b = l && l.origem_orcamento_id ? lista.find(function(x){ return x.id === l.origem_orcamento_id; }) : null;
+  if(!b && l){
+    const cli = (clients||[]).find(function(c){ return c._dbId && c._dbId === l.client_id; }) || { name: l.name || '', _dbId: l.client_id || null };
+    const doCli = lista.filter(function(x){ return _orcEhDoCliente(x, cli); })
+      .sort(function(a,c){ return String(c.created_at||'').localeCompare(String(a.created_at||'')); });
+    b = doCli[0] || null;
+  }
+  return b;
+}
+const _ORC_ST = {
+  aprovado:['✓ Aprovada','var(--success)'], recusado:['✕ Recusada','var(--danger)'], andamento:['⏳ Em andamento','var(--warning)'],
+  enviado:['📤 Enviada','var(--info)'], rascunho:['📝 Rascunho','var(--text-3)'], editado:['✏️ Editada','var(--text-2)'], excluido:['🗑 Excluída','var(--text-3)']
+};
+function _orcSelo(status, extra){
+  const st = String(status||'enviado').toLowerCase();
+  const r = _ORC_ST[st] || ['• ' + st, 'var(--text-3)'];
+  return '<span class="orc-selo" style="--c:' + r[1] + '"' + (extra||'') + '>' + r[0] + '</span>';
+}
+// Leads (cards) que pertencem a um orçamento
+function _leadsDoOrcamento(b){
+  const leads = (typeof _leadsCache !== 'undefined' && Array.isArray(_leadsCache)) ? _leadsCache : [];
+  const direto = leads.filter(function(l){ return l.origem_orcamento_id === b.id; });
+  if(direto.length) return direto;
+  const cli = (clients||[]).find(function(c){ return c._dbId && c._dbId === b.client_id; });
+  const nome = _orcNomeCliente(b);
+  return leads.filter(function(l){ return (cli && _leadEhDoCliente(l, cli)) || (nome && _orcMatchNome(l.name, { name: nome })); });
+}
+
 async function marcarOrcStatus(id, status){
   if(!_supa) return;
   try {
@@ -19057,8 +19198,33 @@ async function marcarOrcStatus(id, status){
     // Orçamento aprovado → a comissão da executiva comercial nasce sozinha, já vinculada a ele
     if(status === 'aprovado' && statusAntes !== 'aprovado' && b){ try { await gerarComissaoDoOrcamento(b); } catch(e){ console.warn('[comissao orc]', e); } }
     if(statusAntes === 'aprovado' && status !== 'aprovado' && b){ try { await revisarComissaoDesaprovada(b); } catch(e){ console.warn('[comissao rev]', e); } }
+    // O status é um só: o card do pipeline acompanha
+    if(b){ try { await _orcAtualizarPipeline(b, status); } catch(e){ console.warn('[orc→pipeline]', e); } }
     renderComercial(document.getElementById('content'));
   } catch(e){ toast('Erro: ' + e.message, 'info') }
+}
+// Aprovada: o card vai pra última etapa do funil dele (fechado). Recusada: vai
+// pra etapa "perdido/recusado" se o funil tiver uma; senão fica onde está,
+// marcado como recusado (some dos indicadores de oportunidade em aberto).
+async function _orcAtualizarPipeline(b, status){
+  const leads = _leadsDoOrcamento(b);
+  if(!leads.length) return;
+  for(const l of leads){
+    const etapas = (typeof _funilEtapas === 'function') ? _funilEtapas(l.funil) : [];
+    const payload = { origem_orcamento_id: b.id };
+    if(status === 'aprovado'){
+      const ultima = etapas.length ? etapas[etapas.length-1].key : 'fechado';
+      payload.stage = ultima; payload.aprovado = true;
+    } else if(status === 'recusado'){
+      const perdida = etapas.find(function(e){ return /perdid|recus/i.test(e.key + ' ' + (e.label||'')); });
+      if(perdida) payload.stage = perdida.key;
+      payload.aprovado = false;
+    } else {
+      payload.aprovado = false;
+    }
+    Object.assign(l, payload);
+    if(_supa){ const { error } = await _supa.from('leads').update(payload).eq('id', l.id); if(error) throw error; }
+  }
 }
 
 function desenharGraficoHistorico(filtered){
@@ -29247,10 +29413,15 @@ function openNovoRelacionamentoModal(presetCliId){
           '<div><div class="info-label" style="margin-bottom:5px">Responsável</div><input id="rlResp" class="login-input" value="' + (_currentProfile?.name||'') + '" style="background:var(--surface-2)" /></div>' +
         '</div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Resumo / Anotação *</div><textarea id="rlResumo" class="login-input" rows="3" placeholder="O que foi tratado, decisões, próximos passos..." style="background:var(--surface-2);resize:vertical;min-height:80px"></textarea></div>' +
+        '<div><div class="info-label" style="margin-bottom:5px">Quem participou</div><input id="rlParticipantes" class="login-input" placeholder="Ex: Vini, Heidy e o Pablo (cliente)" style="background:var(--surface-2)" /></div>' +
         '<div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">' +
           '<div><div class="info-label" style="margin-bottom:5px">Próxima ação</div><input id="rlProxAcao" class="login-input" placeholder="Ex: Enviar criativos" style="background:var(--surface-2)" /></div>' +
           '<div><div class="info-label" style="margin-bottom:5px">Quando</div><input id="rlProxData" class="login-input" type="date" style="background:var(--surface-2)" /></div>' +
         '</div>' +
+        '<div><div class="info-label" style="margin-bottom:5px">Responsável pela próxima ação <span class="text-3" style="font-weight:400">(vira tarefa no checklist dele)</span></div>' +
+          '<select id="rlProxResp" class="login-input" style="background:var(--surface-2)"><option value="">— ninguém (só anotar) —</option>' +
+          sortAlfa((team||[]).filter(function(x){ return x._dbId && !x.oculto; }), 'name').map(function(x){ return '<option value="' + x._dbId + '"' + (_currentProfile && _currentProfile.id === x._dbId ? ' selected' : '') + '>' + escapeHtml(x.name) + '</option>'; }).join('') +
+          '</select></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Observações internas (não vai pro cliente)</div><textarea id="rlObs" class="login-input" rows="2" style="background:var(--surface-2);resize:vertical;min-height:50px"></textarea></div>' +
       '</div>' +
       '<div style="padding:16px 24px 22px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)">' +
@@ -29277,20 +29448,46 @@ async function salvarRelacionamento(){
   if(!resumo){ toast('Escreva um resumo','info'); return; }
   const proxima_acao = document.getElementById('rlProxAcao').value.trim() || null;
   const proxima_data = document.getElementById('rlProxData').value || null;
-  const observacoes_internas = document.getElementById('rlObs').value.trim() || null;
+  const participantes = ((document.getElementById('rlParticipantes')||{}).value || '').trim();
+  const proxResp = ((document.getElementById('rlProxResp')||{}).value || '').trim();
+  let observacoes_internas = document.getElementById('rlObs').value.trim() || null;
+  // Quem participou fica junto das observações (a tabela não tem coluna própria)
+  if(participantes) observacoes_internas = '👥 Participaram: ' + participantes + (observacoes_internas ? '\n' + observacoes_internas : '');
 
   const payload = {client_id, tipo, data_contato, responsavel_nome, resumo, proxima_acao, proxima_data, observacoes_internas};
   if(_currentProfile && _currentProfile.id) payload.profile_id = _currentProfile.id;
 
+  let registro = null;
   if(_supa){
     const { data, error } = await _supa.from('client_relationships').insert(payload).select().single();
     if(error){ toast('Erro: '+error.message,'info'); return; }
-    _relacionamentos.unshift(data);
+    _relacionamentos.unshift(data); registro = data;
   } else {
-    _relacionamentos.unshift(Object.assign({}, payload, {id:'tmp-'+Date.now()}));
+    registro = Object.assign({}, payload, {id:'tmp-'+Date.now()});
+    _relacionamentos.unshift(registro);
+  }
+  // Próxima ação com responsável e data vira tarefa da pessoa, no checklist dela,
+  // vinculada ao cliente. É o que liga Relacionamento a Tarefas.
+  if(proxima_acao && proxima_data && proxResp && _supa){
+    try {
+      const cliObj = (clients||[]).find(function(c){ return c._dbId === client_id; });
+      const { error: te } = await _supa.from('tasks').insert({
+        title: proxima_acao, description: 'Combinado no contato de ' + dataBR(data_contato) + (resumo ? ' · ' + resumo.slice(0,180) : ''),
+        client_id: client_id, assigned_to: proxResp, priority: 'med', status: 'todo', tag: 'relacionamento',
+        due_date: proxima_data, is_daily: false, done: false
+      });
+      if(te) throw te;
+      const quem = (team||[]).find(function(x){ return x._dbId === proxResp; });
+      toast('✓ Contato registrado. Tarefa criada pra ' + (quem ? quem.name.split(' ')[0] : 'responsável') + ' em ' + dataBR(proxima_data) + '.','success');
+      try { await loadDataFromSupabase(); } catch(e){}
+    } catch(e){ console.warn('[relac→tarefa]', e); toast('Contato salvo, mas não consegui criar a tarefa: ' + (e.message||''), 'info'); }
+  } else {
+    toast('✓ Contato registrado','success');
   }
   document.getElementById('relacModal').remove();
-  toast('✓ Contato registrado','success');
+  if(typeof window._cliAberto !== 'undefined' && window._cliAberto && document.querySelector('[data-pane="relacionamento"]')){
+    try { _relacPaneRefresh(window._cliAberto); } catch(e){}
+  }
   if(currentPage === 'relacionamento') renderRelacionamento(document.getElementById('content'));
 }
 
