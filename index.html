@@ -2738,7 +2738,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.14 · Calendário abre inteiro numa tela, slides separados da descrição e histórico por conteúdo e por mês
+      v4.15 · Calendário: mês a mês volta ao tamanho natural; só o modo inteiro encolhe pra caber
     </div>
   </aside>
 
@@ -35880,17 +35880,13 @@ async function renderPublicAprovarCalendario(token){
       /* Selo de alteração: lápis em círculo laranja */
       .cal-alt{position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;background:#FF6D00;color:#fff;font-size:11px;font-weight:900;line-height:19px;text-align:center;box-shadow:0 2px 8px rgba(255,109,0,.65);z-index:2}
       .cal-row .cal-alt,.cal-st2 .cal-alt{position:static;display:inline-grid;place-items:center;width:24px;height:24px;font-size:13px;line-height:1}
-      @media(prefers-color-scheme:dark){
-        .cal-chip.cal-ajuste .cal-tit{color:#fff3e6}
-        .cal-chip.cal-ajuste .cal-fmt{color:#ffc078!important}
-      }
+      :root[data-theme="dark"] .cal-chip.cal-ajuste .cal-tit{color:#fff3e6}
+      :root[data-theme="dark"] .cal-chip.cal-ajuste .cal-fmt{color:#ffc078!important}
       /* Selo de aprovado: check branco em círculo verde */
       .cal-ok{position:absolute;top:3px;right:3px;width:19px;height:19px;border-radius:50%;background:#00c853;color:#fff;font-size:12px;font-weight:900;line-height:19px;text-align:center;box-shadow:0 2px 8px rgba(0,200,83,.65);z-index:2}
       .cal-row .cal-ok,.cal-st2 .cal-ok{position:static;display:inline-grid;place-items:center;width:24px;height:24px;font-size:14px;line-height:1}
-      @media(prefers-color-scheme:dark){
-        .cal-chip.cal-aprov .cal-tit{color:#eafff4}
-        .cal-chip.cal-aprov .cal-fmt{color:#5cffa6!important}
-      }
+      :root[data-theme="dark"] .cal-chip.cal-aprov .cal-tit{color:#eafff4}
+      :root[data-theme="dark"] .cal-chip.cal-aprov .cal-fmt{color:#5cffa6!important}
       /* Legenda de cores: mesma leitura em todo calendário */
       /* Grade + legenda lado a lado */
       .cal-comLegenda{display:flex;gap:14px;align-items:flex-start}
@@ -35935,7 +35931,7 @@ async function renderPublicAprovarCalendario(token){
       #aprovarCalPage.modo-tudo .cal-legenda .item{font-size:11px}
       #aprovarCalPage.modo-tudo .cal-modo{margin:10px 0 6px}
       /* Encolhe o calendário até caber na tela — vale pro mês único e pro ano todo */
-      .cal-fit{--cal-k:1;transform:scale(var(--cal-k));transform-origin:top left;width:calc(100% / var(--cal-k))}
+      .cal-fit{--cal-k:1;transform:scale(var(--cal-k));transform-origin:top center}
       .cal-tudo-wrap{display:grid;gap:16px;align-items:start;margin-top:14px}
       .cal-tudo-mes{min-width:0}
       @media(max-width:820px){ .cal-tudo-wrap{grid-template-columns:1fr!important;gap:12px} }
@@ -36472,6 +36468,15 @@ async function renderPublicAprovarCalendario(token){
     if(pag) pag.classList.toggle('modo-tudo', !!window._calVerTudo);
     const w = document.getElementById('calFit');
     if(!w || !pag) return;
+    // Encolher pra caber e SO do modo inteiro em tela grande. No mes a mes o
+    // calendario tem que ficar no tamanho natural, e no celular a lista rola:
+    // encolher ali so deixava tudo ilegivel.
+    if(!window._calVerTudo || window.innerWidth < 820){
+      pag.classList.remove('sem-hero');
+      w.style.setProperty('--cal-k', 1);
+      w.style.height = '';
+      return;
+    }
 
     const medir = function(){
       w.style.setProperty('--cal-k', 1);
