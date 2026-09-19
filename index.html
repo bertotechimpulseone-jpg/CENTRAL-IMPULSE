@@ -2503,8 +2503,10 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   .sidebar{-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--surface)}
 }
 
+/* Botões do celular (menu, voltar) não aparecem em tela grande */
+@media(min-width:901px){ .mobile-back-btn,.mobile-menu-btn{display:none!important} }
 /* --- 6c. Trilho: só ícones; o bloco abre ao passar o mouse --- */
-.sidebar{width:76px;overflow:visible}
+.sidebar{width:76px;overflow:visible;position:relative;z-index:950}
 .sidebar .brand{padding:14px 0 6px;justify-content:center;flex-direction:column;gap:4px}
 .sidebar .brand-txt{display:none}
 .sidebar .brand-logo{width:38px;height:38px;border-radius:12px;font-size:12px}
@@ -2523,14 +2525,14 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .rail-group.ativo .rail-btn svg{color:var(--accent-2)}
 /* o painel que abre ao lado */
 .flyout{position:absolute;left:calc(100% + 10px);top:-6px;width:248px;padding:10px;border-radius:18px;
-  background:color-mix(in srgb,var(--surface) 88%,transparent);
+  background:color-mix(in srgb,var(--surface) 97%,transparent);
   -webkit-backdrop-filter:blur(28px) saturate(150%);backdrop-filter:blur(28px) saturate(150%);
-  border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,.45);z-index:60;
+  border:1px solid var(--border);box-shadow:0 18px 50px rgba(0,0,0,.45);z-index:951;
   opacity:0;transform:translateX(-6px);pointer-events:none;
   transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .flyout::before{content:'';position:absolute;left:-12px;top:0;bottom:0;width:12px}   /* ponte pro mouse não cair no vão */
 .rail-group:hover .flyout,.rail-group.open .flyout,.rail-group:focus-within .flyout{opacity:1;transform:none;pointer-events:auto}
-:root[data-theme="light"] .flyout{background:color-mix(in srgb,#fff 90%,transparent);box-shadow:0 18px 44px rgba(16,16,20,.14)}
+:root[data-theme="light"] .flyout{background:color-mix(in srgb,#fff 97%,transparent);box-shadow:0 18px 44px rgba(16,16,20,.14)}
 .fly-title{font:800 11px 'Sora',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:6px 10px 8px}
 .flyout .nav-item{padding:8px 10px}
 /* perfil mínimo: só o avatar, com nome no title; tema e sair empilhados */
@@ -2559,6 +2561,50 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 }
 @media (prefers-reduced-motion:reduce){ .flyout{transition:none} }
 
+/* --- 6d. Trilho preto (referência: pílula escura, ícone ativo num quadrado claro) --- */
+.sidebar{
+  width:64px;margin:14px 0 14px 14px;align-self:flex-start;height:calc(100vh - 28px);
+  border-radius:32px;border:none;
+  background:#0E0E11!important;
+  -webkit-backdrop-filter:none;backdrop-filter:none;
+  box-shadow:0 18px 44px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.06) inset;
+}
+:root[data-theme="light"] .sidebar{box-shadow:0 18px 44px rgba(16,16,20,.22)}
+/* no escuro a pilula precisa de uma borda pra nao sumir no fundo */
+:root[data-theme="dark"] .sidebar{box-shadow:0 0 0 1px rgba(255,255,255,.09),0 18px 44px rgba(0,0,0,.5)}
+@media(max-width:900px){ :root[data-theme="dark"] .sidebar{box-shadow:0 20px 60px rgba(0,0,0,.4)} }
+.sidebar .brand{padding:16px 0 10px}
+.sidebar .brand-logo{width:34px;height:34px;border-radius:11px}
+.nav{padding:6px 10px 10px;gap:8px;align-items:center}
+.rail-top{margin-bottom:2px;width:100%}
+/* icones brancos, sem rotulo */
+.nav-item.rail-solo,.rail-btn{flex-direction:row;justify-content:center;width:44px;height:44px;padding:0;margin:0 auto;border-radius:14px;color:rgba(255,255,255,.72)}
+.nav-item.rail-solo span,.rail-btn small{display:none}
+.nav-item.rail-solo svg,.rail-btn svg{width:20px;height:20px;color:inherit}
+.nav-item.rail-solo:hover,.rail-group:hover .rail-btn,.rail-group.open .rail-btn,.rail-group:focus-within .rail-btn{background:rgba(255,255,255,.10);color:#fff}
+/* ativo: quadrado claro com icone escuro, como na referencia */
+.nav-item.rail-solo.active,.rail-group.ativo .rail-btn{background:#fff;color:#0E0E11;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+.nav-item.rail-solo.active svg,.rail-group.ativo .rail-btn svg{color:#0E0E11}
+.nav-item.rail-solo.active{box-shadow:0 6px 16px rgba(0,0,0,.35)}
+/* rodape: avatar e tema, tambem em branco */
+.sidebar .user-card{margin:auto 8px 8px;gap:8px}
+.sidebar .user-card .icon-btn{color:rgba(255,255,255,.72);border-color:transparent;background:transparent}
+.sidebar .user-card .icon-btn:hover{color:#fff;background:rgba(255,255,255,.10)}
+.sidebar .ver-tag{display:none}
+/* o painel que abre continua no tema da pagina, mas encosta na pilula */
+.flyout{left:calc(100% + 14px);top:-8px}
+/* celular: a gaveta segue como esta (fundo do tema, blocos abertos) */
+@media(max-width:900px){
+  .sidebar{width:288px;margin:0;height:auto;border-radius:0 22px 22px 0;background:var(--surface)!important;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .nav{align-items:stretch}
+  .nav-item.rail-solo,.rail-btn{width:auto;height:auto;padding:9px 10px;margin:0;justify-content:flex-start;color:var(--text-2)}
+  .nav-item.rail-solo span,.rail-btn small{display:inline}
+  .nav-item.rail-solo.active{background:var(--accent-soft);color:var(--text);box-shadow:none}
+  .nav-item.rail-solo.active svg{color:var(--accent-2)}
+  .rail-group.ativo .rail-btn{background:none;box-shadow:none;color:var(--text-3)}
+  .sidebar .user-card .icon-btn{color:var(--text-2)}
+  .sidebar .ver-tag{display:block}
+}
 /* --- 7. Tabelas: números alinhados e cabeçalho que acompanha a rolagem --- */
 .table{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"cv05" 1}
 .table th{position:sticky;top:0;z-index:1;background:var(--surface);backdrop-filter:saturate(180%) blur(6px)}
@@ -2878,7 +2924,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.20 · Relacionamento vira tarefa e tem aba na ficha; status do orçamento integrado ao pipeline; contrato com data e upload</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.21 · Trilho preto (referência), painel por cima do conteúdo, Financeiro sem dado inventado, seta do celular escondida no desktop</div>
   </aside>
 
   <div class="main">
@@ -6393,11 +6439,11 @@ if(document.readyState === 'loading'){
 // Os três blocos do trilho. O que não estiver listado cai em "Interna".
 const _RAIL = [
   { id:'op',  nome:'Operacional', ico:'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>',
-    itens:['clientes','relacionamento','calendarios','calendario','solicitacoes','captacao','cronograma','operacional','relatorios','fluxo','trafego','materiais','duvidas'] },
+    itens:['clientes','calendarios','calendario','solicitacoes','captacao','cronograma','operacional','relatorios','fluxo','trafego','materiais','duvidas'] },
   { id:'com', nome:'Comercial',   ico:'<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
-    itens:['comercial','parcerias','i3'] },
+    itens:['comercial','relacionamento','parcerias'] },
   { id:'int', nome:'Interna',     ico:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
-    itens:['equipe','feedback','desabafo','melhorias','atalhos','patrimonio','pesquisa','desligamento','pagamentos','financeiro','usuarios','config'] }
+    itens:['i3','equipe','feedback','desabafo','melhorias','atalhos','patrimonio','pesquisa','desligamento','pagamentos','financeiro','usuarios','config'] }
 ];
 // Itens que a equipe abre o dia inteiro: ganham um azulejo colorido no menu.
 const _NAV_DESTAQUE = { calendario:'#EC1E79', solicitacoes:'#29ABE2', cronograma:'#A23BD6', operacional:'#34d399' };
@@ -6978,6 +7024,15 @@ window.aplicarOrdenacao = aplicarOrdenacao;
 
 // ============ NAV ============
 let currentPage = 'dashboard';
+// O bloco do trilho acende quando a pagina atual esta dentro dele, e o painel
+// aberto por toque fecha ao navegar.
+function _railSincronizar(){
+  document.querySelectorAll('.rail-group').forEach(function(g){
+    g.classList.toggle('ativo', !!g.querySelector('.nav-item.active'));
+    g.classList.remove('open');
+  });
+}
+if(typeof window !== 'undefined'){ window._railSincronizar = _railSincronizar; }
 function renderNav(){
   const nav = document.getElementById('nav');
   if(!nav){ console.warn('[NAV] elemento #nav nao encontrado'); return; }
@@ -7334,6 +7389,7 @@ function goTo(page, opts){
   // URL reflete a aba atual (link compartilhável: .../#trafego abre no Tráfego Pago)
   try { history.replaceState(null, '', '#' + page); } catch(e){}
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===page));
+  _railSincronizar();
   renderPage(page);
   // Atualiza visibilidade do botao voltar mobile
   try { atualizarBotaoVoltarMobile(); } catch(e){}
@@ -7417,6 +7473,7 @@ function renderPage(page){
       currentPage = fallback;
       // Atualiza marcação visual do menu
       document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === fallback));
+      _railSincronizar();
       page = fallback;
     } else {
       // Nada liberado pra essa pessoa: mostra a tela de acesso em vez de cair
@@ -11698,30 +11755,7 @@ function exportarRespostasPDF(briefingId, cliId){
   } catch(e){ console.error(e); toast('Erro ao gerar PDF: '+e.message,'info'); }
 }
 
-function paneConteudo(cli){
-  return `
-    <div class="modal-pane" data-pane="conteudo">
-      <div class="text-mu text-sm mb-4">Calendário editorial — Maio/2026</div>
-      ${['Instagram','Reels','Stories','TikTok'].map(p=>`
-        <div class="card mb-3">
-          <div class="card-header"><div class="card-title">${p}</div><span class="badge b-default">${Math.floor(Math.random()*8+3)} posts</span></div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            ${Array.from({length:5}).map((_,i)=>{
-              const st=['Aprovado','Aprovado','Em produção','Aguardando','Publicado'][i];
-              const co=['b-success','b-success','b-warning','b-info','b-purple'][i];
-              return `<div style="padding:8px 12px;background:var(--surface-2);border-radius:8px;border:1px solid var(--border);min-width:130px">
-                <div class="text-xs text-3">${17+i} mai · 19h</div>
-                <div class="text-sm font-semi">Post #${i+1}</div>
-                <span class="badge ${co}" style="margin-top:5px">${st}</span>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
-
+// (paneConteudo saiu: painel que ninguém chamava, com contagens inventadas.)
 function paneFinanceiro(cli){
   const planName = cli.planName || '';
   const planValue = parseFloat(cli.planValue) || parseFloat(cli.mrr) || 0;
@@ -13096,9 +13130,15 @@ function renderChecklistView(){
         <div class="card mb-3">
           <div class="card-header"><div class="card-title">📅 Esta semana</div></div>
           ${['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'].map((d,i)=>{
-            const t = Math.floor(Math.random()*8)+2;
-            const done = Math.floor(Math.random()*t);
-            const pct = Math.round(done/t*100);
+            // tarefas reais com prazo em cada dia desta semana (seg..dom)
+            const _h = (typeof hojeBrasiliaStr==='function') ? hojeBrasiliaStr() : new Date().toISOString().slice(0,10);
+            const _hd = new Date(_h+'T00:00:00'); const _dow = (_hd.getDay()+6)%7;     // 0=seg
+            const _dia = new Date(_hd); _dia.setDate(_hd.getDate() - _dow + i);
+            const _iso = _dia.getFullYear()+'-'+String(_dia.getMonth()+1).padStart(2,'0')+'-'+String(_dia.getDate()).padStart(2,'0');
+            const _doDia = (window._tasksRaw||[]).filter(k=>k.due_date===_iso);
+            const t = _doDia.length;
+            const done = _doDia.filter(k=>k.done).length;
+            const pct = t ? Math.round(done/t*100) : 0;
             return `<div style="display:flex;align-items:center;gap:10px;padding:6px 0">
               <span class="text-xs text-mu" style="width:30px">${d}</span>
               <div class="meter" style="flex:1"><div class="meter-fill" style="width:${pct}%"></div></div>
@@ -13183,7 +13223,7 @@ function renderKanbanView(){
                   <div class="kanban-card-title">${t.t}</div>
                   <div class="text-xs text-3" style="margin-bottom:7px">📌 ${t.client}</div>
                   <div class="kanban-card-foot">
-                    <div style="display:flex;gap:8px"><span>💬 ${Math.floor(Math.random()*4)+1}</span><span>📎 ${Math.floor(Math.random()*2)}</span></div>
+                    <div style="display:flex;gap:8px"></div>
                     ${_placarAvatar(m,28)}
                   </div>
                 </div>
@@ -15864,8 +15904,11 @@ function renderFinanceiro(c){
     c.innerHTML = `<div class="page active"><div class="empty-state" style="padding:80px 20px"><div class="ico">🔒</div><div class="ttl">Acesso restrito</div><div class="desc">A aba Financeiro é visível apenas para gestores e administradores.</div></div></div>`;
     return;
   }
-  const totalMrr=clients.reduce((s,c)=>s+c.mrr,0);
-  c.innerHTML=`<div class="page active"><div class="page-header"><div><div class="page-title">Financeiro</div><div class="page-subtitle">Visão consolidada · maio/2026</div></div><div class="page-actions">${searchBar('Buscar transação...','.card table')}<button class="btn" onclick="openNovaTransacaoModal('out')">💸 Nova despesa</button><button class="btn btn-primary" onclick="openNovaTransacaoModal('in')">+ Nova cobrança</button></div></div>
+  const _ativos = clients.filter(c=>c.status!=='cancelado' && !c.oculto);
+  const totalMrr=_ativos.reduce((s,c)=>s+(parseFloat(c.mrr)||0),0);
+  const _mesRef = (function(){ const h=(typeof hojeBrasiliaStr==='function')?hojeBrasiliaStr():new Date().toISOString().slice(0,10);
+    const M=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']; return M[+h.slice(5,7)-1]+'/'+h.slice(0,4); })();
+  c.innerHTML=`<div class="page active"><div class="page-header"><div><div class="page-title">Financeiro</div><div class="page-subtitle">Visão consolidada · ${_mesRef}</div></div><div class="page-actions">${searchBar('Buscar transação...','.card table')}<button class="btn" onclick="openNovaTransacaoModal('out')">💸 Nova despesa</button><button class="btn btn-primary" onclick="openNovaTransacaoModal('in')">+ Nova cobrança</button></div></div>
   <div class="filter-bar" style="margin-bottom:16px">
     <span class="filter-chip ${(window._finAba||'geral')==='geral'?'active':''}" onclick="_finIrAba('geral')">📊 Visão geral</span>
     <span class="filter-chip ${(window._finAba||'geral')==='cartoes'?'active':''}" onclick="_finIrAba('cartoes')">💳 Cartões de crédito</span>
@@ -15880,9 +15923,14 @@ function renderFinanceiro(c){
     <tr><td class="text-mu">(–) Ferramentas/SaaS</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
     <tr><td class="text-mu">(–) Tráfego pago</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
     <tr><td class="text-mu">(–) Outras despesas</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
-    <tr style="background:var(--surface-2)"><td><strong>Lucro líquido</strong></td><td style="text-align:right;color:var(--success-text)"><strong>R$ ${Math.round((totalMrr-24560)*0.85).toLocaleString('pt-BR')}</strong></td></tr>
+    <tr style="background:var(--surface-2)"><td><strong>Lucro líquido</strong></td><td style="text-align:right;color:var(--success-text)"><strong>R$ ${Math.round(totalMrr*.94).toLocaleString('pt-BR')}</strong></td></tr>
   </tbody></table></div>
-  <div class="card"><div class="card-header"><div class="card-title">Próximos vencimentos</div></div>${clients.slice(0,7).map(cli=>`<div class="list-item"><div class="list-icon" style="background:${cli.color}1a;color:${cli.color}">${cli.init}</div><div class="list-content"><div class="list-title">${cli.name}</div><div class="list-meta">Vence em ${20+Math.floor(Math.random()*10)} mai</div></div><div class="list-right"><strong>R$ ${cli.mrr.toLocaleString('pt-BR')}</strong><div>${cli.status==='late'?'<span class="badge b-danger">Atrasado</span>':'<span class="badge b-warning">Pendente</span>'}</div></div></div>`).join('')}</div></div>
+  <div class="card"><div class="card-header"><div class="card-title">Próximos vencimentos</div><span class="text-xs text-3">pelo dia de pagamento do cadastro</span></div>${(function(){
+      const hojeD = +(((typeof hojeBrasiliaStr==='function')?hojeBrasiliaStr():new Date().toISOString().slice(0,10)).slice(8,10));
+      const lista = _ativos.filter(c=>c.dia_pagamento).map(c=>({c, dia:+c.dia_pagamento})).sort((a,b)=>((a.dia-hojeD+31)%31)-((b.dia-hojeD+31)%31)).slice(0,8);
+      if(!lista.length) return '<div class="text-xs text-3" style="padding:14px 2px">Nenhum cliente com dia de pagamento cadastrado. Ele entra pelo formulário de cadastro do cliente (Comercial) ou na ficha.</div>';
+      return lista.map(({c:cli,dia})=>`<div class="list-item"><div class="list-icon" style="background:${cli.color}1a;color:${cli.color}">${cli.init}</div><div class="list-content"><div class="list-title">${escapeHtml(_nomeCli(cli))}</div><div class="list-meta">Vence dia ${String(dia).padStart(2,'0')}${dia===hojeD?' · hoje':dia<hojeD?' · mês que vem':''}</div></div><div class="list-right"><strong>R$ ${(parseFloat(cli.mrr)||0).toLocaleString('pt-BR')}</strong><div>${cli.status==='late'?'<span class="badge b-danger">Atrasado</span>':''}</div></div></div>`).join('');
+    })()}</div></div>
   </div>
   </div>`;
   if((window._finAba||'geral')==='cartoes') renderCartoesPane();
