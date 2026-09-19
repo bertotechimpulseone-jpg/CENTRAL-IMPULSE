@@ -2550,10 +2550,35 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
 }
 
 
-/* Aba Calendários dos clientes */
-.cals-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(440px,1fr));gap:14px;align-items:start}
-.cals-cli{padding:16px}
-@media(max-width:640px){ .cals-grid{grid-template-columns:1fr} }
+/* Aba Calendários dos clientes — visão geral em cartões, como a tela Clientes */
+.cals-visao{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.cals-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:18px 14px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;cursor:pointer;color:var(--text);font-family:inherit;
+  transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
+.cals-card:hover{transform:translateY(-2px);border-color:var(--border-strong);box-shadow:var(--shadow)}
+.cals-card:active{transform:translateY(0)}
+.cals-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cals-logo{border-radius:12px;object-fit:cover;background:#fff;flex-shrink:0}
+.cals-nome{font-weight:700;font-size:14px;line-height:1.25;letter-spacing:-.01em;text-wrap:balance}
+.cals-mes{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border-radius:12px;background:var(--surface-2);text-align:left}
+.cals-anel{flex-shrink:0}
+.cals-mes-t{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.cals-mes-s{font-size:12.5px;font-weight:700;margin-top:1px;line-height:1.3}
+.cals-mes-n{font-size:11px;color:var(--text-3);margin-top:1px}
+.cals-faixa{display:flex;gap:6px;width:100%}
+.cals-fx{flex:1;font-size:10.5px;font-weight:700;padding:5px 0;border-radius:8px;border:1px solid var(--border);color:var(--text-3);background:transparent}
+.cals-fx:not(.vazio){color:var(--c);border-color:color-mix(in srgb,var(--c) 45%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.cals-res{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);padding:8px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--border)}
+.cals-res i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.cals-card.dispensado{opacity:.6}
+.cals-acoes{display:flex;gap:6px;width:100%}
+.cals-acoes span{flex:1;font-size:11px;font-weight:700;padding:6px 0;border-radius:8px;border:1px solid var(--border);color:var(--text-2);transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.cals-acoes span:hover{background:var(--surface-2);color:var(--text)}
+.cals-nav{display:flex;align-items:center;gap:10px}
+.cals-nav-l{font-family:'Sora',sans-serif;font-weight:800;font-size:17px;letter-spacing:-.02em;min-width:170px;text-align:center;line-height:1.1}
+.cals-nav-l small{display:block;font:600 10.5px 'Inter',sans-serif;color:var(--text-3);letter-spacing:.02em;margin-top:2px}
+.cals-nav-l small a{color:var(--accent);text-decoration:none}
+@media(max-width:640px){ .cals-visao{grid-template-columns:repeat(2,minmax(0,1fr))} .cals-nome{font-size:13px} .cals-nav{width:100%;justify-content:center;margin-top:8px} }
 /* Linha do tempo do cliente (aba Histórico) — prefixo lnh pra não bater com .tl-item da .timeline */
 .lnh{position:relative;padding-left:2px}
 .lnh-item{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px solid var(--border)}
@@ -2742,7 +2767,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
       </button>
     </div>
     <div style="padding:6px 12px;font-size:10px;color:var(--text-3);text-align:center;border-top:1px solid var(--border);font-family:monospace">
-      v4.16 · Calendário do cliente: mês inteiro na tela, botão Houve alteração; aba Calendários dos clientes; contagem de ativos corrigida
+      v4.17 · Calendários dos clientes: visão geral por cliente com o mês e o status, detalhe ao clicar; Controle de Calendários unificado aqui
     </div>
   </aside>
 
@@ -5841,6 +5866,7 @@ function _melhoriasTemAcesso(){
 window._melhoriasTemAcesso = _melhoriasTemAcesso;
 
 function canAccess(pageId){
+  if(pageId === 'controlecal') pageId = 'calendarios';   // aba antiga, unificada em Calendários dos clientes
   if(PAGINAS_DESATIVADAS.indexOf(pageId) !== -1) return false;
   if(typeof temAcessoTotal==='function' && temAcessoTotal()) return true;   // dono: todas as abas, sem exceção
   // Desabafo (feedback anônimo) e Dúvidas são universais: todos os autenticados acessam
@@ -5855,8 +5881,6 @@ function canAccess(pageId){
   // Pesquisa NR-1: gestores, admins e liderança
   if(pageId === 'pesquisa') return (typeof _pesquisaTemAcesso==='function') ? _pesquisaTemAcesso() : false;
   if(pageId === 'desligamento') return (typeof _desligamentoTemAcesso==='function') ? _desligamentoTemAcesso() : false;
-  // Controle de Calendários: exclusivo do Vinícius
-  if(pageId === 'controlecal') return (typeof isVini === 'function') && isVini();
   // Sem cadastro carregado, NADA é liberado. Antes isso devolvia true e abria o
   // sistema inteiro enquanto o perfil não carregava (ou se falhasse ao carregar).
   if(!_currentProfile) return false;
@@ -6229,7 +6253,6 @@ const navItems = [
     {id:'fluxo',label:'Fluxo & Responsáveis',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 11h-6M19 8l3 3-3 3"/>'},
     {id:'operacional',label:'Checklist',icon:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'},
     {id:'calendario',label:'Calendário',icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'},
-    {id:'controlecal',label:'Controle de Calendários',icon:'<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',viniOnly:true},
   ]},
   {group:'Estratégia',items:[
     {id:'trafego',label:'Tráfego Pago',icon:'<path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/><circle cx="20" cy="6" r="2" fill="currentColor"/>'},
@@ -7247,7 +7270,6 @@ function renderPage(page){
     desligamento:renderDesligamento,
     solicitacoes:renderSolicitacoes,
     pagamentos:renderPagamentos,
-    controlecal:renderControleCalendarios,
     calendarios:renderCalendariosClientes,
     patrimonio:renderPatrimonio,
     melhorias:renderMelhorias,
@@ -14339,9 +14361,6 @@ function startRealtimeSync(){
         console.log('[RT] calendarios mudou');
         if(currentPage === 'calendarios'){
           try{ renderCalendariosClientes(document.getElementById('content')); }catch(e){}
-        }
-        if(currentPage === 'controlecal'){
-          try{ renderControleCalendarios(document.getElementById('content')); }catch(e){}
         }
       })
       .on('postgres_changes', {event: '*', schema: 'public', table: 'tasks'}, ()=>{
@@ -34529,6 +34548,39 @@ async function carregarCalendariosCliente(cli){
    não ganha acesso ao resto do cadastro. Os cartões e os botões (ver, editar,
    link, respostas) são exatamente os mesmos de lá. */
 let _calsTodosBusca = '';
+let _calsClienteAberto = null;     // chave do cliente aberto no detalhe (null = visão geral)
+let _calsMesVisto = null;          // {ano, mes} que a visão geral está mostrando (null = mês atual)
+let _calsMarcas = {};              // 'clienteId|AAAA-M' -> 'pronto' | 'dispensado' (vem de app_settings)
+async function _calsCarregarMarcas(){
+  try {
+    const { data } = await _supa.from('app_settings').select('value').eq('key','controlecal_status').maybeSingle();
+    _calsMarcas = (data && data.value) ? JSON.parse(data.value) : {};
+  } catch(e){ _calsMarcas = _calsMarcas || {}; }
+}
+// Marca (ou limpa) um cliente como pronto/dispensado no mês da tela. Grava no
+// mesmo lugar que o controle antigo, então nada que já foi marcado se perde.
+async function _calsMarcar(ev, k, estado){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  const m = _calsMesRef();
+  const chave = k + '|' + m.ano + '-' + m.mes;
+  if(estado) _calsMarcas[chave] = estado; else delete _calsMarcas[chave];
+  _calsPintarPagina(document.getElementById('content'), _calendarios);
+  try { await _supa.from('app_settings').upsert({ key:'controlecal_status', value: JSON.stringify(_calsMarcas), updated_at:new Date().toISOString() }, { onConflict:'key' }); }
+  catch(e){ console.error('[cals marca]', e); try{ toast('Salvei aqui, sincronizo já já.','info'); }catch(_e){} }
+}
+function _calsMesRef(){
+  if(_calsMesVisto) return _calsMesVisto;
+  const hoje = (typeof hojeBrasiliaStr === 'function') ? hojeBrasiliaStr() : new Date().toISOString().slice(0,10);
+  return { ano:+hoje.slice(0,4), mes:+hoje.slice(5,7) };
+}
+function _calsMesNav(delta){
+  const m = Object.assign({}, _calsMesRef());
+  m.mes += delta;
+  if(m.mes < 1){ m.mes = 12; m.ano--; }
+  if(m.mes > 12){ m.mes = 1; m.ano++; }
+  _calsMesVisto = m;
+  _calsPintarPagina(document.getElementById('content'), _calendarios);
+}
 async function renderCalendariosClientes(c){
   c.innerHTML = '<div class="page-header"><div><div class="page-title">🗂 Calendários dos clientes</div>' +
     '<div class="page-subtitle">Carregando…</div></div></div>';
@@ -34544,212 +34596,169 @@ async function renderCalendariosClientes(c){
     return;
   }
   _calendarios = cals;   // os botões dos cartões (editar, respostas, ajuste) leem daqui
+  await _calsCarregarMarcas();
   _calsPintarPagina(c, cals);
 }
-function _calsPintarPagina(c, cals){
-  const busca = (_calsTodosBusca || '').trim().toLowerCase();
-  // agrupa por cliente; cliente do cadastro dá logo/nome social, e quem sumiu do
-  // cadastro ainda aparece pelo nome guardado no calendário
+
+// Agrupa calendários por cliente. Cliente ativo sem calendário também entra.
+function _calsGrupos(cals){
   const grupos = {};
   cals.forEach(function(cal){
     const cli = clients.find(function(x){ return x._dbId === cal.cliente_id; });
     const nome = cli ? _nomeCli(cli) : (cal.cliente_nome || 'Cliente');
     const k = cal.cliente_id || nome;
-    (grupos[k] = grupos[k] || { cli:cli, nome:nome, cals:[] }).cals.push(cal);
+    (grupos[k] = grupos[k] || { k:k, cli:cli, nome:nome, cals:[] }).cals.push(cal);
   });
-  // clientes ativos sem calendário nenhum também aparecem, pra dar pra montar daqui
   clients.forEach(function(cli){
     if(cli.oculto || cli.status === 'cancelado' || !cli._dbId) return;
-    if(!grupos[cli._dbId]) grupos[cli._dbId] = { cli:cli, nome:_nomeCli(cli), cals:[] };
+    if(!grupos[cli._dbId]) grupos[cli._dbId] = { k:cli._dbId, cli:cli, nome:_nomeCli(cli), cals:[] };
   });
-  let lista = Object.values(grupos).sort(function(a,b){ return a.nome.localeCompare(b.nome, 'pt-BR', {sensitivity:'base'}); });
-  if(busca) lista = lista.filter(function(g){ return g.nome.toLowerCase().includes(busca); });
-  const comCal = lista.filter(function(g){ return g.cals.length; }).length;
+  return Object.values(grupos).sort(function(a,b){ return a.nome.localeCompare(b.nome, 'pt-BR', {sensitivity:'base'}); });
+}
+
+// Situação de UM mês pra um cliente: junta os posts daquele mês em todos os
+// calendários dele e resume. A data do post é "DD/MM", então o mês é o que vale.
+function _calsMes(grupo, mes1, ano){
+  ano = ano || _calsMesRef().ano;
+  let total=0, ok=0, aj=0, novid=0;
+  grupo.cals.forEach(function(cal){
+    (cal.posts||[]).forEach(function(p){
+      if(!p || p.formato === '__material') return;
+      const m = String(p.data||'').match(/^\s*(\d{1,2})\/(\d{1,2})/);
+      if(!m || +m[2] !== mes1) return;
+      total++;
+      if(p.status === 'aprovado') ok++;
+      else if(p.status === 'ajustar') aj++;
+    });
+    novid += (window._calEventosNaoLidos||[]).filter(function(e){ return e.calendario_id === cal.id; }).length;
+  });
+  const pct = total ? Math.round(ok/total*100) : 0;
+  const marca = grupo.k ? _calsMarcas[grupo.k + '|' + ano + '-' + mes1] : null;
+  let estado, rot, cor;
+  if(!total && marca === 'pronto'){ estado='pronto'; rot='Marcado como pronto'; cor='var(--success)'; }
+  else if(!total && marca === 'dispensado'){ estado='dispensado'; rot='Dispensado neste mês'; cor='var(--text-3)'; }
+  else if(!total){ estado='vazio'; rot='Falta montar'; cor='#f43f5e'; }
+  else if(aj){ estado='ajuste'; rot=aj + (aj===1?' ajuste pedido':' ajustes pedidos'); cor='#FF9100'; }
+  else if(ok === total){ estado='aprovado'; rot='Aprovado'; cor='var(--success)'; }
+  else if(ok){ estado='parcial'; rot=pct + '% aprovado'; cor='var(--info)'; }
+  else { estado='enviado'; rot='Pronto · aguardando o cliente'; cor='var(--text-2)'; }
+  return { total, ok, aj, pct, estado, rot, cor, novid, marca };
+}
+
+function _calsAnel(pct, cor, estado){
+  // anel de aprovação do mês: 40px, traço 4
+  const r = 16, C = 2*Math.PI*r, off = C - C*Math.min(100,Math.max(0,pct))/100;
+  const meio = estado==='vazio' ? '<text x="20" y="24" text-anchor="middle" font-size="13" fill="var(--text-3)">–</text>'
+             : estado==='aprovado' ? '<text x="20" y="25" text-anchor="middle" font-size="14" font-weight="800" fill="' + cor + '">✓</text>'
+             : '<text x="20" y="24" text-anchor="middle" font-size="10.5" font-weight="800" fill="var(--text)">' + pct + '</text>';
+  return '<svg class="cals-anel" viewBox="0 0 40 40" width="40" height="40" aria-hidden="true">' +
+    '<circle cx="20" cy="20" r="' + r + '" fill="none" stroke="var(--surface-3)" stroke-width="4"/>' +
+    (estado!=='vazio' ? '<circle cx="20" cy="20" r="' + r + '" fill="none" stroke="' + cor + '" stroke-width="4" stroke-linecap="round" transform="rotate(-90 20 20)" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + off.toFixed(2) + '"/>' : '') +
+    meio + '</svg>';
+}
+
+function _calsPintarPagina(c, cals){
+  const _ref = _calsMesRef();
+  const mesAtual = _ref.mes, anoAtual = _ref.ano;
+  const MES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const MESX = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const lista = _calsGrupos(cals);
+
+  // ===== nível 2: detalhe de um cliente =====
+  if(_calsClienteAberto){
+    const g = lista.find(function(x){ return x.k === _calsClienteAberto; });
+    if(!g){ _calsClienteAberto = null; }
+    else {
+      const cli = g.cli;
+      const montar = cli ? '<button class="btn btn-primary" type="button" onclick="abrirCalendarioDoCliente(' + cli.id + ')">🗓 ' + (g.cals.length ? 'Montar / abrir calendário' : 'Montar calendário') + '</button>' : '';
+      c.innerHTML = '<div class="page-header"><div style="display:flex;align-items:center;gap:12px">' +
+          '<button class="btn" type="button" onclick="_calsClienteAberto=null;_calsPintarPagina(document.getElementById(\'content\'), _calendarios)" title="Voltar pra visão geral">← Todos</button>' +
+          _calsLogo(cli, g.nome, 44) +
+          '<div><div class="page-title">' + escapeHtml(g.nome) + '</div>' +
+          '<div class="page-subtitle">' + (g.cals.length ? g.cals.length + (g.cals.length===1?' calendário':' calendários') : 'sem calendário ainda') + '</div></div>' +
+        '</div>' + montar + '</div>' +
+        (g.cals.length ? _calListaHTML(g.cals, cli)
+          : '<div class="empty-state" style="padding:36px"><div class="ico">🗓</div><div class="ttl">Nenhum calendário ainda</div><div class="desc">Monte o primeiro e mande o link pro cliente aprovar.</div></div>');
+      return;
+    }
+  }
+
+  // ===== nível 1: visão geral =====
+  const busca = (_calsTodosBusca || '').trim().toLowerCase();
+  const vis = busca ? lista.filter(function(g){ return g.nome.toLowerCase().includes(busca); }) : lista;
+  const resumo = { aprovado:0, parcial:0, enviado:0, ajuste:0, vazio:0, pronto:0, dispensado:0 };
+  vis.forEach(function(g){ resumo[_calsMes(g, mesAtual, anoAtual).estado]++; });
   const novid = (window._calEventosNaoLidos || []).length;
+  const _hojeM = (typeof hojeBrasiliaStr === 'function') ? hojeBrasiliaStr() : new Date().toISOString().slice(0,10);
+  const ehMesAtual = (+_hojeM.slice(0,4) === anoAtual && +_hojeM.slice(5,7) === mesAtual);
 
   const cabecalho = '<div class="page-header"><div>' +
       '<div class="page-title">🗂 Calendários dos clientes</div>' +
-      '<div class="page-subtitle">' + comCal + ' ' + (comCal===1?'cliente com calendário':'clientes com calendário') +
+      '<div class="page-subtitle">' + vis.length + ' clientes' +
+        (resumo.vazio ? ' · <b style="color:#f43f5e">' + resumo.vazio + ' ' + (resumo.vazio===1?'falta montar':'faltam montar') + '</b>' : '') +
         (novid ? ' · <b style="color:var(--danger)">🔔 ' + novid + ' ' + (novid===1?'novidade':'novidades') + '</b>' : '') + '</div>' +
+    '</div>' +
+    '<div class="cals-nav">' +
+      '<button class="btn" type="button" onclick="_calsMesNav(-1)" title="Mês anterior" style="padding:8px 13px;font-size:17px;line-height:1">‹</button>' +
+      '<div class="cals-nav-l">' + MESX[mesAtual] + ' ' + anoAtual + (ehMesAtual ? '<small>mês atual</small>' : '<small><a href="#" onclick="_calsMesVisto=null;_calsPintarPagina(document.getElementById(\'content\'), _calendarios);return false">voltar pro mês atual</a></small>') + '</div>' +
+      '<button class="btn" type="button" onclick="_calsMesNav(1)" title="Próximo mês" style="padding:8px 13px;font-size:17px;line-height:1">›</button>' +
     '</div></div>' +
-    '<div class="filter-bar" style="margin-bottom:14px">' +
+    '<div class="filter-bar" style="margin-bottom:14px;gap:8px;flex-wrap:wrap">' +
       '<input class="login-input" id="calsBusca" placeholder="🔍 Buscar cliente…" value="' + escapeHtml(_calsTodosBusca||'') + '" ' +
         'oninput="_calsTodosBusca=this.value;_calsPintarPagina(document.getElementById(\'content\'), _calendarios);" ' +
-        'style="max-width:320px;background:var(--surface)" />' +
+        'style="max-width:300px;background:var(--surface)" />' +
+      '<span class="cals-res"><i style="background:var(--success)"></i>' + resumo.aprovado + ' aprovado' + (resumo.aprovado===1?'':'s') + '</span>' +
+      '<span class="cals-res"><i style="background:var(--info)"></i>' + resumo.parcial + ' em aprovação</span>' +
+      '<span class="cals-res"><i style="background:var(--text-2)"></i>' + resumo.enviado + ' aguardando</span>' +
+      '<span class="cals-res"><i style="background:#FF9100"></i>' + resumo.ajuste + ' com ajuste</span>' +
+      '<span class="cals-res"><i style="background:#f43f5e"></i>' + resumo.vazio + ' falta montar</span>' +
+      (resumo.pronto ? '<span class="cals-res"><i style="background:var(--success)"></i>' + resumo.pronto + ' marcado pronto</span>' : '') +
+      (resumo.dispensado ? '<span class="cals-res"><i style="background:var(--text-3)"></i>' + resumo.dispensado + ' dispensado' + (resumo.dispensado===1?'':'s') + '</span>' : '') +
     '</div>';
 
-  if(!lista.length){
+  if(!vis.length){
     c.innerHTML = cabecalho + '<div class="empty-state" style="padding:40px"><div class="ico">🗓</div><div class="ttl">Nenhum cliente encontrado</div></div>';
     return;
   }
-  c.innerHTML = cabecalho + '<div class="cals-grid">' + lista.map(function(g){
-    const cli = g.cli;
-    const logo = cli && cli.logo_url
-      ? '<img src="' + escapeHtml(cli.logo_url) + '" alt="" style="width:40px;height:40px;border-radius:11px;object-fit:cover;background:#fff">'
-      : '<div style="width:40px;height:40px;border-radius:11px;background:' + escapeHtml((cli && cli.color) || '#1d1d1f') + ';color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px">' + escapeHtml((cli && cli.init) || g.nome.slice(0,2).toUpperCase()) + '</div>';
-    const montar = cli ? '<button class="btn btn-primary btn-sm" type="button" onclick="abrirCalendarioDoCliente(' + cli.id + ')">🗓 ' + (g.cals.length ? 'Abrir' : 'Montar') + '</button>' : '';
-    return '<div class="card cals-cli">' +
-      '<div style="display:flex;align-items:center;gap:11px;margin-bottom:12px">' + logo +
-        '<div style="flex:1;min-width:0"><div style="font-weight:800;font-size:15px;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + escapeHtml(g.nome) + '</div>' +
-        '<div class="text-xs text-3">' + (g.cals.length ? g.cals.length + (g.cals.length===1?' calendário':' calendários') : 'sem calendário ainda') + '</div></div>' +
-        montar +
+  c.innerHTML = cabecalho + '<div class="cals-visao">' + vis.map(function(g){
+    const atual = _calsMes(g, mesAtual, anoAtual);
+    // faixa dos próximos meses: já tem conteúdo montado?
+    const faixa = [0,1,2].map(function(d){
+      const m = ((mesAtual - 1 + d) % 12) + 1;
+      const a = anoAtual + (mesAtual - 1 + d >= 12 ? 1 : 0);
+      const st = _calsMes(g, m, a);
+      return '<span class="cals-fx ' + st.estado + '" title="' + MESX[m] + ': ' + st.rot + '" style="--c:' + st.cor + '">' + MES[m] + '</span>';
+    }).join('');
+    return '<button type="button" class="cals-card ' + atual.estado + '" onclick="_calsClienteAberto=\'' + String(g.k).replace(/'/g,'') + '\';_calsPintarPagina(document.getElementById(\'content\'), _calendarios)">' +
+      _calsLogo(g.cli, g.nome, 44) +
+      '<div class="cals-nome">' + escapeHtml(g.nome) + (atual.novid ? ' <span class="badge b-danger">🔔 ' + atual.novid + '</span>' : '') + '</div>' +
+      '<div class="cals-mes">' +
+        _calsAnel(atual.pct, atual.cor, atual.estado) +
+        '<div style="min-width:0"><div class="cals-mes-t">' + MESX[mesAtual] + '</div>' +
+        '<div class="cals-mes-s" style="color:' + atual.cor + '">' + escapeHtml(atual.rot) + '</div>' +
+        (atual.total ? '<div class="cals-mes-n">' + atual.ok + ' de ' + atual.total + ' aprovados</div>' : '') + '</div>' +
       '</div>' +
-      (g.cals.length ? _calListaHTML(g.cals, cli) : '<div class="text-xs text-3" style="padding:6px 2px 2px">Monte o primeiro e mande o link pro cliente aprovar.</div>') +
-    '</div>';
+      '<div class="cals-faixa">' + faixa + '</div>' +
+      (atual.estado === 'vazio' ? '<div class="cals-acoes">' +
+          '<span onclick="_calsMarcar(event,\'' + String(g.k).replace(/'/g,'') + '\',\'pronto\')" title="Marcar como pronto sem lançar conteúdo aqui">✓ Pronto</span>' +
+          '<span onclick="_calsMarcar(event,\'' + String(g.k).replace(/'/g,'') + '\',\'dispensado\')" title="Tirar da cobrança deste mês">🚫 Dispensar</span>' +
+        '</div>'
+       : (atual.estado === 'pronto' || atual.estado === 'dispensado') ? '<div class="cals-acoes">' +
+          '<span onclick="_calsMarcar(event,\'' + String(g.k).replace(/'/g,'') + '\',\'\')" title="Desfazer a marcação">↺ Desfazer</span></div>'
+       : '') +
+    '</button>';
   }).join('') + '</div>';
+}
+function _calsLogo(cli, nome, tam){
+  const px = tam + 'px';
+  if(cli && cli.logo_url) return '<img class="cals-logo" src="' + escapeHtml(cli.logo_url) + '" alt="" style="width:' + px + ';height:' + px + '">';
+  const ini = (cli && cli.init) || String(nome||'').split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+  return '<div class="cals-logo" style="width:' + px + ';height:' + px + ';background:' + escapeHtml((cli && cli.color) || '#1d1d1f') + ';color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px">' + escapeHtml(ini) + '</div>';
 }
 // Recarrega a aba quando o cliente mexe (mesmo canal em tempo real do resto)
 if(typeof window !== 'undefined'){ window.renderCalendariosClientes = renderCalendariosClientes; }
 
-// ============ Controle de Calendários (só Vinícius) — com filtro de mês ============
-async function renderControleCalendarios(c){
-  if(!(typeof isVini==='function' && isVini())){
-    c.innerHTML = '<div class="empty-state" style="padding:50px"><div class="ico">🔒</div><div class="ttl">Acesso restrito</div><div class="desc">Essa área é só do Vinícius.</div></div>';
-    return;
-  }
-  // O controle so vale de outubro/2026 pra frente (antes disso a operacao era outra).
-  if(!window._ctrlCalMes){
-    const h = new Date();
-    const atual = h.getFullYear()*100 + (h.getMonth()+1);
-    const piso = _CTRL_CAL_INICIO.ano*100 + _CTRL_CAL_INICIO.mes;
-    window._ctrlCalMes = atual < piso ? { ano:_CTRL_CAL_INICIO.ano, mes:_CTRL_CAL_INICIO.mes } : { ano:h.getFullYear(), mes:h.getMonth()+1 };
-  }
-  c.innerHTML = `<div style="max-width:1000px;margin:0 auto">
-    <div style="display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;margin:4px 0 16px">
-      <div style="flex:1;min-width:220px">
-        <h1 style="font-family:'Sora',sans-serif;font-size:clamp(26px,4vw,36px);font-weight:800;letter-spacing:-.03em;margin:0 0 5px;line-height:1.05">Controle de Calendários</h1>
-        <div class="text-3" style="font-size:14px;line-height:1.5">Quem ainda está <b>sem calendário</b> no mês — os que você precisa montar. Use as setas pra passar os meses.</div>
-      </div>
-      <button class="btn" type="button" onclick="renderControleCalendarios(document.getElementById('content'))">🔄 Atualizar</button>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 18px">
-      <button class="btn" type="button" onclick="_ctrlCalMesNav(-1)" title="Mês anterior" style="padding:9px 15px;font-size:18px;line-height:1">‹</button>
-      <div id="ctrlCalMesLabel" style="font-family:'Sora',sans-serif;font-weight:800;font-size:18px;min-width:190px;text-align:center;letter-spacing:-.02em"></div>
-      <button class="btn" type="button" onclick="_ctrlCalMesNav(1)" title="Próximo mês" style="padding:9px 15px;font-size:18px;line-height:1">›</button>
-    </div>
-    <div id="ctrlCalBox"><div class="text-xs text-3" style="padding:40px;text-align:center">⏳ Carregando…</div></div>
-  </div>`;
-  let cals = [];
-  try { const { data } = await _supa.from('calendarios').select('id,cliente_id,titulo,posts,status,token,created_at,updated_at').order('created_at',{ascending:true}); cals = data||[]; }
-  catch(e){ console.error('[controlecal]', e); }
-  window._ctrlCalCache = cals;
-  _calendarios = cals;   // permite abrirCalendarioDoCliente filtrar por cliente sem recarregar
-  // marcações manuais (pronto/dispensado por cliente+mês) — guardadas em app_settings (sincroniza entre PCs)
-  try { const { data:mk } = await _supa.from('app_settings').select('value').eq('key','controlecal_status').maybeSingle(); window._ctrlCalMarcas = (mk && mk.value) ? JSON.parse(mk.value) : {}; }
-  catch(e){ window._ctrlCalMarcas = window._ctrlCalMarcas || {}; }
-  _ctrlCalPintar();
-}
-// Marca um cliente como pronto/dispensado (ou limpa) NO MÊS selecionado; salva e sincroniza.
-async function _ctrlCalMarcar(cliId, estado){
-  const s = window._ctrlCalMes; if(!s) return;
-  const cl = clients.find(x=>x.id===cliId); if(!cl || !cl._dbId) return;
-  const k = cl._dbId + '|' + s.ano + '-' + s.mes;
-  window._ctrlCalMarcas = window._ctrlCalMarcas || {};
-  if(estado) window._ctrlCalMarcas[k] = estado; else delete window._ctrlCalMarcas[k];
-  _ctrlCalPintar();
-  try { await _supa.from('app_settings').upsert({ key:'controlecal_status', value: JSON.stringify(window._ctrlCalMarcas), updated_at:new Date().toISOString() }, { onConflict:'key' }); }
-  catch(e){ console.error('[ctrlcal marca]', e); try{ toast('Salvei aqui, sincronizo já já.','info'); }catch(_e){} }
-}
-// Mes minimo do controle. Antes disso nao ha o que cobrar.
-const _CTRL_CAL_INICIO = { ano: 2026, mes: 10 };
-function _ctrlCalAntesDoInicio(ano, mes){
-  return (ano*100 + mes) < (_CTRL_CAL_INICIO.ano*100 + _CTRL_CAL_INICIO.mes);
-}
-function _ctrlCalMesNav(delta){
-  const s = window._ctrlCalMes; if(!s) return;
-  let ano = s.ano, mes = s.mes + delta;
-  if(mes < 1){ mes = 12; ano--; }
-  if(mes > 12){ mes = 1; ano++; }
-  if(_ctrlCalAntesDoInicio(ano, mes)){
-    try{ toast('O controle começa em ' + (_CAL_MESES[_CTRL_CAL_INICIO.mes-1]||'') + ' de ' + _CTRL_CAL_INICIO.ano,'info'); }catch(e){}
-    return;
-  }
-  s.ano = ano; s.mes = mes;
-  _ctrlCalPintar();
-}
-function _ctrlCalPintar(){
-  const s = window._ctrlCalMes || {}; const cals = window._ctrlCalCache || [];
-  const lbl = document.getElementById('ctrlCalMesLabel'); if(lbl) lbl.textContent = (_CAL_MESES[s.mes-1]||'') + ' ' + s.ano;
-  // desliga a seta de voltar quando ja esta no primeiro mes do controle
-  try{
-    const btnAnt = document.querySelector('button[onclick="_ctrlCalMesNav(-1)"]');
-    if(btnAnt){
-      const antMes = s.mes - 1 < 1 ? 12 : s.mes - 1;
-      const antAno = s.mes - 1 < 1 ? s.ano - 1 : s.ano;
-      const noPiso = _ctrlCalAntesDoInicio(antAno, antMes);
-      btnAnt.disabled = noPiso;
-      btnAnt.style.opacity = noPiso ? '.35' : '';
-      btnAnt.style.cursor = noPiso ? 'not-allowed' : '';
-      btnAnt.title = noPiso ? 'O controle começa em ' + (_CAL_MESES[_CTRL_CAL_INICIO.mes-1]||'') + ' de ' + _CTRL_CAL_INICIO.ano : 'Mês anterior';
-    }
-  }catch(e){}
-  const marcas = window._ctrlCalMarcas || {};
-  const porCli = {}; cals.forEach(cal=>{ (porCli[cal.cliente_id]=porCli[cal.cliente_id]||[]).push(cal); });
-  const ativos = clients.filter(cl=> cl._dbId && !cl.oculto);
-  const pend = [], prontos = [], disp = [];
-  ativos.forEach(cl=>{
-    const list = porCli[cl._dbId] || [];
-    // posts DESTE mês/ano (em qualquer calendário do cliente)
-    const postsMes = [];
-    list.forEach(cal=> (cal.posts||[]).forEach(p=>{ const d = _calMesDia(p.data); if(d && d.mes===s.mes && d.ano===s.ano) postsMes.push(p); }));
-    const marca = marcas[cl._dbId + '|' + s.ano + '-' + s.mes];
-    const info = { cl, base:list[0]||null, temQualquer:list.length>0, n:postsMes.length,
-                   ok:postsMes.filter(p=>p.status==='aprovado').length,
-                   // alteracao que o cliente pediu e o time ainda nao marcou como feita
-                   aj:postsMes.filter(p=>p.status==='ajustar' && !p.ajuste_feito).length,
-                   marca };
-    if(postsMes.length>0 || marca==='pronto') prontos.push(info);
-    else if(marca==='dispensado') disp.push(info);
-    else pend.push(info);
-  });
-  const byName = (a,b)=> _nomeCli(a.cl).localeCompare(_nomeCli(b.cl),'pt-BR',{sensitivity:'base'});
-  pend.sort(byName); prontos.sort(byName); disp.sort(byName);
-  const box = document.getElementById('ctrlCalBox'); if(!box) return;
-  const mesNome = _CAL_MESES[s.mes-1] || 'mês';
-  const cardPend = pend.map(o=>`<div class="card" style="display:flex;align-items:center;gap:10px;padding:13px 15px;margin-bottom:8px;flex-wrap:wrap">
-      <div style="width:9px;height:9px;border-radius:50%;background:#f43f5e;box-shadow:0 0 10px #f43f5e;flex-shrink:0"></div>
-      <div style="flex:1;min-width:130px">
-        <div style="font-weight:700;font-size:14.5px">${escapeHtml(_nomeCli(o.cl))}</div>
-        <div class="text-xs text-3" style="margin-top:2px">Sem conteúdo em ${mesNome}${o.temQualquer?' — tem calendário, mas nada neste mês':''}</div>
-      </div>
-      <button class="btn btn-primary" type="button" onclick="abrirCalendarioDoCliente(${o.cl.id})">🗓 Montar</button>
-      <button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'pronto')" title="Marcar como pronto manualmente">✓ Pronto</button>
-      <button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'dispensado')" title="Tirar da lista deste mês (em espera)" style="color:var(--text-3)">🚫 Dispensar</button>
-    </div>`).join('') || `<div class="empty-state" style="padding:26px"><div class="ico">🎉</div><div class="ttl">Todo mundo com calendário em ${mesNome}!</div><div class="desc">Nada pendente neste mês.</div></div>`;
-  const cardPront = prontos.map(o=>{
-    const manual = (o.n===0 && o.marca==='pronto');
-    const temAj = o.aj > 0;   // cliente pediu alteração e ninguém resolveu ainda
-    return `<div class="card" style="display:flex;align-items:center;gap:10px;padding:12px 15px;margin-bottom:7px;flex-wrap:wrap;${temAj?'border-color:#FF9100;background:rgba(255,145,0,.09);box-shadow:0 0 0 1px #FF9100,0 0 16px rgba(255,145,0,.26)':''}">
-      <div style="width:9px;height:9px;border-radius:50%;background:${temAj?'#FF9100':'#34d399'};box-shadow:0 0 10px ${temAj?'#FF9100':'#34d399'};flex-shrink:0"></div>
-      <div style="flex:1;min-width:130px">
-        <div style="font-weight:700;font-size:14px">${escapeHtml(_nomeCli(o.cl))}</div>
-        <div class="text-xs" style="margin-top:2px;color:${temAj?'#FF9100':'var(--text-3)'};font-weight:${temAj?'700':'400'}">${manual?'✓ Marcado como pronto (manual) — sem conteúdo lançado':temAj?`✎ ${o.aj} ${o.aj===1?'alteração pedida':'alterações pedidas'} · ${o.n} ${o.n===1?'conteúdo':'conteúdos'} · ${o.ok}/${o.n} aprovados`:`✓ Montado no sistema · ${o.n} ${o.n===1?'conteúdo':'conteúdos'} em ${mesNome} · ${o.ok}/${o.n} aprovados`}</div>
-      </div>
-      ${manual?`<button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'')" title="Desfazer">↺ Desfazer</button>`:''}
-      <button class="btn" type="button" onclick="abrirCalendarioDoCliente(${o.cl.id})">✏️ Abrir</button>
-      ${o.base?`<button class="btn" type="button" onclick="abrirCalendarioVisual('${o.base.token}')">📅 Ver</button>`:''}
-    </div>`;
-  }).join('');
-  const cardDisp = disp.map(o=>`<div class="card" style="display:flex;align-items:center;gap:10px;padding:11px 15px;margin-bottom:6px;opacity:.72;flex-wrap:wrap">
-      <div style="width:9px;height:9px;border-radius:50%;background:var(--text-3);flex-shrink:0"></div>
-      <div style="flex:1;min-width:130px"><div style="font-weight:700;font-size:13.5px">${escapeHtml(_nomeCli(o.cl))}</div><div class="text-xs text-3" style="margin-top:2px">Dispensado neste mês (em espera)</div></div>
-      <button class="btn" type="button" onclick="_ctrlCalMarcar(${o.cl.id},'')" title="Voltar pra lista">↺ Voltar</button>
-    </div>`).join('');
-  box.innerHTML = `
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-      <span class="badge b-danger">🗓 ${pend.length} pra montar</span>
-      <span class="badge b-success">✓ ${prontos.length} prontos</span>
-      <span class="badge b-info" title="Soma dos conteúdos lançados no mês, somando todos os clientes">📊 ${prontos.reduce((s2,o)=>s2+o.n,0)} conteúdos no mês</span>
-      ${disp.length?`<span class="badge b-default">🚫 ${disp.length} dispensados</span>`:''}
-      <span class="badge b-default">${ativos.length} clientes ativos</span>
-    </div>
-    <div class="card-title" style="font-size:14px;margin:6px 0 9px">📌 Faltando montar em ${mesNome} (${pend.length})</div>
-    ${cardPend}
-    ${prontos.length?`<div class="card-title" style="font-size:14px;margin:22px 0 9px">✓ Prontos em ${mesNome} (${prontos.length})</div>${cardPront}`:''}
-    ${disp.length?`<div class="card-title" style="font-size:14px;margin:22px 0 9px;color:var(--text-3)">🚫 Dispensados em ${mesNome} (${disp.length})</div>${cardDisp}`:''}
-  `;
-}
-if(typeof window!=='undefined'){ window.renderControleCalendarios = renderControleCalendarios; window._ctrlCalMesNav = _ctrlCalMesNav; window._ctrlCalPintar = _ctrlCalPintar; window._ctrlCalMarcar = _ctrlCalMarcar; }
+// (O Controle de Calendários foi unificado na aba Calendários dos clientes.)
 
 function _calListaHTML(cals, cli){
   if(!cals.length){
