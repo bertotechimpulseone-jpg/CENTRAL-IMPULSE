@@ -916,7 +916,29 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   #content,#content p,#content span,#content div,#content td,#content th,#content li,#content a{overflow-wrap:break-word}
 
   /* alvo de toque confortavel */
-  #content .icon-btn{min-width:32px;min-height:32px}
+  /* O kanban vira um carrossel de colunas: a blindagem (#content *{min-width:0})
+     anulava o min-width das colunas e elas viravam uma tira de 18px. */
+  #content .kanban{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;margin:0 -12px;padding:0 12px 10px;scrollbar-width:none}
+  #content .kanban::-webkit-scrollbar{display:none}
+  #content .kanban-col{min-width:82vw!important;flex:0 0 82vw;scroll-snap-align:center;max-height:none}
+  #content .cals-kan{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;margin:0 -12px;padding:0 12px 10px;scrollbar-width:none}
+  #content .cals-kan::-webkit-scrollbar{display:none}
+  #content .cals-kan-col{min-width:84vw!important;flex:0 0 84vw;scroll-snap-align:center}
+  #content .kanban-cards{overflow:visible}
+  #content .kanban-add{min-height:44px;display:flex;align-items:center;justify-content:center;font-size:13px}
+  /* Links de ação ("Ver todas", "+ Novo") e clicáveis de texto: alvo pro dedo */
+  /* Botão sem classe, estilizado só por style= (períodos, abas soltas): o dedo
+     precisa de 40px mesmo quando o desenho é uma pílula fininha. */
+  #content button[onclick]{min-height:40px}
+  #content .card-link,#content [onclick].text-xs{min-height:34px;display:inline-flex;align-items:center;position:relative}
+  #content .card-link::before,#content [onclick].text-xs::before{content:'';position:absolute;inset:-10px -8px}
+  #content .icon-btn{min-width:32px;min-height:32px;position:relative}
+  /* Alvo de toque: o botão continua pequeno na tela, mas o dedo acerta 44px.
+     O ::after e o ::before do .toggle já são a bolinha/trilho, então a folga
+     vai num ::before só do .icon-btn e num wrapper do .toggle. */
+  #content .icon-btn::before{content:'';position:absolute;top:50%;left:50%;width:44px;height:44px;transform:translate(-50%,-50%);border-radius:inherit}
+  #content .toggle{position:relative}
+  #content .toggle::before{content:'';position:absolute;top:50%;left:50%;width:56px;height:44px;transform:translate(-50%,-50%);border-radius:12px}
   #content input[type=checkbox],#content input[type=radio]{min-width:18px;min-height:18px}
 
   /* modal usa a altura real do celular (100vh mente com a barra do navegador) */
@@ -1470,9 +1492,17 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   /* Toast pos */
   .toast-wrap{left:8px;right:8px;bottom:16px;max-width:none;z-index:9995}
 
-  /* Cronograma — mantem planilha no mobile com scroll horizontal touch */
-  .cron-mobile{display:none}
-  .cron-scroll-hint{display:block!important}
+  /* Cronograma no celular: lista compacta no lugar da planilha de 900px */
+  .cron-mobile{display:block!important}
+  .cron-table-wrap,.cron-scroll-hint{display:none!important}
+  .cron-acoes{display:flex;flex-wrap:wrap;gap:8px}
+  .cron-acoes .page-search{flex:0 0 100%;min-width:0;max-width:100%}
+  .cron-acoes-btns{flex:0 0 100%;display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .cron-acoes-btns::-webkit-scrollbar{display:none}
+  .cron-acoes-btns .btn{flex:0 0 auto;white-space:nowrap;font-size:12px;padding:8px 11px}
+  .cron-filtros{flex-wrap:nowrap!important;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin-bottom:12px}
+  .cron-filtros::-webkit-scrollbar{display:none}
+  .cron-filtros .filter-chip{flex:0 0 auto;white-space:nowrap}
   .cron-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:10px}
   .cron-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
   .cron-table{min-width:900px;font-size:11.5px}
@@ -1593,7 +1623,12 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   .mobile-brand .brand-name{display:none}
   .mobile-brand .brand-logo{width:32px;height:32px}
   .content{padding:12px 10px}
-  .stat-grid{grid-template-columns:1fr;gap:8px}
+  /* 2 colunas: 4 cards de resumo em 1 coluna tomavam a tela inteira antes da lista */
+  .stat-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .stat{padding:11px 12px;min-height:0}
+  .stat .stat-value{font-size:20px}
+  .stat .stat-label{font-size:11px;line-height:1.25}
+  .stat .stat-icon{width:26px;height:26px}
   .quick-row{grid-template-columns:1fr}
   .page-title{font-size:18px}
   .modal-tab{padding:12px 11px;font-size:12px}
@@ -1683,8 +1718,8 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
 }
 
 @media (max-width:480px){
-  /* Force tudo em 1 coluna */
-  .stat-grid{grid-template-columns:1fr !important}
+  /* Resumo fica em 2 colunas (regra acima); o resto em 1 */
+  .stat-grid{grid-template-columns:repeat(2,1fr) !important}
   .crm-grid{gap:8px}
   /* Tables — scroll */
   table{font-size:11.5px}
@@ -1711,6 +1746,12 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   .topbar{padding-top:max(0px, env(safe-area-inset-top))}
   .content{padding-bottom:max(20px, env(safe-area-inset-bottom))}
   .sidebar{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+}
+/* Celular: o botão flutuante 💡 (54px no canto) tampava o último cartão/botão
+   da tela. Folga embaixo pra tudo rolar pra cima dele. */
+@media(max-width:768px){
+  .content{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px))}
+  #lembretesBtn{bottom:calc(16px + env(safe-area-inset-bottom, 0px))!important;right:14px!important}
 }
 
 
@@ -1792,6 +1833,39 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .cron-table th{padding:6px 8px !important;font-size:10px}
 /* Cards mobile do cronograma — escondido no desktop */
 .cron-mobile{display:none}
+.cron-acoes-btns{display:contents}
+@media(max-width:768px){ .cron-acoes-btns{display:flex} }
+/* Card compacto do celular (cmc): fechado mostra o essencial, toque abre */
+.cmc{--cor:#94a3b8;background:var(--surface);border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04);position:relative}
+.cmc::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--cor)}
+.cmc-head{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px 11px 14px;background:transparent;border:none;text-align:left;font-family:inherit;color:var(--text);cursor:pointer;min-height:56px;-webkit-tap-highlight-color:transparent}
+.cmc-head:active{background:var(--surface-2)}
+.cmc-head .cron-cli-logo{width:36px;height:36px;border-radius:10px;flex-shrink:0;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12px;overflow:hidden}
+.cmc-head .cron-cli-logo img{width:100%;height:100%;object-fit:cover}
+.cmc-info{flex:1;min-width:0}
+.cmc-nome{font-weight:700;font-size:14px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmc-meta{font-size:11.5px;color:var(--text-3);margin-top:3px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.cmc-status{flex-shrink:0;font-size:10.5px;font-weight:700;padding:4px 8px;border-radius:999px;color:var(--cor);background:color-mix(in srgb,var(--cor) 14%,transparent);border:1px solid color-mix(in srgb,var(--cor) 35%,transparent);white-space:nowrap;max-width:118px;overflow:hidden;text-overflow:ellipsis}
+.cmc-seta{width:18px;height:18px;flex-shrink:0;color:var(--text-3);transition:transform var(--dur,.2s) var(--ease,ease)}
+.cmc.aberto .cmc-seta{transform:rotate(180deg)}
+.cmc-body{display:none;padding:2px 12px 12px 14px;border-top:1px solid var(--border);grid-template-columns:1fr 1fr;gap:10px 10px}
+.cmc.aberto .cmc-body{display:grid}
+.cmc-campo{display:flex;flex-direction:column;gap:4px;min-width:0}
+.cmc-campo > span{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-top:8px}
+.cmc-full{grid-column:1 / -1}
+.cmc-campo input,.cmc-campo select,.cmc-campo textarea{width:100%;min-height:42px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);color:var(--text);font:inherit;font-size:14px;outline:none;box-sizing:border-box}
+.cmc-campo textarea{min-height:56px;resize:vertical;line-height:1.4}
+.cmc-campo input:focus,.cmc-campo select:focus,.cmc-campo textarea:focus{border-color:var(--accent)}
+.cmc-campo small{font-size:11px;font-weight:600}
+.cmc-status-sel{border-color:var(--cor)!important;font-weight:600}
+.cmc-linha{display:flex;gap:6px;align-items:center}
+.cmc-linha input{flex:1;text-align:center;font-weight:700}
+.cmc-mini{flex:0 0 42px;height:42px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);font-size:16px;cursor:pointer}
+.cmc-toggle{display:flex;align-items:center;gap:10px;min-height:42px;padding:0 11px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);cursor:pointer}
+.cmc-toggle input{width:18px;height:18px;accent-color:var(--accent);margin:0;min-height:0}
+.cmc-toggle-txt{font-size:13px;font-weight:500}
+.cmc-rodape{grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.cmc-rodape .btn{flex:1;justify-content:center;min-height:40px}
 .cron-mobile-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:11px;border-left:5px solid var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .cron-mobile-card-head{display:flex;align-items:center;gap:11px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border)}
 .cron-mobile-card-head .cron-mobile-name{font-weight:700;font-size:15px;line-height:1.2;color:var(--text)}
@@ -2745,6 +2819,36 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
 .orc-selo{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;letter-spacing:.02em;padding:2px 8px;border-radius:99px;color:var(--c);background:color-mix(in srgb,var(--c) 12%,transparent);border:1px solid color-mix(in srgb,var(--c) 40%,transparent);margin-bottom:6px;vertical-align:middle}
 /* Aba Calendários dos clientes — visão geral em cartões, como a tela Clientes */
 .cals-visao{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+/* Pipeline dos calendários: uma coluna por etapa, na cor do status */
+.cals-kan{display:flex;gap:12px;overflow-x:auto;padding-bottom:10px;align-items:flex-start}
+.cals-kan-col{min-width:262px;flex:1 1 0;background:var(--surface);border:1px solid var(--border);
+  border-top:3px solid var(--c);border-radius:14px;padding:12px 11px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:var(--shadow-sm)}
+.cals-kan-head{display:flex;align-items:center;gap:8px}
+.cals-kan-tit{font-size:12.5px;font-weight:800;color:var(--c);letter-spacing:-.01em;flex:1;min-width:0}
+.cals-kan-n{font-size:11px;font-weight:800;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);
+  border:1px solid color-mix(in srgb,var(--c) 32%,transparent);padding:2px 9px;border-radius:99px;flex-shrink:0}
+.cals-kan-cards{display:flex;flex-direction:column;gap:9px}
+.cals-kan-vazio{font-size:11.5px;color:var(--text-3);text-align:center;padding:18px 8px;border:1px dashed var(--border);border-radius:11px;line-height:1.45}
+/* Cartão do cliente dentro da coluna */
+.cals-kc{display:flex;flex-direction:column;gap:9px;width:100%;text-align:left;padding:11px;cursor:pointer;
+  background:var(--surface-2);border:1px solid var(--border);border-left:3px solid var(--c);border-radius:12px;
+  color:var(--text);font-family:inherit;transition:transform var(--dur) var(--ease),box-shadow var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.cals-kc:hover{transform:translateY(-1px);border-color:var(--border-strong);border-left-color:var(--c);box-shadow:var(--shadow)}
+.cals-kc:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.cals-kc.dispensado{opacity:.62}
+.cals-kc-topo{display:flex;align-items:center;gap:9px;width:100%}
+.cals-kc-id{flex:1;min-width:0}
+.cals-kc-nome{font-size:13.5px;font-weight:700;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cals-kc-st{font-size:11.5px;font-weight:700;color:var(--c);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cals-kc-n{font-size:11.5px;color:var(--text-3)}
+.cals-kc .cals-anel{flex-shrink:0}
+/* Chip-interruptor de coluna */
+.cals-res{border:1px solid var(--border);cursor:pointer;font-family:inherit;transition:opacity var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.cals-res:hover{border-color:color-mix(in srgb,var(--c) 55%,var(--border))}
+.cals-res b{color:var(--text);font-weight:800}
+.cals-res.off{opacity:.45;text-decoration:line-through}
+.cals-res.off i{background:var(--text-3)!important}
 .cals-card{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:18px 14px 14px;
   background:var(--surface);border:1px solid var(--border);border-radius:16px;cursor:pointer;color:var(--text);font-family:inherit;
   transition:transform var(--dur) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
@@ -2953,7 +3057,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.26 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.27 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -3456,7 +3560,8 @@ function showCtxMenu(x, y, key, el){
 
 async function createCustomLink(key, defaultLabel){
   closeCtxMenu();
-  const url = prompt(`Cole a URL para vincular a "${defaultLabel}":\n\n(Exemplo: https://drive.google.com/drive/folders/abc)`, 'https://');
+  const _r = await pedirDados('Vincular link', [{ id:'url', label:'URL de "' + defaultLabel + '"', tipo:'url', valor:'https://', obrigatorio:true, dica:'https://drive.google.com/drive/folders/abc', ajuda:'Cole o link do Drive, Canva, planilha…' }], { ok:'Vincular' });
+  const url = _r && _r.url;
   if(!url || !url.startsWith('http')) return;
   if(_supa){
     try {
@@ -3475,7 +3580,8 @@ async function createCustomLink(key, defaultLabel){
 async function editCustomLink(key){
   closeCtxMenu();
   const current = _customLinks[key];
-  const url = prompt('Editar URL:', current.url);
+  const _r = await pedirDados('Editar link', [{ id:'url', label:'URL', tipo:'url', valor:current.url, obrigatorio:true }], { ok:'Salvar' });
+  const url = _r && _r.url;
   if(!url) return;
   if(_supa){
     try {
@@ -4263,6 +4369,9 @@ async function toggleClienteOculto(cliId){
 }
 
 async function updateCronField(cliId, month, field, value){
+  // Os cards do celular mandavam 'observations' (nome da coluna) e o campo em
+  // memoria e 'obs' — caia no "coluna nao mapeada" e a observacao nunca salvava.
+  if(field === 'observations') field = 'obs';
   const cli = clients.find(c=>c.id===cliId);
   if(!cli){ toast('Cliente não encontrado','info'); return; }
   if(!cronograma[cliId]) cronograma[cliId] = {};
@@ -4873,7 +4982,7 @@ function abrirAddDuvida(){
   ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
   ov.innerHTML = `
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:520px;width:100%;max-height:92dvh;overflow:auto;box-shadow:var(--shadow)">
-      <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div style="font-size:17px;font-weight:700">Nova dúvida</div><button class="btn btn-sm" onclick="document.getElementById('duvidaModal').remove()">✕</button></div>
+      <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><div style="font-size:17px;font-weight:700">Nova dúvida</div><button class="btn btn-sm" onclick="document.getElementById('duvidaModal')?.remove()">✕</button></div>
       <div style="padding:18px 20px">
         <div class="info-label" style="margin-bottom:5px">Título *</div>
         <input id="duvTitulo" class="login-input" placeholder="Ex: Como agendar no mLabs" style="background:var(--surface-2);width:100%" />
@@ -4888,7 +4997,7 @@ function abrirAddDuvida(){
         </div>
       </div>
       <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn" onclick="document.getElementById('duvidaModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('duvidaModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" id="duvSalvarBtn" onclick="salvarDuvida()">💾 Salvar</button>
       </div>
     </div>`;
@@ -5173,7 +5282,7 @@ function abrirRelatorioEditor(id){
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:720px;width:100%;max-height:92dvh;overflow:auto;box-shadow:var(--shadow)">
       <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><div style="font-size:17px;font-weight:700">${r?'Editar relatório':'Novo relatório'}</div><div class="text-xs text-3" style="margin-top:2px">O sistema divide em páginas automaticamente</div></div>
-        <button class="btn btn-sm" onclick="document.getElementById('relModal').remove()">✕</button>
+        <button class="btn btn-sm" onclick="document.getElementById('relModal')?.remove()">✕</button>
       </div>
       <div style="padding:18px 20px">
         <div class="info-label" style="margin-bottom:5px">Cliente</div>
@@ -5187,7 +5296,7 @@ function abrirRelatorioEditor(id){
         <div class="text-xs text-3" style="margin-top:8px">🗓 Data: <strong>${_relFmtData(_relEditando.data)}</strong> (automática)</div>
       </div>
       <div style="padding:16px 20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-        <button class="btn" onclick="document.getElementById('relModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('relModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" onclick="gerarRelatorioPDF()" style="font-weight:700">📄 Gerar PDF</button>
       </div>
     </div>`;
@@ -5608,7 +5717,7 @@ async function _relAbrirPreview(d){
       <div style="display:flex;gap:8px">
         <button class="btn" id="relBtnPDF" onclick="_relBaixarPDFArquivo()" title="Baixa o arquivo pronto, igual no computador e no celular" style="background:#fff;color:#111;border:none;font-weight:700">⬇ Baixar PDF</button>
         <button class="btn" onclick="_relBaixarPDF()" title="Abrir pela impressão do navegador" style="background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.36);font-weight:600">🖨 Imprimir</button>
-        <button class="btn" onclick="document.getElementById('relPreview').remove()" style="background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.36);font-weight:600">Fechar</button>
+        <button class="btn" onclick="document.getElementById('relPreview')?.remove()" style="background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.36);font-weight:600">Fechar</button>
       </div>
     </div>
     <div id="relPages" style="display:flex;flex-direction:column;align-items:center;gap:22px">
@@ -7002,6 +7111,91 @@ function whatsApp(phone,name){let clean=(phone||'').replace(/\D/g,'');if(!clean)
 
 // confirmDelete: modal de confirmacao que exige digitar "apagar"
 // Retorna Promise<boolean>. true = confirmou, false = cancelou.
+/* Pede um ou vários dados numa janela do próprio sistema (o prompt() do
+   navegador é feio no celular, some quando a pessoa marca "bloquear diálogos"
+   e não deixa pedir tudo de uma vez). Devolve um objeto {id: valor} ou null
+   se cancelar.
+   campos: [{ id, label, tipo:'texto|numero|data|url|senha|area|escolha', valor,
+              dica, obrigatorio, opcoes:[[valor,rotulo]] }] */
+function pedirDados(titulo, campos, opts){
+  opts = opts || {};
+  campos = (campos || []).map(function(c){ return Object.assign({ tipo:'texto' }, c); });
+  return new Promise(function(resolve){
+    const esc = function(x){ return (x==null?'':String(x)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+    let ov = document.getElementById('pedirDadosModal'); if(ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'pedirDadosModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px';
+    const fechar = function(v){ try { ov.remove(); } catch(e){} document.removeEventListener('keydown', tecla, true); resolve(v); };
+    const tecla = function(e){ if(e.key === 'Escape'){ e.preventDefault(); fechar(null); } };
+    ov.onclick = function(e){ if(e.target === ov) fechar(null); };
+    const campoHtml = function(c, i){
+      const id = 'pd_' + i;
+      const base = 'width:100%;box-sizing:border-box;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;font-size:15px;font-family:inherit;color:var(--text);outline:none;min-height:44px';
+      let campo;
+      if(c.tipo === 'area') campo = '<textarea id="' + id + '" rows="3" placeholder="' + esc(c.dica||'') + '" style="' + base + ';min-height:74px;resize:vertical;line-height:1.45">' + esc(c.valor||'') + '</textarea>';
+      else if(c.tipo === 'escolha') campo = '<select id="' + id + '" style="' + base + '">' + (c.opcoes||[]).map(function(o){
+          const v = Array.isArray(o) ? o[0] : o, r = Array.isArray(o) ? o[1] : o;
+          return '<option value="' + esc(v) + '"' + (String(c.valor)===String(v)?' selected':'') + '>' + esc(r) + '</option>'; }).join('') + '</select>';
+      else {
+        // Dinheiro NAO usa type=number: o campo do navegador recusa virgula e o
+        // valor volta vazio quando a pessoa digita "2.500,50" (jeito brasileiro).
+        const tipoHtml = c.tipo==='data' ? 'date' : c.tipo==='url' ? 'url' : c.tipo==='senha' ? 'password' : 'text';
+        const extra = c.tipo==='numero' ? ' inputmode="decimal" autocomplete="off"' : '';
+        campo = '<input id="' + id + '" type="' + tipoHtml + '"' + extra + ' value="' + esc(c.valor==null?'':c.valor) + '" placeholder="' + esc(c.dica||'') + '" style="' + base + '" />';
+      }
+      return '<label style="display:flex;flex-direction:column;gap:5px;margin-bottom:13px">' +
+        '<span style="font-size:12px;font-weight:700;color:var(--text-2)">' + esc(c.label||'') +
+        (c.obrigatorio ? '<span style="color:var(--danger-text,#dc2626)"> *</span>' : '<span style="color:var(--text-3);font-weight:400"> (opcional)</span>') + '</span>' +
+        campo + (c.ajuda ? '<span style="font-size:11.5px;color:var(--text-3);line-height:1.4">' + esc(c.ajuda) + '</span>' : '') + '</label>';
+    };
+    ov.innerHTML =
+      '<div style="background:var(--surface);border-radius:16px;max-width:480px;width:100%;max-height:92dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">' +
+        '<div style="padding:17px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">' +
+          '<div style="flex:1"><div style="font-size:16px;font-weight:700;color:var(--text)">' + esc(titulo||'Preencha') + '</div>' +
+          (opts.sub ? '<div style="font-size:12.5px;color:var(--text-3);margin-top:3px">' + esc(opts.sub) + '</div>' : '') + '</div>' +
+          '<button type="button" id="pdX" class="modal-close">✕</button></div>' +
+        '<div style="padding:17px 20px;overflow:auto;flex:1">' + campos.map(campoHtml).join('') +
+          '<div id="pdErro" style="display:none;font-size:12.5px;color:var(--danger-text,#dc2626);font-weight:600;margin-top:-4px"></div></div>' +
+        '<div style="padding:13px 20px calc(13px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
+          '<button class="btn" type="button" id="pdCancel">Cancelar</button>' +
+          '<button class="btn btn-primary" type="button" id="pdOk">' + esc(opts.ok || 'Salvar') + '</button>' +
+        '</div></div>';
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', tecla, true);
+    const pegar = function(){
+      const out = {};
+      for(let i=0;i<campos.length;i++){
+        const c = campos[i], el = document.getElementById('pd_' + i);
+        let v = el ? el.value : '';
+        if(typeof v === 'string') v = v.trim();
+        if(c.obrigatorio && !v){
+          const err = document.getElementById('pdErro');
+          if(err){ err.textContent = 'Preencha: ' + (c.label||'este campo'); err.style.display = 'block'; }
+          if(el) el.focus();
+          return null;
+        }
+        if(c.tipo === 'numero'){
+          // aceita "2.500,50", "2500,50", "2500.50" e "R$ 2.500,50"
+          let n = String(v).replace(/[^\d.,-]/g,'');
+          if(n.indexOf(',') !== -1) n = n.replace(/\./g,'').replace(',','.');
+          else if((n.match(/\./g)||[]).length > 1) n = n.replace(/\.(?=.*\.)/g,'');
+          out[c.id] = (v === '') ? null : (parseFloat(n) || 0);
+        } else out[c.id] = v;
+      }
+      return out;
+    };
+    document.getElementById('pdOk').onclick = function(){ const v = pegar(); if(v) fechar(v); };
+    document.getElementById('pdCancel').onclick = function(){ fechar(null); };
+    document.getElementById('pdX').onclick = function(){ fechar(null); };
+    ov.querySelectorAll('input').forEach(function(inp){
+      inp.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); const v = pegar(); if(v) fechar(v); } });
+    });
+    setTimeout(function(){ const p = document.getElementById('pd_0'); if(p) p.focus(); }, 60);
+  });
+}
+if(typeof window !== 'undefined'){ window.pedirDados = pedirDados; }
+
 function confirmDelete(itemDesc, opts){
   opts = opts || {};
   return new Promise((resolve) => {
@@ -8254,7 +8448,7 @@ function _placarAbrirAcumulado(){
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:560px;width:100%;max-height:88dvh;overflow:auto;box-shadow:var(--shadow)">
       <div style="padding:16px 20px;background:${_PLACAR_GRAD};color:#fff;display:flex;justify-content:space-between;align-items:center;gap:10px">
         <div><div style="font-size:17px;font-weight:800">🏆 Índice acumulado</div><div style="font-size:12px;opacity:.9;margin-top:2px">média dos meses · desde ${desdeTxt} · visível só pra administração</div></div>
-        <button class="btn btn-sm" style="background:rgba(255,255,255,.2);border:none;color:#fff" onclick="document.getElementById('placarAccModal').remove()">✕</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.2);border:none;color:#fff" onclick="document.getElementById('placarAccModal')?.remove()">✕</button>
       </div>
       <div style="padding:16px 20px">
         ${rows.length ? rows.map((r,i)=>{
@@ -8311,7 +8505,7 @@ function _placarPopupTop3SeUltimoDia(){
             </div>`).join('')}
         </div>
         <div style="padding:8px 20px 22px">
-          <button class="btn btn-primary" style="width:100%;padding:13px;font-weight:700" onclick="document.getElementById('placarTop3Pop').remove()">🚀 Começar o dia</button>
+          <button class="btn btn-primary" style="width:100%;padding:13px;font-weight:700" onclick="document.getElementById('placarTop3Pop')?.remove()">🚀 Começar o dia</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -10971,7 +11165,7 @@ function escapeHtml(s){
 }
 
 // Editor inline para botões quick action (URLs) — popup mini ancorado
-function inlineEditQuickAction(cliId, field, label, currentVal){
+async function inlineEditQuickAction(cliId, field, label, currentVal){
   // Remove qualquer popup aberto antes
   document.querySelectorAll('.qa-inline-popup').forEach(p=>p.remove());
 
@@ -10979,7 +11173,8 @@ function inlineEditQuickAction(cliId, field, label, currentVal){
   const wrap = editBtn ? editBtn.closest('.qa-wrap') : null;
   if(!wrap){
     // Fallback raro: usa prompt
-    const novo = prompt('Editar '+label+':', currentVal||'');
+    const _r = await pedirDados('Editar ' + label, [{ id:'v', label:label, valor:currentVal||'' }], { ok:'Salvar' });
+  const novo = _r ? _r.v : null;
     if(novo !== null) updateClientField(cliId, field, novo.trim()).then(()=>setTimeout(()=>openClient(cliId),100));
     return;
   }
@@ -11326,7 +11521,8 @@ async function toggleJourneyStep(cliId, stepId){
 }
 
 async function adicionarJourneyStep(cliId){
-  const nome = prompt('Nome da nova etapa:');
+  const _r = await pedirDados('Nova etapa da jornada', [{ id:'nome', label:'Nome da etapa', obrigatorio:true, dica:'Ex.: Briefing aprovado' }], { ok:'Criar etapa' });
+  const nome = _r && _r.nome;
   if(!nome || !nome.trim()) return;
   const cli = clients.find(c => c.id === cliId);
   if(!cli) return;
@@ -11374,11 +11570,19 @@ async function updateJourneyStepField(cliId, stepId, field, value){
 }
 
 async function renomearJourneyStep(cliId, stepId){
-  return updateJourneyStepField(cliId, stepId, 'name', prompt('Renomear:') || '');
+  const atual = (function(){ try { const cli = clients.find(function(c){ return c.id === cliId; });
+    const st = getJourneySteps(cli).find(function(x){ return x.id === stepId; }); return (st && st.name) || ''; } catch(e){ return ''; } })();
+  const r = await pedirDados('Renomear etapa', [{ id:'nome', label:'Nome da etapa', valor:atual, obrigatorio:true }], { ok:'Renomear' });
+  if(!r) return;
+  return updateJourneyStepField(cliId, stepId, 'name', r.nome);
 }
 
 async function editarDescJourneyStep(cliId, stepId){
-  return updateJourneyStepField(cliId, stepId, 'description', prompt('Descrição:') || '');
+  const atual = (function(){ try { const cli = clients.find(function(c){ return c.id === cliId; });
+    const st = getJourneySteps(cli).find(function(x){ return x.id === stepId; }); return (st && st.description) || ''; } catch(e){ return ''; } })();
+  const r = await pedirDados('Descrição da etapa', [{ id:'desc', label:'Descrição', tipo:'area', valor:atual }], { ok:'Salvar' });
+  if(!r) return;
+  return updateJourneyStepField(cliId, stepId, 'description', r.desc);
 }
 
 async function moverJourneyStep(cliId, stepId, delta){
@@ -11405,12 +11609,15 @@ async function resetJourneyPadrao(cliId){
 
 // =========== JORNADA: links anexados por etapa ===========
 async function adicionarJourneyLink(cliId, stepId){
-  let url = prompt('Cole o link desta etapa (Drive, Canva, apresentação, site...):');
+  const _r = await pedirDados('Link da etapa', [{ id:'url', label:'Link', tipo:'url', obrigatorio:true, dica:'https://…', ajuda:'Drive, Canva, apresentação, site…' }], { ok:'Adicionar' });
+  let url = _r && _r.url;
   if(url == null) return;
   url = url.trim();
   if(!url) return;
   if(!/^https?:\/\//i.test(url)) url = 'https://' + url.replace(/^\/+/, '');
-  let nome = (prompt('Nome do link (opcional):') || '').trim();
+  const _rn = await pedirDados('Nome do link', [{ id:'nome', label:'Como chamar este link', dica:'Ex.: Apresentação final' }], { ok:'Adicionar', sub:'Deixe em branco pra usar o endereço.' });
+  if(!_rn) return;
+  let nome = (_rn.nome || '').trim();
   const cli = clients.find(c => c.id === cliId);
   if(!cli) return;
   let steps = getJourneySteps(cli);
@@ -11652,7 +11859,7 @@ function abrirEditorBriefing(cliId, briefingId, modeloKey){
           <div style="font-size:16px;font-weight:700">${briefing?'Editar briefing':'Novo briefing'}</div>
           <div class="text-xs text-3" style="margin-top:2px">Monte o formulário que o cliente vai preencher</div>
         </div>
-        <button class="modal-close" onclick="document.getElementById('briefingEditor').remove()">
+        <button class="modal-close" onclick="document.getElementById('briefingEditor')?.remove()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
@@ -11681,7 +11888,7 @@ function abrirEditorBriefing(cliId, briefingId, modeloKey){
         </div>
 
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px;padding-top:14px;border-top:1px solid var(--border)">
-          <button class="btn" onclick="document.getElementById('briefingEditor').remove()">Cancelar</button>
+          <button class="btn" onclick="document.getElementById('briefingEditor')?.remove()">Cancelar</button>
           <button class="btn btn-primary" onclick="salvarBriefing(${cliId}, ${briefingId?`'${briefingId}'`:'null'})">💾 ${briefing?'Salvar alterações':'Criar briefing'}</button>
         </div>
       </div>
@@ -11779,7 +11986,7 @@ async function salvarBriefing(cliId, briefingId){
       if(error) throw error;
       toast('✓ Briefing criado','success');
     }
-    document.getElementById('briefingEditor').remove();
+    document.getElementById('briefingEditor')?.remove();
     delete _briefingsCache[cli._dbId];
     await loadBriefings(cli._dbId);
     setTimeout(()=>openClient(cliId), 50);
@@ -11854,7 +12061,7 @@ function verRespostasBriefing(briefingId, cliId){
           <div style="font-size:16px;font-weight:700">${escapeHtml(briefing.title)}</div>
           <div class="text-xs text-3" style="margin-top:2px">Respondido em ${respondidoEm}${briefing.responded_by?' por '+escapeHtml(briefing.responded_by):''}</div>
         </div>
-        <button class="modal-close" onclick="document.getElementById('briefingRespModal').remove()">
+        <button class="modal-close" onclick="document.getElementById('briefingRespModal')?.remove()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
@@ -11872,7 +12079,7 @@ function verRespostasBriefing(briefingId, cliId){
           `;
         }).join('')}
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
-          <button class="btn" onclick="document.getElementById('briefingRespModal').remove()">Fechar</button>
+          <button class="btn" onclick="document.getElementById('briefingRespModal')?.remove()">Fechar</button>
           <button class="btn btn-primary" onclick="exportarRespostasPDF('${briefingId}', ${cliId})">📄 Exportar PDF</button>
         </div>
       </div>
@@ -12071,7 +12278,8 @@ async function toggleServicoCliente(cliId, servico){
 }
 
 async function adicionarServicoCustom(cliId){
-  const nome = prompt('Nome do serviço custom:');
+  const _r = await pedirDados('Novo serviço', [{ id:'nome', label:'Nome do serviço', obrigatorio:true, dica:'Ex.: Gestão de tráfego' }], { ok:'Adicionar' });
+  const nome = _r && _r.nome;
   if(!nome || !nome.trim()) return;
   const cli = clients.find(c => c.id === cliId);
   if(!cli) return;
@@ -12534,10 +12742,11 @@ async function copiarLinkConhecendo(cliId){
   try{ await navigator.clipboard.writeText(abs); toast('🔗 Link copiado','success'); }
   catch(e){ prompt('Copie o link:', abs); }
 }
-function trocarConhecendoUrl(cliId){
+async function trocarConhecendoUrl(cliId){
   const cli = (clients||[]).find(c => c.id === cliId);
   if(!cli) return;
-  const novo = prompt('Caminho ou link do documento (deixe em branco pra desvincular):', cli.conhecendo_url || '');
+  const _r = await pedirDados('Conhecendo o Cliente', [{ id:'url', label:'Caminho ou link do documento', valor:cli.conhecendo_url || '', ajuda:'Deixe em branco pra desvincular.' }], { ok:'Salvar' });
+  const novo = _r ? _r.url : null;
   if(novo === null) return;
   salvarConhecendoUrl(cliId, novo.trim());
 }
@@ -14189,7 +14398,7 @@ async function salvarFerias(id){
       toast('Erro: ' + (ex.message||ex), 'info');
       return;
     }
-    document.getElementById('feriasModal').remove();
+    document.getElementById('feriasModal')?.remove();
     toast('🏖 Férias atualizadas','success');
   } else {
     // Cria N registros (1 por período)
@@ -14216,7 +14425,7 @@ async function salvarFerias(id){
         erros++;
       }
     }
-    document.getElementById('feriasModal').remove();
+    document.getElementById('feriasModal')?.remove();
     if(salvos > 0){
       toast('🏖 ' + salvos + ' período(s) salvos' + (erros>0?' ('+erros+' falharam)':''), 'success');
     } else if(erros > 0){
@@ -14879,11 +15088,15 @@ async function loadProfileDocuments(dbId){
   } catch(e){ return [] }
 }
 
-function abrirAddDocModal(profileIdx){
+async function abrirAddDocModal(profileIdx){
   const member = team[profileIdx];
-  const name = prompt('Nome do documento (ex: Contrato CLT, RG, Comprovante de endereço):');
+  const _r = await pedirDados('Novo documento', [
+    { id:'name', label:'Nome do documento', obrigatorio:true, dica:'Ex.: Contrato CLT, RG, Comprovante de endereço' },
+    { id:'url', label:'Link do documento', tipo:'url', obrigatorio:true, dica:'https://drive.google.com/file/d/…' }
+  ], { ok:'Adicionar' });
+  const name = _r && _r.name;
   if(!name) return;
-  const url = prompt('Cole a URL do documento (Google Drive, link público, etc):\n\nExemplo: https://drive.google.com/file/d/...');
+  const url = _r && _r.url;
   if(!url || !url.startsWith('http')){toast('URL inválida','info');return}
   addProfileDocument(profileIdx, name, url);
 }
@@ -14920,7 +15133,7 @@ function openNovoColaboradorModal(){
           <div style="font-size:16px;font-weight:700">Novo colaborador</div>
           <div class="text-xs text-3" style="margin-top:2px">Cadastra na equipe e cria o perfil no Supabase</div>
         </div>
-        <button class="modal-close" onclick="document.getElementById('novoColabModal').remove()">
+        <button class="modal-close" onclick="document.getElementById('novoColabModal')?.remove()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
@@ -14971,7 +15184,7 @@ function openNovoColaboradorModal(){
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:22px">
-          <button class="btn" onclick="document.getElementById('novoColabModal').remove()">Cancelar</button>
+          <button class="btn" onclick="document.getElementById('novoColabModal')?.remove()">Cancelar</button>
           <button class="btn btn-primary" onclick="salvarNovoColaborador()" id="ncolSaveBtn">➕ Criar colaborador</button>
         </div>
       </div>
@@ -15075,7 +15288,7 @@ async function salvarNovoColaborador(){
       }
     }
 
-    document.getElementById('novoColabModal').remove();
+    document.getElementById('novoColabModal')?.remove();
     await loadDataFromSupabase();
     renderEquipe(document.getElementById('content'));
   } catch(e){
@@ -15350,7 +15563,7 @@ async function confirmarRestaurarSelecionados(){
     }
   }
 
-  document.getElementById('restaurarExcModal').remove();
+  document.getElementById('restaurarExcModal')?.remove();
   toast('✓ ' + chaves.length + ' colaborador(es) restaurado(s). Recarregando...','success');
   setTimeout(() => location.reload(), 800);
 }
@@ -15859,7 +16072,7 @@ function abrirGestaoFeriasAno(ano, profileDbId){
 function adicionarFeriasAno(ano, profileDbId){
   // Sugere data_inicio = 01/01/ano
   const sugestaoInicio = ano + '-01-15';
-  document.getElementById('gestaoFeriasModal').remove();
+  document.getElementById('gestaoFeriasModal')?.remove();
   openProgramarFeriasModal({profile_id: profileDbId, data_inicio_sugestao: sugestaoInicio});
 }
 
@@ -15871,7 +16084,7 @@ async function excluirFeriasNoModal(id, ano){
   }
   if(typeof _ferias !== 'undefined') _ferias = _ferias.filter(f => f.id !== id);
   toast('Periodo excluido','success');
-  document.getElementById('gestaoFeriasModal').remove();
+  document.getElementById('gestaoFeriasModal')?.remove();
   abrirGestaoFeriasAno(ano);
 }
 
@@ -16245,7 +16458,7 @@ function novoCartaoModal(){
   m.innerHTML = `<div style="background:var(--surface);border-radius:16px;max-width:460px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg)">
     <div style="padding:17px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="flex:1;font-size:16px;font-weight:700">Novo cartão de crédito</div>
-      <button class="modal-close" type="button" onclick="document.getElementById('novoCartaoModal').remove()">✕</button>
+      <button class="modal-close" type="button" onclick="document.getElementById('novoCartaoModal')?.remove()">✕</button>
     </div>
     <div style="padding:18px 20px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:13px">
       <div><label class="text-xs text-3">Apelido do cartão *</label>
@@ -16262,7 +16475,7 @@ function novoCartaoModal(){
         <input id="ctVenc" class="login-input" type="number" min="1" max="31" placeholder="Ex.: 10" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
     </div>
     <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn" type="button" onclick="document.getElementById('novoCartaoModal').remove()">Cancelar</button>
+      <button class="btn" type="button" onclick="document.getElementById('novoCartaoModal')?.remove()">Cancelar</button>
       <button class="btn btn-primary" type="button" onclick="salvarCartao()">Salvar cartão</button>
     </div>
   </div>`;
@@ -16300,7 +16513,7 @@ function novoGastoCartao(cartaoId){
     <div style="padding:17px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="flex:1"><div style="font-size:16px;font-weight:700">Lançar gasto no cartão</div>
       <div class="text-xs text-3" style="margin-top:2px">O sistema registra sozinho a data e hora deste lançamento.</div></div>
-      <button class="modal-close" type="button" onclick="document.getElementById('novoGastoModal').remove()">✕</button>
+      <button class="modal-close" type="button" onclick="document.getElementById('novoGastoModal')?.remove()">✕</button>
     </div>
     <div style="padding:18px 20px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:13px">
       <div><label class="text-xs text-3">Cartão *</label>
@@ -16325,7 +16538,7 @@ function novoGastoCartao(cartaoId){
         <input id="cgObs" class="login-input" placeholder="Alguma anotação sobre este gasto" style="background:var(--surface-2);width:100%;margin-top:5px" /></div>
     </div>
     <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
-      <button class="btn" type="button" onclick="document.getElementById('novoGastoModal').remove()">Cancelar</button>
+      <button class="btn" type="button" onclick="document.getElementById('novoGastoModal')?.remove()">Cancelar</button>
       <button class="btn btn-primary" type="button" onclick="salvarGastoCartao()">Lançar gasto</button>
     </div>
   </div>`;
@@ -17132,7 +17345,7 @@ function editarCaptacao(id){
     <div class="modal" style="max-width:560px">
       <div class="modal-head">
         <div style="font-size:15px;font-weight:700">✏️ Editar captação</div>
-        <button class="modal-close" onclick="document.getElementById('capEditModal').remove()">
+        <button class="modal-close" onclick="document.getElementById('capEditModal')?.remove()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
@@ -17184,7 +17397,7 @@ function editarCaptacao(id){
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:18px">
-          <button class="btn" onclick="document.getElementById('capEditModal').remove()">Cancelar</button>
+          <button class="btn" onclick="document.getElementById('capEditModal')?.remove()">Cancelar</button>
           <button class="btn btn-primary" onclick="salvarEdicaoCaptacao(${cap.id})">💾 Salvar</button>
         </div>
       </div>
@@ -17228,7 +17441,7 @@ async function salvarEdicaoCaptacao(id){
       if(error) throw error;
     }
     toast('✓ Captação atualizada','success');
-    document.getElementById('capEditModal').remove();
+    document.getElementById('capEditModal')?.remove();
     renderCaptacao(document.getElementById('content'));
   } catch(e){
     toast('Erro: '+e.message,'info');
@@ -17370,7 +17583,7 @@ function abrirEditorEtapas(){
           <div style="font-size:16px;font-weight:700">Etapas de ${escapeHtml(_funilLabel(f))}</div>
           <div class="text-xs text-3" style="margin-top:2px">Renomeie, reordene, adicione ou remova. Vale para toda a equipe.</div>
         </div>
-        <button class="modal-close" type="button" onclick="document.getElementById('etapasModal').remove()">✕</button>
+        <button class="modal-close" type="button" onclick="document.getElementById('etapasModal')?.remove()">✕</button>
       </div>
       <div class="modal-body" style="padding:16px 20px">
         <div id="etapasLista" style="display:flex;flex-direction:column;gap:7px">
@@ -17380,7 +17593,7 @@ function abrirEditorEtapas(){
         <div class="text-xs text-3" style="margin-top:14px;line-height:1.55">Se você apagar uma etapa que tem cards, eles vão para a primeira etapa do funil — nada é perdido.</div>
       </div>
       <div style="padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-        <button class="btn" type="button" onclick="document.getElementById('etapasModal').remove()">Cancelar</button>
+        <button class="btn" type="button" onclick="document.getElementById('etapasModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" type="button" onclick="_etapasSalvar()">Salvar etapas</button>
       </div>
     </div>`;
@@ -17585,11 +17798,11 @@ function abrirDetalheStat(id){
           <div style="font-size:16px;font-weight:700">${escapeHtml(g.titulo)}</div>
           <div class="text-xs text-3" style="margin-top:2px">${itens.length} card(s)${g.tipo==='valor'?' · R$ '+total.toLocaleString('pt-BR'):''} · funil ${escapeHtml(_funilLabel(comFunil))}</div>
         </div>
-        <button class="modal-close" type="button" onclick="document.getElementById('statDetModal').remove()">✕</button>
+        <button class="modal-close" type="button" onclick="document.getElementById('statDetModal')?.remove()">✕</button>
       </div>
       <div class="modal-body" style="padding:14px 20px;max-height:60dvh;overflow:auto">
         ${itens.length ? itens.map(l=>`
-          <div onclick="document.getElementById('statDetModal').remove();abrirLeadDetalhe('${l.id}')" style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div onclick="document.getElementById('statDetModal')?.remove();abrirLeadDetalhe('${l.id}')" style="display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
             <div style="flex:1;min-width:0">
               <div style="font-weight:600;font-size:13.5px">${escapeHtml(l.n)}</div>
               <div class="text-xs text-3" style="margin-top:2px">${escapeHtml((_funilEtapas(comFunil).find(e=>e.key===l.stageKey)||{}).label||l.stageKey)} · 👤 ${escapeHtml(l.resp)}</div>
@@ -18410,7 +18623,7 @@ function orcAddConfirmar(){
   if(!Array.isArray(orcamento.itens)) orcamento.itens = [];
   orcamento.itens.push({desc: descLabel, descricao: descricaoEscopo, qtd: 1, valor: valor, custom: isCustom});
   toast('✓ Adicionado ao orçamento','success');
-  document.getElementById('orcAddSrvModal').remove();
+  document.getElementById('orcAddSrvModal')?.remove();
   renderComercial(document.getElementById('content'));
 }
 window.orcAddConfirmar = orcAddConfirmar;
@@ -18768,9 +18981,11 @@ function addItemOrc(desc, valor){
   renderComercial(document.getElementById('content'));
 }
 
-function carregarClienteOrc(){
+async function carregarClienteOrc(){
   const opt = clients.map(c=>c.name).join('|');
-  const escolhido = prompt('Digite o nome exato do cliente (ou parte dele):\n\n'+clients.map(c=>'• '+c.name).join('\n'));
+  const _r = await pedirDados('Puxar dados do cliente', [{ id:'cli', label:'Cliente', tipo:'escolha', obrigatorio:true,
+    opcoes: clients.map(function(c){ return [c.name, (typeof _nomeCli==='function' ? _nomeCli(c) : c.name)]; }) }], { ok:'Puxar' });
+  const escolhido = _r && _r.cli;
   if(!escolhido) return;
   const cli = clients.find(c => c.name.toLowerCase().includes(escolhido.toLowerCase()));
   if(!cli){toast('Cliente não encontrado','info');return}
@@ -20743,15 +20958,24 @@ function renderCronograma(c){
 
   const totalProd = rows.reduce((s,r)=>s + (parseInt((cronograma[r.id][cronMonth]||{}).produced)||0), 0);
   const totalTarget = rows.reduce((s,r)=>s + (parseInt((cronograma[r.id][cronMonth]||{}).target)||0), 0);
-  const atrasados = rows.filter(r=>(cronograma[r.id][cronMonth]||{}).status==='atrasado').length;
+  // Atrasado = prazo passou e ainda nao foi agendado/entregue. (Antes comparava
+  // com status 'atrasado', que nao existe — o card ficava sempre em zero.)
+  const _CRON_FEITO = new Set(['agendado-mlabs','agendado-meta','cal-pronto','apenas-trafego','apenas-captacao','cancelado']);
+  const atrasados = rows.filter(r=>{
+    const d = cronograma[r.id][cronMonth]||{};
+    if(!d.deadline || _CRON_FEITO.has(d.status)) return false;
+    const dl = new Date(d.deadline+'T00:00:00');
+    return !isNaN(dl.getTime()) && dl < hojeRef;
+  }).length;
   const proxPrazo = rows.filter(r=>{
     const dlStr = (cronograma[r.id][cronMonth]||{}).deadline;
     if(!dlStr) return false;
     const dl = new Date(dlStr+'T00:00:00');
     if(isNaN(dl.getTime())) return false;
     const diff = Math.round((dl-hojeRef)/86400000);
-    return diff>=0 && diff<=3 && (cronograma[r.id][cronMonth]||{}).status!=='concluido';
+    return diff>=0 && diff<=3 && !_CRON_FEITO.has((cronograma[r.id][cronMonth]||{}).status);
   }).length;
+  const emProducao = rows.filter(r=>['desenvolvimento','trello-vini','mlabs-vini','aguardando-aprov'].includes(cronograma[r.id][cronMonth].status)).length;
 
   c.innerHTML = `
     <div class="page active">
@@ -20760,13 +20984,15 @@ function renderCronograma(c){
           <div class="page-title">Cronograma — ${monthNamesLong[cronMonth-1]} 2026</div>
           <div class="page-subtitle">${rows.length} cliente(s) · ${totalTarget} conteúdo(s) no mês · ${atrasados} atrasado(s)</div>
         </div>
-        <div class="page-actions">
+        <div class="page-actions cron-acoes">
           <div class="page-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input placeholder="Buscar cliente, designer, gestor..." oninput="cronQuery=this.value;renderCronograma(document.getElementById('content'))" value="${cronQuery}"/></div>
+          <div class="cron-acoes-btns">
           <button class="btn" onclick="abrirCombinadosPrazos()" title="Manual de combinados e prazos do calendário editorial — quem está atrasado no prazo do dia 20" style="background:var(--accent);color:var(--surface);border:none;font-weight:700">⚡ Combinados & Prazos</button>
           <button class="btn" onclick="puxarConteudosDeTodos(cronMonth)" title="Conta os conteúdos do calendário editorial de cada cliente neste mês e preenche a coluna Conteúdos">🗓 Puxar conteúdos do calendário</button>
           <button class="btn" onclick="replicarMesParaFuturos(cronMonth)" title="Copia designer e gestor de tráfego deste mês pros próximos meses do ano que estão vazios">📋 Replicar daqui pra frente</button>
-          <button class="btn" onclick="toast('Exportando cronograma…','info')">📤 Exportar</button>
-          <button class="btn btn-primary" onclick="toast('Adicionar novo item ao cronograma','info')">+ Novo</button>
+          <button class="btn" onclick="exportarCronogramaCSV()" title="Baixa a visão atual em planilha (CSV)">📤 Exportar</button>
+          <button class="btn btn-primary" onclick="openNovoClienteModal()" title="Cadastrar um cliente novo — ele entra no cronograma automaticamente">+ Novo cliente</button>
+          </div>
         </div>
       </div>
 
@@ -20776,7 +21002,7 @@ function renderCronograma(c){
         ${statCard('Conteúdos do mês',String(totalTarget), rows.length+' cliente(s) na visão','M9 11l3 3L22 4')}
         ${statCard('Atrasados',atrasados,'precisam atenção','M12 9v4',null,'warning')}
         ${statCard('Prazos próximos',proxPrazo,'D-3 a hoje','M12 8v4l3 3',null,'warning')}
-        ${statCard('Em produção',rows.filter(r=>cronograma[r.id][cronMonth].status==='em-andamento').length,'fluindo','M3 3v18h18')}
+        ${statCard('Em produção',emProducao,'desenvolvimento · aprovação','M3 3v18h18')}
       </div>
 
       <div class="cron-months">
@@ -20788,7 +21014,7 @@ function renderCronograma(c){
         }).join('')}
       </div>
 
-      <div class="filter-bar" style="flex-wrap:wrap;gap:5px">
+      <div class="filter-bar cron-filtros" style="flex-wrap:wrap;gap:5px">
         <span class="filter-chip ${cronStatusFilter==='all'?'active':''}" onclick="cronStatusFilter='all';renderCronograma(document.getElementById('content'))">Todos</span>
         <span class="filter-chip ${cronStatusFilter==='agendar'?'active':''}" onclick="cronStatusFilter='agendar';renderCronograma(document.getElementById('content'))" style="border-color:#ea580c;color:#ea580c">📅 Agendar</span>
         <span class="filter-chip ${cronStatusFilter==='agendado-mlabs'?'active':''}" onclick="cronStatusFilter='agendado-mlabs';renderCronograma(document.getElementById('content'))" style="border-color:#1a7335;color:#1a7335">📅 Agendado MLABS</span>
@@ -20921,63 +21147,11 @@ function renderCronograma(c){
         </div>
       </div>
 
-      <!-- Versao mobile: cards verticais por cliente -->
+      <!-- Versao celular: lista compacta, cada cliente abre por toque -->
       <div class="cron-mobile">
         ${rows.length===0
           ? '<div class="empty-state" style="padding:36px"><div class="ico">📅</div><div class="ttl">Nenhum cliente</div><div class="desc">Ajuste filtros ou mês.</div></div>'
-          : rows.map(cli => {
-            try {
-              const d = cronograma[cli.id] && cronograma[cli.id][cronMonth] ? cronograma[cli.id][cronMonth] : {target:0,produced:0,status:'planejado',deadline:'',designer:'',trafficManager:'',pop:'',observations:'',hasTraffic:false};
-              const pct = Math.round((d.produced||0)/Math.max(d.target||1,1)*100);
-              const dl = d.deadline ? new Date(d.deadline+'T00:00:00') : null;
-              const today = new Date(); today.setHours(0,0,0,0);
-              const diff = dl && !isNaN(dl.getTime()) ? Math.round((dl-today)/86400000) : null;
-              const dlSub = diff===null ? '' : (diff===0?'HOJE':diff===1?'AMANHÃ':diff<0?'ATRASADO '+Math.abs(diff)+'d':'em '+diff+'d');
-              const dlColor = diff===null?'#94a3b8':diff<=1?'#dc2626':diff<=3?'#f59e0b':'#10b981';
-              const statusColors = {'agendar':'#f97316','apenas-trafego':'#0ea5e9','apenas-captacao':'#c026d3','agendado-mlabs':'#16a34a','agendado-meta':'#16a34a','aguardando-aprov':'#10b981','trello-vini':'#8b5cf6','mlabs-vini':'#8b5cf6','desenvolvimento':'#f59e0b','cal-pronto':'#6b7280','cancelado':'#dc2626','planejado':'#94a3b8'};
-              const statusLabels = {'agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','apenas-captacao':'🎥 Apenas captação','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprov','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado','planejado':'Planejado'};
-              const cor = statusColors[d.status] || '#94a3b8';
-              const teamPrimNomes = team.map(t => (t.name||'').split(' ')[0]).filter(Boolean);
-              const cliName = (cli.name||'sem nome').replace(/`/g,'').replace(/</g,'&lt;');
-              const segName = (cli.segment||'').replace(/</g,'&lt;');
-              const obs = (d.observations||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-              return '<div class="cron-mobile-card" style="border-left-color:'+cor+'">' +
-                '<div class="cron-mobile-card-head">' +
-                  '<div class="cron-cli-logo" style="background:'+(cli.logo_url?'transparent':cli.color||'#888')+';width:38px;height:38px;font-size:13px;flex-shrink:0;display:grid;place-items:center;border-radius:9px;color:#fff;font-weight:700">' + (cli.logo_url ? '<img src="'+cli.logo_url+'" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" />' : (cli.init||'?')) + '</div>' +
-                  '<div style="flex:1;min-width:0"><div class="cron-mobile-name">'+cliName+'</div><div class="cron-mobile-seg">'+(segName||'—')+'</div></div>' +
-                '</div>' +
-                '<div class="cron-mobile-row"><div class="lbl">📊 Status</div><div class="val"><select onchange="updateCronField('+cli.id+','+cronMonth+',\'status\',this.value)">' +
-                  Object.keys(statusLabels).map(k => '<option value="'+k+'"' + (d.status===k?' selected':'') + '>'+statusLabels[k]+'</option>').join('') +
-                '</select></div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">📝 Conteúdos</div><div class="val">' +
-                  '<input type="number" min="0" value="'+(d.target||0)+'" class="num-input" onchange="updateCronField('+cli.id+','+cronMonth+',\'target\',parseInt(this.value)||0)" />' +
-                  '<button onclick="puxarConteudosDoCalendario('+cli.id+','+cronMonth+')" title="Puxar do calendário" style="margin-left:8px;background:transparent;border:1px solid var(--border);border-radius:7px;width:34px;height:34px;font-size:15px;cursor:pointer">🗓</button>' +
-                '</div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">🎨 Designer</div><div class="val"><select onchange="updateCronField('+cli.id+','+cronMonth+',\'designer\',this.value)">' +
-                  '<option value="">— ninguém —</option>' +
-                  teamPrimNomes.map(n => '<option value="'+n+'"' + (d.designer===n?' selected':'') + '>'+n+'</option>').join('') +
-                '</select></div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">🚀 Tráfego pago</div><div class="val">' +
-                  (d.hasTraffic
-                    ? '<select onchange="updateCronField('+cli.id+','+cronMonth+',\'trafficManager\',this.value)" style="flex:1"><option value="">— ninguém —</option>' + teamPrimNomes.map(n => '<option value="'+n+'"' + (d.trafficManager===n?' selected':'') + '>'+n+'</option>').join('') + '</select>' +
-                      '<button onclick="updateCronField('+cli.id+','+cronMonth+',\'hasTraffic\',false);updateCronField('+cli.id+','+cronMonth+',\'trafficManager\',\'\');renderCronograma(document.getElementById(\'content\'))" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0 12px;font-size:11px;font-weight:600;min-height:44px;color:var(--text-3);flex-shrink:0">tirar</button>'
-                    : '<button onclick="updateCronField('+cli.id+','+cronMonth+',\'hasTraffic\',true);renderCronograma(document.getElementById(\'content\'))" style="width:100%;background:var(--surface-2);border:1px dashed var(--border);border-radius:8px;padding:11px;font-size:12.5px;font-weight:600;min-height:44px;color:var(--text-3)">+ adicionar responsável</button>') +
-                '</div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">📋 POP</div><div class="val"><select onchange="updateCronField('+cli.id+','+cronMonth+',\'pop\',this.value)">' +
-                  '<option value=""' + (!d.pop?' selected':'') + '>—</option>' +
-                  ['POP 1','POP 2','POP 3'].map(p => '<option value="'+p+'"' + (d.pop===p?' selected':'') + '>'+p+'</option>').join('') +
-                '</select></div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">⏰ Prazo</div><div class="val">' +
-                  '<input type="date" value="'+(d.deadline||'')+'" onchange="updateCronField('+cli.id+','+cronMonth+',\'deadline\',this.value)" style="flex:1" />' +
-                  (dlSub ? '<span style="font-size:11px;font-weight:700;padding:6px 10px;border-radius:6px;background:'+dlColor+'20;color:'+dlColor+';white-space:nowrap;flex-shrink:0">'+dlSub+'</span>' : '') +
-                '</div></div>' +
-                '<div class="cron-mobile-row"><div class="lbl">📌 Observações</div><div class="val"><textarea oninput="updateCronField('+cli.id+','+cronMonth+',\'observations\',this.value)" placeholder="Adicionar...">'+obs+'</textarea></div></div>' +
-              '</div>';
-            } catch(err){
-              console.warn('[cron mobile card]', cli.name, err);
-              return '<div class="cron-mobile-card" style="border-left-color:#dc2626"><div style="color:#dc2626;font-size:13px;font-weight:600">'+(cli.name||'?')+'</div><div class="text-xs text-3">Erro: '+(err.message||err)+'</div></div>';
-            }
-          }).join('')}
+          : rows.map(cli => _cronMobCard(cli)).join('')}
       </div>
 
       <div class="card mt-4" style="border-left:3px solid var(--info)">
@@ -20996,7 +21170,126 @@ function renderCronograma(c){
 
 
 
-// === CRONOGRAMA MOBILE: rendering completamente separado ===
+// ===== Cronograma no celular: cards compactos que abrem por toque =====
+// Quais clientes estao abertos (sobrevive ao re-render do mes/filtro).
+const _cronMobAberto = new Set();
+const _CRON_COR = {'agendar':'#f97316','apenas-trafego':'#0ea5e9','apenas-captacao':'#c026d3','agendado-mlabs':'#16a34a','agendado-meta':'#16a34a','aguardando-aprov':'#10b981','trello-vini':'#8b5cf6','mlabs-vini':'#8b5cf6','desenvolvimento':'#f59e0b','cal-pronto':'#6b7280','cancelado':'#dc2626','planejado':'#94a3b8'};
+function _cronMobPrazo(d){
+  const dl = d.deadline ? new Date(d.deadline+'T00:00:00') : null;
+  if(!dl || isNaN(dl.getTime())) return {txt:'', sub:'', cor:'var(--text-3)'};
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const diff = Math.round((dl-hoje)/86400000);
+  const txt = dl.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}).replace('.','');
+  const sub = diff===0?'hoje':diff===1?'amanhã':diff<0?('atrasado '+Math.abs(diff)+'d'):('em '+diff+'d');
+  const cor = diff<0?'var(--danger-text)':diff<=1?'#dc2626':diff<=3?'#b45309':'var(--text-3)';
+  return {txt, sub, cor, diff};
+}
+// Cabecalho do card: o que se ve com ele fechado. Atualizado no lugar quando
+// o status/prazo muda, sem re-render (senao a rolagem pulava).
+function _cronMobHead(cli, d){
+  const cor = _CRON_COR[d.status] || '#94a3b8';
+  const rot = (CRON_STATUS_LABELS[d.status] || 'Planejado');
+  const pz = _cronMobPrazo(d);
+  const nSolic = (typeof _solicNoMesEmpresa==='function') ? _solicNoMesEmpresa(cli._dbId, cronMonth) : 0;
+  const partes = [];
+  partes.push(d.designer ? '🎨 '+escapeHtml(d.designer) : '<span style="color:var(--warning-text,#b45309)">sem designer</span>');
+  partes.push((d.target||0)+' conteúdo'+((d.target||0)===1?'':'s'));
+  if(d.hasTraffic) partes.push('🚀 tráfego');
+  if(pz.txt) partes.push('<span style="color:'+pz.cor+'">⏰ '+pz.txt+' · '+pz.sub+'</span>');
+  if(nSolic>0) partes.push('<span style="color:var(--accent);font-weight:700">📥 '+nSolic+'</span>');
+  return '<div class="cron-cli-logo '+(cli.logo_url?'has-image':'')+'" style="background:'+(cli.logo_url?'transparent':(cli.color||'#888'))+'">' +
+      (cli.logo_url ? '<img src="'+cli.logo_url+'" alt="" />' : escapeHtml(cli.init||'?')) + '</div>' +
+    '<div class="cmc-info"><div class="cmc-nome">'+escapeHtml(cli.name||'sem nome')+'</div><div class="cmc-meta">'+partes.join(' · ')+'</div></div>' +
+    '<span class="cmc-status" style="--cor:'+cor+'">'+escapeHtml(rot)+'</span>' +
+    '<svg class="cmc-seta" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+}
+function _cronMobCard(cli){
+  const d = (cronograma[cli.id] && cronograma[cli.id][cronMonth]) ? cronograma[cli.id][cronMonth] : {target:0,produced:0,status:'planejado',deadline:'',designer:'',trafficManager:'',pop:'',obs:'',hasTraffic:false};
+  const cor = _CRON_COR[d.status] || '#94a3b8';
+  const aberto = _cronMobAberto.has(cli.id);
+  const m = cronMonth, id = cli.id;
+  const nomes = Array.from(new Set((team||[]).map(x=>(x.name||'').split(' ')[0]).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  const opt = (v, sel, rot) => '<option value="'+escapeHtml(v)+'"'+(sel?' selected':'')+'>'+escapeHtml(rot)+'</option>';
+  const trafPad = (typeof _trafegoPadrao==='function') ? _trafegoPadrao() : 'André';
+  const pz = _cronMobPrazo(d);
+  return '<div class="cmc'+(aberto?' aberto':'')+'" id="cmc-'+id+'" data-status="'+escapeHtml(d.status||'planejado')+'" style="--cor:'+cor+'">' +
+    '<button type="button" class="cmc-head" onclick="_cronMobToggle('+id+')" aria-expanded="'+(aberto?'true':'false')+'">'+_cronMobHead(cli,d)+'</button>' +
+    '<div class="cmc-body">' +
+      '<label class="cmc-campo cmc-full"><span>Status</span>' +
+        '<select class="cmc-status-sel" onchange="updateCronField('+id+','+m+',\'status\',this.value);_cronMobPintar('+id+')">' +
+          Object.keys(CRON_STATUS_LABELS).map(k=>opt(k, d.status===k, CRON_STATUS_LABELS[k])).join('') +
+        '</select></label>' +
+      '<label class="cmc-campo"><span>Conteúdos</span><div class="cmc-linha">' +
+        '<input type="number" inputmode="numeric" min="0" value="'+(d.target||0)+'" onchange="updateCronField('+id+','+m+',\'target\',parseInt(this.value)||0);_cronMobPintar('+id+')" />' +
+        '<button type="button" class="cmc-mini" onclick="puxarConteudosDoCalendario('+id+','+m+')" title="Puxar do calendário editorial">🗓</button>' +
+      '</div></label>' +
+      '<label class="cmc-campo"><span>POP</span><select onchange="updateCronField('+id+','+m+',\'pop\',this.value)">' +
+        opt('', !d.pop, '—') + ['POP 1','POP 2','POP 3'].map(p=>opt(p, d.pop===p, p)).join('') + '</select></label>' +
+      '<label class="cmc-campo"><span>Designer</span><select onchange="updateCronField('+id+','+m+',\'designer\',this.value);_cronMobPintar('+id+')">' +
+        opt('', !d.designer, '— ninguém —') + nomes.map(n=>opt(n, d.designer===n, n)).join('') + '</select></label>' +
+      '<label class="cmc-campo"><span>Prazo</span><input type="date" value="'+escapeHtml(d.deadline||'')+'" onchange="updateCronField('+id+','+m+',\'deadline\',this.value);_cronMobPintar('+id+')" />' +
+        (pz.sub ? '<small style="color:'+pz.cor+'">'+pz.sub+'</small>' : '') + '</label>' +
+      '<div class="cmc-campo cmc-full"><span>Tráfego pago</span>' +
+        '<label class="cmc-toggle"><input type="checkbox" '+(d.hasTraffic?'checked':'')+' onchange="updateCronField('+id+','+m+',\'hasTraffic\',this.checked);updateCronField('+id+','+m+',\'trafficManager\',this.checked?\''+escapeHtml(trafPad)+'\':\'\');_cronMobPintar('+id+')" />' +
+        '<span class="cmc-toggle-txt">'+(d.hasTraffic ? 'Com tráfego · '+escapeHtml(d.trafficManager||trafPad) : 'Sem tráfego este mês')+'</span></label></div>' +
+      '<label class="cmc-campo cmc-full"><span>Observações</span>' +
+        '<textarea rows="2" placeholder="Anotar observação…" oninput="cronograma['+id+']['+m+'].obs=this.value;debouncedSaveCron('+id+','+m+',this.value)">'+escapeHtml(d.obs||'')+'</textarea></label>' +
+      '<div class="cmc-rodape">' +
+        '<button type="button" class="btn btn-sm" onclick="if(typeof abrirCalendarioDoCliente===\'function\'){abrirCalendarioDoCliente('+id+')}else{goTo(\'calendarios\')}">📅 Calendário</button>' +
+        '<button type="button" class="btn btn-sm" onclick="toggleClienteOculto('+id+')">'+(cli.oculto?'👁 Mostrar na lista':'👁‍🗨 Ocultar da lista')+'</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+function _cronMobToggle(id){
+  const el = document.getElementById('cmc-'+id); if(!el) return;
+  const abre = !el.classList.contains('aberto');
+  el.classList.toggle('aberto', abre);
+  const bt = el.querySelector('.cmc-head'); if(bt) bt.setAttribute('aria-expanded', abre?'true':'false');
+  if(abre) _cronMobAberto.add(id); else _cronMobAberto.delete(id);
+}
+// Repinta so o cabecalho e a cor do card (sem re-render, pra rolagem nao pular).
+function _cronMobPintar(id){
+  const el = document.getElementById('cmc-'+id); if(!el) return;
+  const cli = clients.find(c=>c.id===id); if(!cli) return;
+  const d = (cronograma[id]||{})[cronMonth]; if(!d) return;
+  el.style.setProperty('--cor', _CRON_COR[d.status] || '#94a3b8');
+  el.setAttribute('data-status', d.status||'planejado');
+  const bt = el.querySelector('.cmc-head'); if(bt) bt.innerHTML = _cronMobHead(cli, d);
+  const tg = el.querySelector('.cmc-toggle-txt');
+  if(tg){ const trafPad = (typeof _trafegoPadrao==='function') ? _trafegoPadrao() : 'André'; tg.textContent = d.hasTraffic ? 'Com tráfego · '+(d.trafficManager||trafPad) : 'Sem tráfego este mês'; }
+  const pzEl = el.querySelector('input[type="date"] + small');
+  const pz = _cronMobPrazo(d);
+  if(pzEl){ pzEl.textContent = pz.sub; pzEl.style.color = pz.cor; }
+}
+// Exporta a visao atual do cronograma em CSV (abre direto no Excel pt-BR).
+function exportarCronogramaCSV(){
+  const linhas = [['Cliente','Segmento','Conteúdos','Tráfego','Gestor de tráfego','Designer','Status','POP','Prazo','Observações']];
+  const vis = clients.filter(c=>{
+    if(cronStatusFilter==='ocultos' ? !c.oculto : c.oculto) return false;
+    const d = (cronograma[c.id]||{})[cronMonth]||{};
+    if(cronStatusFilter!=='all' && cronStatusFilter!=='ocultos' && d.status!==cronStatusFilter) return false;
+    if(cronDesignerFilter){ const dz=(d.designer||'').trim(); if(cronDesignerFilter==='__sem' ? !!dz : dz!==cronDesignerFilter) return false; }
+    if(cronQuery){ const q=cronQuery.toLowerCase(); if(!((c.name+' '+(c.segment||'')+' '+(d.designer||'')+' '+(d.trafficManager||'')).toLowerCase().includes(q))) return false; }
+    return true;
+  }).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  if(!vis.length){ toast('Nada pra exportar nesta visão','info'); return; }
+  vis.forEach(c=>{
+    const d = (cronograma[c.id]||{})[cronMonth]||{};
+    linhas.push([c.name||'', c.segment||'', String(d.target||0), d.hasTraffic?'Sim':'Não', d.trafficManager||'', d.designer||'', CRON_STATUS_LABELS[d.status]||d.status||'', d.pop||'', d.deadline?d.deadline.split('-').reverse().join('/'):'', d.obs||'']);
+  });
+  const esc = v => '"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const csv = '\ufeff' + linhas.map(l=>l.map(esc).join(';')).join('\r\n');
+  const nome = 'cronograma-'+(monthNamesLong[cronMonth-1]||cronMonth).toLowerCase()+'-2026.csv';
+  try {
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+    toast('📤 '+vis.length+' cliente(s) exportados','success');
+  } catch(e){ toast('Não consegui gerar o arquivo: '+e.message,'info'); }
+}
+
+// === CRONOGRAMA MOBILE (versao antiga, nao usada) ===
 function renderCronogramaMobile(c){
   if(typeof cronograma === 'undefined' || !cronograma) window.cronograma = {};
   const DEFAULT_ENTRY = () => ({target:0, produced:0, status:'planejado', deadline:'', designer:'', trafficManager:'', pop:'', observations:'', hasTraffic:false});
@@ -22067,7 +22360,7 @@ function abrirSolicitacaoDetalhe(id){
           <div style="font-size:17px;font-weight:700">${escapeHtml(s.empresa_nome||(cli?cli.name:'Solicitação'))}</div>
           <div style="font-size:12.5px;color:var(--text-3);margin-top:2px">Solicitado por ${escapeHtml(s.solicitante_nome||'—')}${s.created_at?' · '+new Date(s.created_at).toLocaleDateString('pt-BR'):''}</div>
         </div>
-        <button class="btn btn-sm" onclick="document.getElementById('solicModal').remove()">✕</button>
+        <button class="btn btn-sm" onclick="document.getElementById('solicModal')?.remove()">✕</button>
       </div>
       <div style="padding:20px 22px">
         <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end">
@@ -22097,7 +22390,7 @@ function abrirSolicitacaoDetalhe(id){
         <button class="btn btn-sm" style="color:var(--danger);border:1px solid var(--accent-border)" onclick="excluirSolicitacao('${s.id}')">🗑️ Excluir</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
           <button class="btn" onclick="baixarSolicitacaoPDF('${s.id}')" title="Baixa um PDF da solicitação (com o prazo acima) pra mandar pro designer">📄 Baixar PDF</button>
-          <button class="btn" onclick="document.getElementById('solicModal').remove()">Fechar</button>
+          <button class="btn" onclick="document.getElementById('solicModal')?.remove()">Fechar</button>
           <button class="btn btn-primary" onclick="salvarSolicitacaoDetalhe('${s.id}')">Salvar</button>
         </div>
       </div>
@@ -22211,7 +22504,7 @@ async function abrirEditorPerguntasSolic(){
       <div style="padding:20px 22px;border-bottom:1px solid var(--border)"><div style="font-size:17px;font-weight:700">Editar perguntas do formulário</div><div style="font-size:12.5px;color:var(--text-3);margin-top:2px">Aparecem no link público para o cliente responder.</div></div>
       <div style="padding:18px 22px"><div id="solicPergList"></div><button class="btn btn-sm" onclick="solicPergAdd()">+ Adicionar pergunta</button></div>
       <div style="padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn" onclick="document.getElementById('solicPergModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('solicPergModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarPerguntasSolic()">Salvar</button>
       </div>
     </div>`;
@@ -22255,7 +22548,7 @@ async function abrirEditorServicosSolic(){
       <div style="padding:20px 22px;border-bottom:1px solid var(--border)"><div style="font-size:17px;font-weight:700">Serviços &amp; valores</div><div style="font-size:12.5px;color:var(--text-3);margin-top:2px">Formatos que o cliente escolhe na solicitação. O valor é cobrado por formato quando a cota grátis acaba. Use 0 para gratuito.</div></div>
       <div style="padding:18px 22px"><div id="solicServList"></div><button class="btn btn-sm" onclick="solicServAdd()">+ Adicionar serviço</button></div>
       <div style="padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn" onclick="document.getElementById('solicServModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('solicServModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarServicosSolic()">Salvar</button>
       </div>
     </div>`;
@@ -22297,7 +22590,7 @@ async function abrirEditorLinksSolic(){
       <div style="padding:20px 22px;border-bottom:1px solid var(--border)"><div style="font-size:17px;font-weight:700">Links por cliente</div><div style="font-size:12.5px;color:var(--text-3);margin-top:2px">Link exclusivo por cliente, já com a empresa preenchida, lista de quem solicita e cota grátis.</div></div>
       <div style="padding:18px 22px"><div id="solicLinksList"></div><button class="btn btn-sm" onclick="solicLinkAdd()">+ Novo link de cliente</button></div>
       <div style="padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn" onclick="document.getElementById('solicLinksModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('solicLinksModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarLinksSolic()">Salvar</button>
       </div>
     </div>`;
@@ -24012,7 +24305,7 @@ function abrirDesligamentoModal(id){
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:40px;height:40px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:18px">📋</div>
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${d?'Editar':'Nova'} entrevista de desligamento</div><div class="text-xs text-3">Registro confidencial (só gestão vê)</div></div>
-      <button class="icon-btn" onclick="document.getElementById('desligModal').remove()" style="width:30px;height:30px">×</button>
+      <button class="icon-btn" onclick="document.getElementById('desligModal')?.remove()" style="width:30px;height:30px">×</button>
     </div>
     <div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">
       <input type="hidden" id="desligId" value="${d?esc(d.id):''}" />
@@ -24023,7 +24316,7 @@ function abrirDesligamentoModal(id){
       ${DESLIG_PERGUNTAS.map((p,i)=>`<div><div class="info-label" style="margin-bottom:5px;line-height:1.4;text-transform:none;letter-spacing:0">${i+1}. ${esc(p)}</div><textarea class="deslig-resp" data-i="${i}" rows="2" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px;resize:vertical;outline:none">${esc(resp[i]||'')}</textarea></div>`).join('')}
     </div>
     <div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)">
-      <button class="btn" onclick="document.getElementById('desligModal').remove()">Cancelar</button>
+      <button class="btn" onclick="document.getElementById('desligModal')?.remove()">Cancelar</button>
       <button class="btn btn-primary" onclick="salvarDesligamento()">💾 Salvar</button>
     </div>
   </div>`;
@@ -24071,14 +24364,14 @@ function verDesligamento(id){
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
       <div class="avatar" style="background:var(--accent)">${esc((d.colaborador||'?').slice(0,2).toUpperCase())}</div>
       <div style="flex:1"><div style="font-size:17px;font-weight:700">${esc(d.colaborador||'—')}</div><div class="text-xs text-3">${d.data_saida?'Saída: '+esc(d.data_saida):'Entrevista de desligamento'}</div></div>
-      <button class="icon-btn" onclick="document.getElementById('desligModal').remove()" style="width:30px;height:30px">×</button>
+      <button class="icon-btn" onclick="document.getElementById('desligModal')?.remove()" style="width:30px;height:30px">×</button>
     </div>
     <div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">
       ${DESLIG_PERGUNTAS.map((p,i)=>`<div style="border-left:3px solid var(--accent);padding:0 0 0 12px"><div style="font-size:12.5px;font-weight:600;color:var(--text-2);line-height:1.4">${i+1}. ${esc(p)}</div><div style="font-size:13.5px;color:var(--text);line-height:1.55;margin-top:5px;white-space:pre-wrap">${resp[i]?esc(resp[i]):'<span style="color:var(--text-3)">—</span>'}</div></div>`).join('')}
     </div>
     <div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:space-between;border-top:1px solid var(--border)">
       <button class="btn" onclick="excluirDesligamento('${esc(d.id)}')" style="color:var(--danger)">🗑 Excluir</button>
-      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('desligModal').remove()">Fechar</button><button class="btn btn-primary" onclick="abrirDesligamentoModal('${esc(d.id)}')">✏️ Editar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('desligModal')?.remove()">Fechar</button><button class="btn btn-primary" onclick="abrirDesligamentoModal('${esc(d.id)}')">✏️ Editar</button></div>
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -24266,7 +24559,7 @@ function abrirAddMaterial(){
         </div>
       </div>
       <div style="padding:16px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px">
-        <button class="btn" onclick="document.getElementById('addMaterialModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('addMaterialModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" id="matSalvarBtn" onclick="salvarMaterial()">Salvar</button>
       </div>
     </div>`;
@@ -25215,7 +25508,7 @@ async function salvarTelefonesResponsaveis(){
     }
   }
 
-  document.getElementById('respRapidoModal').remove();
+  document.getElementById('respRapidoModal')?.remove();
   if(criados > 0 || salvos > 0){
     toast('✓ ' + (criados>0?criados+' criado(s)·':'') + salvos + ' atualizado(s)' + (erros>0?' · '+erros+' erro(s)':''), 'success');
   } else if(erros > 0){
@@ -25331,7 +25624,7 @@ async function openCaptacaoFormModal(cap){
           <div style="font-size:16px;font-weight:700">${isEdit?'Editar captação':'Nova captação'}</div>
           <div class="text-xs text-3" style="margin-top:2px">Preencha as informações da gravação</div>
         </div>
-        <button class="modal-close" onclick="document.getElementById('capFormModal').remove()">
+        <button class="modal-close" onclick="document.getElementById('capFormModal')?.remove()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
         </button>
       </div>
@@ -25449,7 +25742,7 @@ async function openCaptacaoFormModal(cap){
         <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:22px;flex-wrap:wrap">
           <div class="text-xs text-3">${isEdit?'✓ Alterações são salvas no banco.':'A captação será salva no Supabase e gera um link de compartilhamento.'}</div>
           <div style="display:flex;gap:8px">
-            <button class="btn" onclick="document.getElementById('capFormModal').remove()">Cancelar</button>
+            <button class="btn" onclick="document.getElementById('capFormModal')?.remove()">Cancelar</button>
             <button class="btn btn-primary" onclick="salvarCaptacaoForm(${isEdit?cap.id:'null'})" id="capSaveBtn">💾 ${isEdit?'Salvar alterações':'Criar captação'}</button>
           </div>
         </div>
@@ -25634,14 +25927,14 @@ async function salvarCaptacaoForm(capId){
 
       toast('✓ Captação criada — prazo entrega: ' + (payload.prazo_entrega || '—') + ' (adicionado na agenda)','success');
     }
-    document.getElementById('capFormModal').remove();
+    document.getElementById('capFormModal')?.remove();
     await loadDataFromSupabase();
     renderCaptacao(document.getElementById('content'));
   } catch(e){
     // GARANTIA: NUNCA perde a captação. Guarda na fila (reenvia sozinho) e avisa sem erro assustador.
     console.error('[salvarCap] → fila', e);
     try { _filaAdicionar({ tabela:'captacoes', tipo: (isEdit && cap && cap._dbId)?'update':'insert', payload, id: (isEdit && cap)?cap._dbId:undefined, descricao:'captação' }); } catch(_e){}
-    try { document.getElementById('capFormModal').remove(); } catch(_e){}
+    try { document.getElementById('capFormModal')?.remove(); } catch(_e){}
     toast('💾 Captação salva no seu aparelho — sincronizando com o servidor. Nada foi perdido.','info');
     try { sincronizarFila(); } catch(_e){}
     try { renderCaptacao(document.getElementById('content')); } catch(_e){}
@@ -26451,7 +26744,8 @@ async function trocarSenhaDireta(profileId, emailAlvo){
   if(inp && inp.value && inp.value.length >= 6){
     novaSenha = inp.value.trim();
   } else {
-    novaSenha = prompt('Nova senha pra '+emailAlvo+' (mínimo 6 caracteres):', 'impulse2026') || '';
+    const _r = await pedirDados('Trocar senha', [{ id:'senha', label:'Nova senha de ' + emailAlvo, tipo:'senha', valor:'impulse2026', obrigatorio:true, ajuda:'Mínimo 6 caracteres.' }], { ok:'Trocar senha' });
+    novaSenha = (_r && _r.senha) || '';
   }
   if(!novaSenha || novaSenha.length < 6){ toast('Senha precisa ter no mínimo 6 caracteres','info'); return; }
   try {
@@ -26493,7 +26787,8 @@ async function trocarSenhaUsuario(profileId, novaEmail){
 // Útil quando você quer trocar SUA PRÓPRIA senha sem email
 async function trocarMinhaSenha(){
   if(!_supa){ toast('Supabase necessario','info'); return; }
-  const novaSenha = prompt('Sua nova senha (mínimo 6 caracteres):');
+  const _r = await pedirDados('Trocar minha senha', [{ id:'senha', label:'Nova senha', tipo:'senha', obrigatorio:true, ajuda:'Mínimo 6 caracteres.' }], { ok:'Trocar senha' });
+  const novaSenha = _r && _r.senha;
   if(!novaSenha || novaSenha.length < 6){ toast('Senha inválida','info'); return; }
   try {
     const { error } = await _supa.auth.updateUser({password: novaSenha});
@@ -26520,6 +26815,49 @@ async function salvarAnotacaoSenha(profileId, novaSenha){
 }
 
 
+
+// Cria login pra todo colaborador que ainda nao tem e-mail, um atras do outro,
+// e mostra UM resumo no fim (o botao chamava uma funcao que nao existia).
+async function criarLoginsEmMassa(){
+  if(!_supa){ toast('Supabase necessário','info'); return; }
+  const semLogin = (_allProfiles||[]).filter(p => !p.email && p.enabled !== false);
+  if(!semLogin.length){ toast('Todo mundo já tem login ✓','success'); return; }
+  if(!confirm('Criar login pra '+semLogin.length+' colaborador(es) sem e-mail?\n\n'+semLogin.map(p=>'• '+(p.full_name||p.name||'?')).join('\n')+'\n\nSenha padrão: impulse2026')) return;
+  const senhaPadrao = 'impulse2026';
+  const feitos = [], falhas = [];
+  const slug = (txt) => String(txt||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z]/g,'');
+  for(const p of semLogin){
+    const nome = p.full_name || p.name || '';
+    const partes = nome.trim().split(/\s+/);
+    const tentativas = [slug(partes[0])+'@impulseone.com.br', slug(partes[0])+'.'+slug(partes[partes.length-1])+'@impulseone.com.br'];
+    let criado = null, erroFinal = '';
+    for(const email of tentativas){
+      if(!email.startsWith('@')){
+        try {
+          const { data, error } = await _supa.auth.signUp({ email, password: senhaPadrao });
+          if(!error && data && data.user){ criado = { email, uid: data.user.id }; break; }
+          erroFinal = error ? error.message : 'resposta vazia';
+          if(error && !/already/i.test(error.message)) break;   // so tenta o 2o e-mail se o 1o ja existir
+        } catch(e){ erroFinal = e.message; break; }
+      }
+    }
+    if(!criado){ falhas.push(nome+' — '+erroFinal); continue; }
+    const { error: updErr } = await _supa.from('profiles').update({ email: criado.email, auth_user_id: criado.uid, stored_password_hint: senhaPadrao }).eq('id', p.id);
+    if(updErr) falhas.push(nome+' — login criado mas não gravou no perfil: '+updErr.message);
+    else feitos.push(nome+' → '+criado.email);
+  }
+  const lista = (arr, cor) => arr.length ? '<ul style="margin:6px 0 12px 18px;line-height:1.6;color:'+cor+'">'+arr.map(x=>'<li>'+escapeHtml(x)+'</li>').join('')+'</ul>' : '';
+  const box = document.getElementById('clientModal');
+  if(box){
+    box.innerHTML = '<div class="modal-head"><div class="modal-title">⚡ Logins em massa</div><button class="icon-btn" onclick="closeModal()">✕</button></div>' +
+      '<div class="modal-body"><div style="font-size:13.5px">' +
+      (feitos.length ? '<strong>'+feitos.length+' criado(s)</strong> · senha padrão <code>'+senhaPadrao+'</code>'+lista(feitos,'var(--success-text)') : '') +
+      (falhas.length ? '<strong>'+falhas.length+' com problema</strong>'+lista(falhas,'var(--danger-text)') : '') +
+      '<div class="text-xs text-3">Se algum login não entrar: Supabase → Authentication → Providers → Email → desligar "Confirm email".</div></div></div>';
+    document.getElementById('modalBg').classList.add('open');
+  } else { toast(feitos.length+' login(s) criado(s)'+(falhas.length?' · '+falhas.length+' falha(s)':''), falhas.length?'info':'success'); }
+  renderUsuarios(document.getElementById('content'));
+}
 
 async function criarLoginRapido(profileId, nomeCompleto){
   if(!_supa){toast('Supabase necessario','info');return}
@@ -26902,7 +27240,7 @@ async function salvarLembrete(){
         _lembretes.push({id: 'tmp-'+Date.now(), texto, data_hora, done: false});
       }
     }
-    document.getElementById('lembreteModal').remove();
+    document.getElementById('lembreteModal')?.remove();
     await loadLembretes();
     toast(id ? '✓ Lembrete atualizado' : '✓ Lembrete criado', 'success');
   } catch(e){
@@ -28392,7 +28730,7 @@ async function salvarCampanha(presetCliId){
       const { error } = await _supa.from('trafego_campanhas').update(payload).eq('id', duplicado.id);
       if(error){ toast('Erro: '+error.message,'info'); return; }
       Object.assign(duplicado, payload);
-      document.getElementById('trfModal').remove();
+      document.getElementById('trfModal')?.remove();
       toast('✓ Atualização da semana SUBSTITUÍDA (mesma campanha e data)','success');
       if(presetCliId) renderTrafegoPagoCli(presetCliId);
       else if(currentPage === 'trafego') renderTrafegoPago(document.getElementById('content'));
@@ -28404,7 +28742,7 @@ async function salvarCampanha(presetCliId){
   } else {
     _campanhas.unshift(Object.assign({}, payload, {id:'tmp-'+Date.now()}));
   }
-  document.getElementById('trfModal').remove();
+  document.getElementById('trfModal')?.remove();
   toast('✓ Campanha salva','success');
   if(presetCliId) renderTrafegoPagoCli(presetCliId);
   else if(currentPage === 'trafego') renderTrafegoPago(document.getElementById('content'));
@@ -28479,7 +28817,8 @@ async function parcIndicacaoGerarLancamento(id, parceriaId){
   const ind = (_parcIndicacoes||[]).find(function(x){ return x.id === id; });
   if(!ind) return;
   if(ind.lancamento_id){ toast('Essa indicação já tem lançamento','info'); return; }
-  const bruto = prompt('Valor da comissão dessa indicação (R$):', ind.comissao || '');
+  const _r = await pedirDados('Comissão da indicação', [{ id:'v', label:'Valor da comissão (R$)', tipo:'numero', valor:ind.comissao || '', obrigatorio:true }], { ok:'Lançar' });
+  const bruto = _r ? _r.v : null;
   if(bruto === null) return;
   const valor = parseFloat(String(bruto).replace(/\./g,'').replace(',','.')) || parseFloat(bruto) || 0;
   if(!valor){ toast('Informe um valor','info'); return; }
@@ -28977,7 +29316,7 @@ async function salvarParceria(id){
     _parcerias.unshift(data);
     toast('✓ Parceria criada','success');
   }
-  document.getElementById('parceriaModal').remove();
+  document.getElementById('parceriaModal')?.remove();
   if(currentPage === 'parcerias') renderParcerias(document.getElementById('content'));
 }
 
@@ -29180,15 +29519,21 @@ function abrirParceriaDetalhe(parceriaId){
   document.body.appendChild(modal);
 }
 
-function addResultadoParceria(parceriaId){
-  const tipo = prompt('Tipo de resultado:\n- lead\n- venda\n- evento\n- conteudo\n- reuniao\n- outro', 'lead');
+async function addResultadoParceria(parceriaId){
+  const _r = await pedirDados('Novo resultado da parceria', [
+    { id:'tipo', label:'Tipo', tipo:'escolha', valor:'lead', obrigatorio:true,
+      opcoes:[['lead','Lead'],['venda','Venda'],['evento','Evento'],['conteudo','Conteúdo'],['reuniao','Reunião'],['outro','Outro']] },
+    { id:'descricao', label:'Descrição', tipo:'area', obrigatorio:true, dica:'O que aconteceu' },
+    { id:'valor', label:'Valor (R$)', tipo:'numero', valor:'0', ajuda:'Deixe 0 se não se aplica.' },
+    { id:'data', label:'Data', tipo:'data', valor:hojeBrasiliaStr(), obrigatorio:true },
+    { id:'contato', label:'Nome do cliente/lead', dica:'Se houver' }
+  ], { ok:'Registrar' });
+  const tipo = _r && _r.tipo;
   if(!tipo) return;
-  const descricao = prompt('Descrição do resultado:');
-  if(!descricao) return;
-  const valor = parseFloat(prompt('Valor R$ (deixe 0 se nao aplicavel):','0')) || 0;
-  const dataStr = prompt('Data (YYYY-MM-DD):', hojeBrasiliaStr());
-  if(!dataStr) return;
-  const contato = prompt('Nome do cliente/lead (opcional):','') || null;
+  const descricao = _r.descricao;
+  const valor = _r.valor || 0;
+  const dataStr = _r.data;
+  const contato = _r.contato || null;
 
   (async () => {
     const payload = {parceria_id: parceriaId, tipo, descricao: descricao.trim(), valor, data: dataStr, contato_cliente: contato};
@@ -29198,7 +29543,7 @@ function addResultadoParceria(parceriaId){
       _parceriasResultados.unshift(data);
     }
     toast('✓ Resultado adicionado','success');
-    document.getElementById('parceriaDetModal').remove();
+    document.getElementById('parceriaDetModal')?.remove();
     abrirParceriaDetalhe(parceriaId);
   })();
 }
@@ -29211,7 +29556,7 @@ async function excluirResultadoParceria(resId, parceriaId){
   }
   _parceriasResultados = _parceriasResultados.filter(r => r.id !== resId);
   toast('Resultado excluido','success');
-  document.getElementById('parceriaDetModal').remove();
+  document.getElementById('parceriaDetModal')?.remove();
   abrirParceriaDetalhe(parceriaId);
 }
 
@@ -29698,7 +30043,7 @@ async function salvarRelacionamento(){
   } else {
     toast('✓ Contato registrado','success');
   }
-  document.getElementById('relacModal').remove();
+  document.getElementById('relacModal')?.remove();
   if(typeof window._cliAberto !== 'undefined' && window._cliAberto && document.querySelector('[data-pane="relacionamento"]')){
     try { _relacPaneRefresh(window._cliAberto); } catch(e){}
   }
@@ -30446,7 +30791,7 @@ async function precifSalvarDescricao(prodId){
   const p = _precifProdutos.find(x => x.id === prodId);
   if(p) p.descricao = desc;
   toast('✓ Descrição salva','success');
-  document.getElementById('precifDescModal').remove();
+  document.getElementById('precifDescModal')?.remove();
   // Re-renderiza pra atualizar o badge no botao
   if(typeof renderComercial === 'function' && currentPage === 'comercial' && comTab === 'precificacao'){
     renderComercial(document.getElementById('content'));
@@ -30767,7 +31112,7 @@ async function salvarAlmoco(){
       if(error) throw error;
     }
     toast('✓ Salvo','success');
-    document.getElementById('almocoModal').remove();
+    document.getElementById('almocoModal')?.remove();
     await loadAlmocos();
     if(currentPage === 'almoco') renderAlmoco(document.getElementById('content'));
   } catch(e){
@@ -31260,7 +31605,7 @@ function openI3EquipeModal(id){
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:40px;height:40px;border-radius:9px;background:#a855f7;color:#fff;display:grid;place-items:center;font-size:18px">👤</div>
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${m?'Editar':'Novo'} colaborador no painel</div></div>
-      <button class="icon-btn" onclick="document.getElementById('i3EqModal').remove()" style="width:30px;height:30px">×</button>
+      <button class="icon-btn" onclick="document.getElementById('i3EqModal')?.remove()" style="width:30px;height:30px">×</button>
     </div>
     <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">
       <input type="hidden" id="i3EqId" value="${m?esc(m.id):''}" />
@@ -31277,7 +31622,7 @@ function openI3EquipeModal(id){
     <div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:space-between;align-items:center;border-top:1px solid var(--border)">
       <div>${m?`<button class="btn" onclick="excluirI3Equipe('${esc(m.id)}')" style="color:var(--danger)">🗑 Excluir</button>`:''}</div>
       <div style="display:flex;gap:8px">
-        <button class="btn" onclick="document.getElementById('i3EqModal').remove()">Cancelar</button>
+        <button class="btn" onclick="document.getElementById('i3EqModal')?.remove()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarI3Equipe()">💾 Salvar</button>
       </div>
     </div>
@@ -31478,7 +31823,7 @@ function openI3CombinadoModal(id){
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:40px;height:40px;border-radius:9px;background:#f59e0b;color:#fff;display:grid;place-items:center;font-size:18px">🤝</div>
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${x?'Editar':'Novo'} combinado</div><div class="text-xs text-3">O que ficou tratado, quem faz e até quando</div></div>
-      <button class="icon-btn" onclick="document.getElementById('i3CbModal').remove()" style="width:30px;height:30px">×</button>
+      <button class="icon-btn" onclick="document.getElementById('i3CbModal')?.remove()" style="width:30px;height:30px">×</button>
     </div>
     <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">
       <input type="hidden" id="i3CbId" value="${x?esc(x.id):''}" />
@@ -31491,7 +31836,7 @@ function openI3CombinadoModal(id){
     </div>
     <div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:space-between;align-items:center;border-top:1px solid var(--border)">
       <div>${x?`<button class="btn" onclick="excluirI3Combinado('${esc(x.id)}')" style="color:var(--danger)">🗑 Excluir</button>`:''}</div>
-      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('i3CbModal').remove()">Cancelar</button><button class="btn btn-primary" onclick="salvarI3Combinado()">💾 Salvar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('i3CbModal')?.remove()">Cancelar</button><button class="btn btn-primary" onclick="salvarI3Combinado()">💾 Salvar</button></div>
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -31574,7 +31919,7 @@ function openI3AtaAssinadaModal(id){
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
       <div style="width:40px;height:40px;border-radius:9px;background:#14b8a6;color:#fff;display:grid;place-items:center;font-size:18px">🖊</div>
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${a?'Editar':'Nova'} ata assinada</div><div class="text-xs text-3">Arquivo em anexo + resumo do que foi acordado</div></div>
-      <button class="icon-btn" onclick="document.getElementById('i3AaModal').remove()" style="width:30px;height:30px">×</button>
+      <button class="icon-btn" onclick="document.getElementById('i3AaModal')?.remove()" style="width:30px;height:30px">×</button>
     </div>
     <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">
       <input type="hidden" id="i3AaId" value="${a?esc(a.id):''}" />
@@ -31592,7 +31937,7 @@ function openI3AtaAssinadaModal(id){
     </div>
     <div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:space-between;align-items:center;border-top:1px solid var(--border)">
       <div>${a?`<button class="btn" onclick="excluirI3AtaAssinada('${esc(a.id)}')" style="color:var(--danger)">🗑 Excluir</button>`:''}</div>
-      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('i3AaModal').remove()">Cancelar</button><button class="btn btn-primary" id="i3AaSave" onclick="salvarI3AtaAssinada()">💾 Salvar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('i3AaModal')?.remove()">Cancelar</button><button class="btn btn-primary" id="i3AaSave" onclick="salvarI3AtaAssinada()">💾 Salvar</button></div>
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -31664,7 +32009,7 @@ function verI3Ata(id){
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:var(--surface);border-radius:16px 16px 0 0;z-index:1">
       <div style="width:40px;height:40px;border-radius:9px;background:#6366f1;color:#fff;display:grid;place-items:center;font-size:18px">📋</div>
       <div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700">${esc(tituloFinal)}</div><div class="text-xs text-3">${_i3FmtData(r.data_reuniao, true)}</div></div>
-      <button class="icon-btn" onclick="document.getElementById('i3VerAtaModal').remove()" style="width:30px;height:30px">×</button>
+      <button class="icon-btn" onclick="document.getElementById('i3VerAtaModal')?.remove()" style="width:30px;height:30px">×</button>
     </div>
     <div style="padding:18px 22px">
       ${r.encontro_data?`<div style="background:var(--surface-2);padding:12px 14px;border-radius:8px;margin-bottom:14px;border-left:3px solid #f59e0b"><div style="font-size:12px;font-weight:600;color:#f59e0b;margin-bottom:4px">📍 ENCONTRO PRESENCIAL</div><div style="font-size:14px;font-weight:600">${_i3FmtData(r.encontro_data)}${r.encontro_local?' · '+esc(r.encontro_local):''}</div></div>`:''}
@@ -31672,7 +32017,7 @@ function verI3Ata(id){
     </div>
     <div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:space-between;align-items:center;border-top:1px solid var(--border)">
       <button class="btn" onclick="excluirI3Reuniao('${esc(r.id)}')" style="color:var(--danger)">🗑 Excluir</button>
-      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('i3VerAtaModal').remove()">Fechar</button><button class="btn btn-primary" onclick="document.getElementById('i3VerAtaModal').remove();openI3ReuniaoModal('${esc(r.id)}')">✏️ Editar</button></div>
+      <div style="display:flex;gap:8px"><button class="btn" onclick="document.getElementById('i3VerAtaModal')?.remove()">Fechar</button><button class="btn btn-primary" onclick="document.getElementById('i3VerAtaModal')?.remove();openI3ReuniaoModal('${esc(r.id)}')">✏️ Editar</button></div>
     </div>
   </div>`;
   document.body.appendChild(modal);
@@ -32554,7 +32899,7 @@ async function salvarI3Reuniao(){
       toast('✓ Ata salva', 'success');
     }
 
-    document.getElementById('i3RModal').remove();
+    document.getElementById('i3RModal')?.remove();
     await loadI3Reunioes();
     if(typeof loadEventosCalendario === 'function') await loadEventosCalendario();
     renderI3(document.getElementById('content'));
@@ -32697,7 +33042,7 @@ async function salvarI3Learning(){
     }
 
     toast('✓ Salvo', 'success');
-    document.getElementById('i3LModal').remove();
+    document.getElementById('i3LModal')?.remove();
     await loadI3Learning();
     if(typeof loadEventosCalendario === 'function') await loadEventosCalendario();
     renderI3(document.getElementById('content'));
@@ -33549,7 +33894,7 @@ async function salvarValoresPorCliente(pagId){
   p.valor = novoTotal;
   p.descricao = novaDesc;
   toast('✓ Valores atualizados · novo total R$ ' + novoTotal.toFixed(2),'success');
-  document.getElementById('detClienteModal').remove();
+  document.getElementById('detClienteModal')?.remove();
   if(typeof renderPagamentos === 'function') renderPagamentos(document.getElementById('content'));
 }
 
@@ -34563,7 +34908,7 @@ async function salvarPagamentoVariavel(){
     }
     _colaboradorPagamentos.unshift(data);
   }
-  document.getElementById('pagVarModal').remove();
+  document.getElementById('pagVarModal')?.remove();
   toast('✓ Pagamento ' + (ehFreela?'(freela) ':'') + 'adicionado','success');
   renderPagamentos(document.getElementById('content'));
 }
@@ -34588,7 +34933,8 @@ async function marcarComoPago(id){
   const _semNF = !p.nf_url && !(_nfDoMes(p.profile_id, p.mes_ref) || {}).url;
   if(_semNF && !confirm('Esse pagamento ainda não tem nota fiscal do mês.' + String.fromCharCode(10,10) + 'Marcar como pago mesmo assim?')) return;
   const hoje = hojeBrasiliaStr();
-  const dataInput = prompt('Data do pagamento (YYYY-MM-DD):', p.data_pagamento || hoje);
+  const _r = await pedirDados('Marcar como pago', [{ id:'data', label:'Data do pagamento', tipo:'data', valor:p.data_pagamento || hoje, obrigatorio:true }], { ok:'Marcar como pago' });
+  const dataInput = _r && _r.data;
   if(!dataInput) return;
   if(_supa){
     // Grava e CONFIRMA: .select() devolve a linha alterada. Se a RLS bloquear, vem [] sem erro.
@@ -34692,11 +35038,16 @@ async function atualizarPagFixoCampo(id, campo, valor){
   }
 }
 
-function novoPagamentoFixoModal(){
-  const nome = prompt('Nome do pagamento fixo (ex: Aluguel, Notion, Salário fixo):');
+async function novoPagamentoFixoModal(){
+  const _r = await pedirDados('Novo pagamento fixo', [
+    { id:'nome', label:'Nome', obrigatorio:true, dica:'Ex.: Aluguel, Notion, Salário fixo' },
+    { id:'valor', label:'Valor mensal (R$)', tipo:'numero', valor:'0', obrigatorio:true },
+    { id:'obs', label:'Observações', tipo:'area' }
+  ], { ok:'Criar' });
+  const nome = _r && _r.nome;
   if(!nome || !nome.trim()) return;
-  const valor = parseFloat(prompt('Valor mensal (R$):','0')) || 0;
-  const observacoes = prompt('Observações (opcional):','') || null;
+  const valor = _r.valor || 0;
+  const observacoes = _r.obs || null;
   (async () => {
     const ordem = (_pagamentosFixos||[]).length;
     const payload = {nome: nome.trim(), valor, ativo: true, observacoes, ordem};
@@ -34828,7 +35179,8 @@ window.toggleServicoCliente = async function(cliId, servico){
 };
 
 window.adicionarServicoCustom = async function(cliId){
-  const nome = prompt('Nome do servico custom:');
+  const _r = await pedirDados('Novo serviço', [{ id:'nome', label:'Nome do serviço', obrigatorio:true, dica:'Ex.: Gestão de tráfego' }], { ok:'Adicionar' });
+  const nome = _r && _r.nome;
   if(!nome || !nome.trim()) return;
   const cli = clients.find(c => c.id === cliId);
   if(!cli) return;
@@ -35045,7 +35397,8 @@ function _calLinkPublico(token){
   return location.origin + location.pathname + '?aprovar=' + token;
 }
 function _calContagem(cal){
-  const p = ((cal && cal.posts) || []).filter(x => x && x.formato !== '__material');
+  // rascunho nao entra na conta: o cliente nem ve
+  const p = ((cal && cal.posts) || []).filter(x => x && x.formato !== '__material' && !x.rascunho);
   return {
     total: p.length,
     ok: p.filter(x=>x.status==='aprovado').length,
@@ -35204,13 +35557,14 @@ function _calsGrupos(cals){
 // calendários dele e resume. A data do post é "DD/MM", então o mês é o que vale.
 function _calsMes(grupo, mes1, ano){
   ano = ano || _calsMesRef().ano;
-  let total=0, ok=0, aj=0, novid=0;
+  let total=0, ok=0, aj=0, novid=0, rasc=0;
   grupo.cals.forEach(function(cal){
     (cal.posts||[]).forEach(function(p){
       if(!p || p.formato === '__material') return;
       const m = String(p.data||'').match(/^\s*(\d{1,2})\/(\d{1,2})/);
       if(!m || +m[2] !== mes1) return;
       total++;
+      if(p.rascunho) rasc++;
       if(p.status === 'aprovado') ok++;
       else if(p.status === 'ajustar') aj++;
     });
@@ -35222,12 +35576,33 @@ function _calsMes(grupo, mes1, ano){
   if(!total && marca === 'pronto'){ estado='pronto'; rot='Marcado como pronto'; cor='var(--success)'; }
   else if(!total && marca === 'dispensado'){ estado='dispensado'; rot='Dispensado neste mês'; cor='var(--text-3)'; }
   else if(!total){ estado='vazio'; rot='Falta montar'; cor='#f43f5e'; }
+  else if(rasc === total){ estado='rascunho'; rot='Rascunho · cliente não vê'; cor='#8b5cf6'; }
   else if(aj){ estado='ajuste'; rot=aj + (aj===1?' ajuste pedido':' ajustes pedidos'); cor='#FF9100'; }
   else if(ok === total){ estado='aprovado'; rot='Aprovado'; cor='var(--success)'; }
   else if(ok){ estado='parcial'; rot=pct + '% aprovado'; cor='var(--info)'; }
   else { estado='enviado'; rot='Pronto · aguardando o cliente'; cor='var(--text-2)'; }
-  return { total, ok, aj, pct, estado, rot, cor, novid, marca };
+  return { total, ok, aj, pct, estado, rot, cor, novid, marca, rasc };
 }
+
+// Libera os rascunhos de um mes do cliente: some o "cliente nao ve".
+async function _calsLiberarMes(ev, k, mes1){
+  if(ev){ try { ev.stopPropagation(); ev.preventDefault(); } catch(e){} }
+  const g = _calsGrupos(typeof _calendarios!=='undefined' ? _calendarios : []).find(function(x){ return String(x.k) === String(k); });
+  if(!g){ toast('Não achei o cliente.','info'); return; }
+  let n = 0;
+  for(const cal of g.cals){
+    const alvo = (cal.posts||[]).filter(function(p){ if(!p || !p.rascunho) return false; const m = String(p.data||'').match(/^\s*\d{1,2}\/(\d{1,2})/); return m && +m[1] === +mes1; });
+    if(!alvo.length) continue;
+    alvo.forEach(function(p){ delete p.rascunho; });
+    const r = await gravarSeguro({ tabela:'calendarios', tipo:'update', id:cal.id, payload:{ posts:cal.posts, updated_at:new Date().toISOString() }, descricao:'liberou mês pro cliente' });
+    if(!r || !r.ok){ alvo.forEach(function(p){ p.rascunho = true; }); continue; }
+    n += alvo.length;
+    _calLogEquipe(cal.id, cal.cliente_nome, 'liberou_mes', '—', _CAL_MESES[mes1-1] + ' liberado', alvo.length + ' conteúdo(s) liberados pro cliente ver e aprovar');
+  }
+  toast(n ? '📤 ' + n + ' conteúdo(s) liberados — o cliente já vê no link.' : 'Nada em rascunho neste mês.', n ? 'success' : 'info');
+  try { _calsPintarPagina(document.getElementById('content'), _calendarios); } catch(e){}
+}
+if(typeof window!=='undefined'){ window._calsLiberarMes = _calsLiberarMes; }
 
 function _calsAnel(pct, cor, estado){
   // anel de aprovação do mês: 40px, traço 4
@@ -35240,6 +35615,133 @@ function _calsAnel(pct, cor, estado){
     (estado!=='vazio' ? '<circle cx="20" cy="20" r="' + r + '" fill="none" stroke="' + cor + '" stroke-width="4" stroke-linecap="round" transform="rotate(-90 20 20)" stroke-dasharray="' + C.toFixed(2) + '" stroke-dashoffset="' + off.toFixed(2) + '"/>' : '') +
     meio + '</svg>';
 }
+
+/* As colunas do pipeline dos calendarios. A cor de cada uma e a do status
+   equivalente no Cronograma, pra leitura bater nas duas telas:
+   montado -> 📋 Trello/MLABS (roxo) · aguardando -> ⏳ Aguardando aprovacao
+   (verde-esmeralda) · aprovado -> ✓ Cal pronto (verde). "Falta montar" nao tem
+   equivalente (e a ausencia), entao fica no vermelho de pendencia da aba. */
+const _CALS_COLS = [
+  { id:'falta',     ico:'📋', rot:'Falta montar',         cor:'#f43f5e', estados:['vazio'],
+    dica:'Nenhum conteúdo lançado neste mês' },
+  { id:'montado',   ico:'🎨', rot:'Montado',              cor:'#8b5cf6', estados:['rascunho','pronto'],
+    dica:'Pronto na casa — o cliente ainda não viu' },
+  { id:'aprovacao', ico:'⏳', rot:'Aguardando aprovação', cor:'#10b981', estados:['enviado','parcial','ajuste'],
+    dica:'Está com o cliente' },
+  { id:'aprovado',  ico:'✓',  rot:'Aprovado',             cor:'#16a34a', estados:['aprovado'],
+    dica:'Cliente aprovou tudo do mês' },
+  { id:'dispensado',ico:'🚫', rot:'Dispensados',          cor:'var(--text-3)', estados:['dispensado'],
+    dica:'Fora da cobrança deste mês', escondidaPorPadrao:true }
+];
+// Colunas desligadas pela pessoa (fica guardado no navegador dela).
+let _calsColOff = (function(){
+  try {
+    const g = JSON.parse(localStorage.getItem('impulse_cals_colunas') || 'null');
+    if(Array.isArray(g)) return new Set(g);
+  } catch(e){}
+  return new Set(_CALS_COLS.filter(function(x){ return x.escondidaPorPadrao; }).map(function(x){ return x.id; }));
+})();
+function _calsToggleCol(id){
+  if(_calsColOff.has(id)) _calsColOff.delete(id); else _calsColOff.add(id);
+  try { localStorage.setItem('impulse_cals_colunas', JSON.stringify([..._calsColOff])); } catch(e){}
+  _calsPintarPagina(document.getElementById('content'), _calendarios);
+}
+function _calsColDoEstado(estado){
+  const c = _CALS_COLS.find(function(x){ return x.estados.indexOf(estado) !== -1; });
+  return c || _CALS_COLS[0];
+}
+if(typeof window !== 'undefined'){ window._calsToggleCol = _calsToggleCol; }
+
+/* Varre TODOS os calendarios e diz o que esta fora do padrao (chamada com a
+   descricao colada, carrossel sem slides). Nao grava nada: so mede. */
+function _calPadraoVarrer(cals){
+  const achados = [];
+  (cals || []).forEach(function(cal){
+    (cal.posts || []).forEach(function(p, i){
+      if(!p || p.formato === '__material') return;
+      const antes = { chamada:p.chamada, legenda:p.legenda, slides:(p.slides||[]).slice() };
+      const copia = JSON.parse(JSON.stringify(p));
+      if(!_calPadronizarPost(copia)) return;
+      achados.push({ calId:cal.id, cal:cal, idx:i, nome:cal.cliente_nome || '?', data:p.data || '',
+        antes:antes, depois:{ chamada:copia.chamada, legenda:copia.legenda, slides:copia.slides } });
+    });
+  });
+  return achados;
+}
+/* Mostra o antes/depois e, se a pessoa confirmar, grava tudo. */
+async function _calPadraoArrumar(){
+  const cals = (typeof _calendarios !== 'undefined' ? _calendarios : []);
+  const achados = _calPadraoVarrer(cals);
+  const esc = function(x){ return escapeHtml(String(x == null ? '' : x)); };
+  let ov = document.getElementById('calPadraoModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'calPadraoModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99997;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = function(e){ if(e.target === ov) ov.remove(); };
+  if(!achados.length){
+    ov.innerHTML = '<div style="background:var(--surface);border-radius:16px;max-width:420px;width:100%;padding:26px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5)">' +
+      '<div style="font-size:34px">✓</div><div style="font-size:16px;font-weight:700;margin:8px 0 6px">Está tudo no padrão</div>' +
+      '<div style="font-size:13px;color:var(--text-3);line-height:1.5">Nenhuma chamada com a descrição colada e nenhum carrossel sem slides.</div>' +
+      '<button class="btn btn-primary" type="button" style="margin-top:18px" onclick="document.getElementById(\'calPadraoModal\')?.remove()">Fechar</button></div>';
+    document.body.appendChild(ov);
+    return;
+  }
+  const porCliente = {};
+  achados.forEach(function(a){ (porCliente[a.nome] = porCliente[a.nome] || []).push(a); });
+  const corte = function(x, n){ x = String(x || ''); return x.length > n ? x.slice(0, n) + '…' : x; };
+  const lista = Object.keys(porCliente).sort(function(a,b){ return a.localeCompare(b,'pt-BR'); }).map(function(nome){
+    const its = porCliente[nome];
+    return '<div style="margin-bottom:14px"><div style="font-size:13px;font-weight:800;margin-bottom:6px">' + esc(nome) +
+      ' <span class="text-xs text-3">· ' + its.length + (its.length===1?' conteúdo':' conteúdos') + '</span></div>' +
+      its.map(function(a){
+        const nSl = (a.depois.slides || []).length, nSlA = (a.antes.slides || []).length;
+        return '<div style="border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:10px;padding:9px 11px;margin-bottom:6px;background:var(--surface-2)">' +
+          '<div class="text-xs text-3" style="margin-bottom:4px"><b>' + esc(a.data) + '</b>' +
+            (nSl > nSlA ? ' · ' + nSl + ' slides separados' : '') + '</div>' +
+          '<div style="font-size:11.5px;color:var(--text-3);text-decoration:line-through;line-height:1.4">' + esc(corte(a.antes.chamada, 150)) + '</div>' +
+          '<div style="font-size:12.5px;font-weight:700;margin-top:4px;line-height:1.4">' + esc(a.depois.chamada) + '</div>' +
+        '</div>';
+      }).join('') + '</div>';
+  }).join('');
+  ov.innerHTML = '<div style="background:var(--surface);border-radius:16px;max-width:560px;width:100%;max-height:92dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">' +
+    '<div style="padding:17px 20px;border-bottom:1px solid var(--border)">' +
+      '<div style="font-size:16px;font-weight:700">🧹 Arrumar no padrão</div>' +
+      '<div style="font-size:12.5px;color:var(--text-3);margin-top:3px">' + achados.length + ' conteúdo(s) de ' +
+        Object.keys(porCliente).length + ' cliente(s) com a descrição colada na chamada ou carrossel sem slides.</div></div>' +
+    '<div style="padding:15px 20px;overflow:auto;flex:1">' + lista + '</div>' +
+    '<div style="padding:13px 20px calc(13px + env(safe-area-inset-bottom));border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">' +
+      '<button class="btn" type="button" onclick="document.getElementById(\'calPadraoModal\')?.remove()">Cancelar</button>' +
+      '<button class="btn btn-primary" type="button" id="calPadraoOk">Arrumar os ' + achados.length + '</button>' +
+    '</div></div>';
+  document.body.appendChild(ov);
+  document.getElementById('calPadraoOk').onclick = async function(){
+    const bt = this; bt.disabled = true; bt.textContent = 'Arrumando…';
+    // guarda como estava, no navegador, antes de mexer
+    try { localStorage.setItem('impulse_cal_padrao_backup', JSON.stringify({ em:new Date().toISOString(),
+      posts: achados.map(function(a){ return { calId:a.calId, idx:a.idx, antes:a.antes }; }) })); } catch(e){}
+    const porCal = {};
+    achados.forEach(function(a){ (porCal[a.calId] = porCal[a.calId] || { cal:a.cal, itens:[] }).itens.push(a); });
+    let okN = 0, falhas = 0;
+    for(const calId of Object.keys(porCal)){
+      const cal = porCal[calId].cal;
+      porCal[calId].itens.forEach(function(a){
+        const p = cal.posts[a.idx];
+        if(!p) return;
+        p.chamada = a.depois.chamada; p.legenda = a.depois.legenda; p.slides = a.depois.slides;
+      });
+      const r = await gravarSeguro({ tabela:'calendarios', tipo:'update', id:calId,
+        payload:{ posts:cal.posts, updated_at:new Date().toISOString() }, descricao:'arrumou no padrão' });
+      if(r && r.ok){ okN += porCal[calId].itens.length;
+        _calLogEquipe(calId, cal.cliente_nome, 'padronizou', '—', 'Arrumado no padrão',
+          porCal[calId].itens.length + ' conteúdo(s): chamada curta + descrição/slides separados');
+      } else falhas += porCal[calId].itens.length;
+    }
+    document.getElementById('calPadraoModal')?.remove();
+    toast(okN + ' conteúdo(s) arrumados no padrão' + (falhas ? ' · ' + falhas + ' não gravaram' : ''), falhas ? 'info' : 'success');
+    try { _calsPintarPagina(document.getElementById('content'), _calendarios); } catch(e){}
+  };
+}
+if(typeof window !== 'undefined'){ window._calPadraoArrumar = _calPadraoArrumar; window._calPadraoVarrer = _calPadraoVarrer; }
 
 function _calsPintarPagina(c, cals){
   const _ref = _calsMesRef();
@@ -35276,6 +35778,7 @@ function _calsPintarPagina(c, cals){
   const _hojeM = (typeof hojeBrasiliaStr === 'function') ? hojeBrasiliaStr() : new Date().toISOString().slice(0,10);
   const ehMesAtual = (+_hojeM.slice(0,4) === anoAtual && +_hojeM.slice(5,7) === mesAtual);
 
+  const _foraPadrao = (function(){ try { return _calPadraoVarrer(cals).length; } catch(e){ return 0; } })();
   const cabecalho = '<div class="page-header"><div>' +
       '<div class="page-title">🗂 Calendários dos clientes</div>' +
       '<div class="page-subtitle">' + vis.length + ' clientes' +
@@ -35286,54 +35789,83 @@ function _calsPintarPagina(c, cals){
       '<button class="btn" type="button" onclick="_calsMesNav(-1)" title="Mês anterior" style="padding:8px 13px;font-size:17px;line-height:1">‹</button>' +
       '<div class="cals-nav-l">' + MESX[mesAtual] + ' ' + anoAtual + (ehMesAtual ? '<small>mês atual</small>' : '<small><a href="#" onclick="_calsMesVisto=null;_calsPintarPagina(document.getElementById(\'content\'), _calendarios);return false">voltar pro mês atual</a></small>') + '</div>' +
       '<button class="btn" type="button" onclick="_calsMesNav(1)" title="Próximo mês" style="padding:8px 13px;font-size:17px;line-height:1">›</button>' +
+      (_foraPadrao
+        ? '<button class="btn" type="button" onclick="_calPadraoArrumar()" title="Chamada com a descrição colada ou carrossel sem slides — mostra o que vai mudar antes de gravar" style="border-color:#FF9100;color:#FF9100;font-weight:700">🧹 Arrumar ' + _foraPadrao + ' fora do padrão</button>'
+        : '<button class="btn" type="button" onclick="_calPadraoArrumar()" title="Confere se todos os calendários estão no padrão">🧹 Conferir padrão</button>') +
     '</div></div>' +
     '<div class="filter-bar" style="margin-bottom:14px;gap:8px;flex-wrap:wrap">' +
       '<input class="login-input" id="calsBusca" placeholder="🔍 Buscar cliente…" value="' + escapeHtml(_calsTodosBusca||'') + '" ' +
         'oninput="_calsTodosBusca=this.value;_calsPintarPagina(document.getElementById(\'content\'), _calendarios);" ' +
         'style="max-width:300px;background:var(--surface)" />' +
-      '<span class="cals-res"><i style="background:var(--success)"></i>' + resumo.aprovado + ' aprovado' + (resumo.aprovado===1?'':'s') + '</span>' +
-      '<span class="cals-res"><i style="background:var(--info)"></i>' + resumo.parcial + ' em aprovação</span>' +
-      '<span class="cals-res"><i style="background:var(--text-2)"></i>' + resumo.enviado + ' aguardando</span>' +
-      '<span class="cals-res"><i style="background:#FF9100"></i>' + resumo.ajuste + ' com ajuste</span>' +
-      '<span class="cals-res"><i style="background:#f43f5e"></i>' + resumo.vazio + ' falta montar</span>' +
-      (resumo.pronto ? '<span class="cals-res"><i style="background:var(--success)"></i>' + resumo.pronto + ' marcado pronto</span>' : '') +
-      (resumo.dispensado ? '<span class="cals-res"><i style="background:var(--text-3)"></i>' + resumo.dispensado + ' dispensado' + (resumo.dispensado===1?'':'s') + '</span>' : '') +
+      // Cada chip e o interruptor da coluna: clicou, a coluna some ou volta.
+      _CALS_COLS.map(function(col){
+        const n = col.estados.reduce(function(a,e){ return a + (resumo[e]||0); }, 0);
+        const off = _calsColOff.has(col.id);
+        return '<button type="button" class="cals-res' + (off ? ' off' : '') + '" onclick="_calsToggleCol(\'' + col.id + '\')" ' +
+          'title="' + escapeHtml(col.dica) + ' — clique pra ' + (off ? 'mostrar' : 'esconder') + ' esta coluna" style="--c:' + col.cor + '">' +
+          '<i style="background:' + col.cor + '"></i>' + col.ico + ' ' + col.rot + ' <b>' + n + '</b></button>';
+      }).join('') +
     '</div>';
 
   if(!vis.length){
     c.innerHTML = cabecalho + '<div class="empty-state" style="padding:40px"><div class="ico">🗓</div><div class="ttl">Nenhum cliente encontrado</div></div>';
     return;
   }
-  c.innerHTML = cabecalho + '<div class="cals-visao">' + vis.map(function(g){
+  // ===== pipeline: uma coluna por etapa, cliente vira cartao =====
+  const porCol = {};
+  _CALS_COLS.forEach(function(col){ porCol[col.id] = []; });
+  vis.forEach(function(g){
     const atual = _calsMes(g, mesAtual, anoAtual);
-    // faixa dos próximos meses: já tem conteúdo montado?
+    porCol[_calsColDoEstado(atual.estado).id].push({ g:g, st:atual });
+  });
+  const cartao = function(it){
+    const g = it.g, atual = it.st;
     const faixa = [0,1,2].map(function(d){
       const m = ((mesAtual - 1 + d) % 12) + 1;
       const a = anoAtual + (mesAtual - 1 + d >= 12 ? 1 : 0);
       const st = _calsMes(g, m, a);
       return '<span class="cals-fx ' + st.estado + '" title="' + MESX[m] + ': ' + st.rot + '" style="--c:' + st.cor + '">' + MES[m] + '</span>';
     }).join('');
-    return '<button type="button" class="cals-card ' + atual.estado + '" onclick="_calsClienteAberto=\'' + String(g.k).replace(/'/g,'') + '\';_calsPintarPagina(document.getElementById(\'content\'), _calendarios)">' +
-      _calsLogo(g.cli, g.nome, 44) +
-      '<div class="cals-nome">' + escapeHtml(g.nome) + (atual.novid ? ' <span class="badge b-danger">🔔 ' + atual.novid + '</span>' : '') + '</div>' +
-      '<div class="cals-mes">' +
+    const cr = _calsCron(g.cli, mesAtual);
+    const chave = String(g.k).replace(/'/g,'');
+    return '<button type="button" class="cals-kc ' + atual.estado + '" style="--c:' + atual.cor + '" ' +
+        'onclick="_calsClienteAberto=\'' + chave + '\';_calsPintarPagina(document.getElementById(\'content\'), _calendarios)">' +
+      '<div class="cals-kc-topo">' + _calsLogo(g.cli, g.nome, 34) +
+        '<div class="cals-kc-id"><div class="cals-kc-nome">' + escapeHtml(g.nome) + '</div>' +
+        '<div class="cals-kc-st">' + escapeHtml(atual.rot) + '</div></div>' +
+        (atual.novid ? '<span class="badge b-danger" title="novidades do cliente">🔔 ' + atual.novid + '</span>' : '') +
         _calsAnel(atual.pct, atual.cor, atual.estado) +
-        '<div style="min-width:0"><div class="cals-mes-t">' + MESX[mesAtual] + '</div>' +
-        '<div class="cals-mes-s" style="color:' + atual.cor + '">' + escapeHtml(atual.rot) + '</div>' +
-        (atual.total ? '<div class="cals-mes-n">' + atual.ok + ' de ' + atual.total + ' aprovados</div>' : '') + '</div>' +
       '</div>' +
-      (function(){ const cr = _calsCron(g.cli, mesAtual); return cr
-        ? '<div class="cals-cron" title="Status no Cronograma" style="--c:' + cr.cor + '">' + cr.ico + ' ' + escapeHtml(cr.rot) + '</div>'
-        : ''; })() +
+      (atual.total ? '<div class="cals-kc-n">' + atual.ok + ' de ' + atual.total + ' aprovados' +
+          (atual.aj ? ' · <b style="color:#FF9100">' + atual.aj + ' com ajuste</b>' : '') + '</div>' : '') +
+      (cr ? '<div class="cals-cron" title="Status no Cronograma" style="--c:' + cr.cor + '">' + cr.ico + ' ' + escapeHtml(cr.rot) + '</div>' : '') +
       '<div class="cals-faixa">' + faixa + '</div>' +
-      (atual.estado === 'vazio' ? '<div class="cals-acoes">' +
-          '<span onclick="_calsMarcar(event,\'' + String(g.k).replace(/'/g,'') + '\',\'pronto\')" title="Marcar como pronto sem lançar conteúdo aqui">✓ Pronto</span>' +
-          '<span onclick="_calsMarcar(event,\'' + String(g.k).replace(/'/g,'') + '\',\'dispensado\')" title="Tirar da cobrança deste mês">🚫 Dispensar</span>' +
+      (atual.rasc ? '<div class="cals-acoes">' +
+          '<span onclick="_calsLiberarMes(event,\'' + chave + '\',' + mesAtual + ')" title="O cliente passa a ver e aprovar estes conteúdos no link" style="border-color:#8b5cf6;color:#8b5cf6">📤 Liberar ' + atual.rasc + ' pro cliente</span>' +
+        '</div>'
+       : atual.estado === 'vazio' ? '<div class="cals-acoes">' +
+          '<span onclick="_calsMarcar(event,\'' + chave + '\',\'pronto\')" title="Marcar como pronto sem lançar conteúdo aqui">✓ Pronto</span>' +
+          '<span onclick="_calsMarcar(event,\'' + chave + '\',\'dispensado\')" title="Tirar da cobrança deste mês">🚫 Dispensar</span>' +
         '</div>'
        : (atual.estado === 'pronto' || atual.estado === 'dispensado') ? '<div class="cals-acoes">' +
-          '<span onclick="_calsMarcar(event,\'' + String(g.k).replace(/'/g,'') + '\',\'\')" title="Desfazer a marcação">↺ Desfazer</span></div>'
+          '<span onclick="_calsMarcar(event,\'' + chave + '\',\'\')" title="Desfazer a marcação">↺ Desfazer</span></div>'
        : '') +
     '</button>';
+  };
+  const colunas = _CALS_COLS.filter(function(col){ return !_calsColOff.has(col.id); });
+  if(!colunas.length){
+    c.innerHTML = cabecalho + '<div class="empty-state" style="padding:40px"><div class="ico">👁‍🗨</div><div class="ttl">Todas as colunas estão escondidas</div><div class="desc">Clique num dos botões acima pra trazer uma de volta.</div></div>';
+    return;
+  }
+  c.innerHTML = cabecalho + '<div class="cals-kan">' + colunas.map(function(col){
+    const itens = porCol[col.id];
+    return '<section class="cals-kan-col" style="--c:' + col.cor + '" aria-label="' + escapeHtml(col.rot) + '">' +
+      '<header class="cals-kan-head"><span class="cals-kan-tit">' + col.ico + ' ' + col.rot + '</span>' +
+        '<span class="cals-kan-n">' + itens.length + '</span></header>' +
+      '<div class="cals-kan-cards">' +
+        (itens.length ? itens.map(cartao).join('')
+          : '<div class="cals-kan-vazio">' + escapeHtml(col.dica) + '</div>') +
+      '</div></section>';
   }).join('') + '</div>';
 }
 function _calsLogo(cli, nome, tam){
@@ -35495,7 +36027,8 @@ const _CAL_LEGENDA_PADRAO = _CAL_CORES.map(r => [r.cor, r.nome]);
    LEGENDA no fim. So separa quando e seguro: tem que COMECAR no slide 1 e a
    numeracao tem que ser sequencial. Um briefing que apenas cita "Slide 2" no
    meio do texto nao e tocado. */
-const _CAL_SL_MARCA = /slide\s*(\d+)\s*[—–:.)-]\s*/ig;
+// "Slide 1:", "Card 1 (Capa):", "Cartão 2 -", "Página 3." ... tudo e marcador de slide
+const _CAL_SL_MARCA = /(?:slide|card|cart[ãa]o|p[áa]gina|tela)\s*(\d+)\s*(?:\([^)]{0,24}\))?\s*[—–:.)-]\s*/ig;
 const _CAL_SL_CAUDA = /\n\s*(LEGENDA|CTA|COPY|DESCRIÇÃO|DESCRICAO)\s*[:\n]/i;
 function _calSepararSlides(txt){
   const t = String(txt || '').trim();
@@ -35543,6 +36076,57 @@ function _calDividirCarrossel(txt){
   return { chamada: chamada, slides: resto };
 }
 if(typeof window !== 'undefined'){ window._calDividirCarrossel = _calDividirCarrossel; }
+
+/* Chamada longa (a descricao inteira colada na chamada): vira frase curta +
+   o resto vai pra descricao. Primeira linha se houver quebra; senao a primeira
+   frase (. ! ?) ate 140 caracteres; senao ate ":" ou ";". Nao mexe se nao
+   achar um corte limpo. */
+function _calChamadaLonga(chamada, legenda){
+  const c = String(chamada || '').trim();
+  if(c.length <= 140 && c.indexOf('\n') === -1) return null;
+  let curta = '', resto = '';
+  const nl = c.indexOf('\n');
+  if(nl > 0 && nl <= 140){ curta = c.slice(0, nl).trim(); resto = c.slice(nl + 1).trim(); }
+  else {
+    const m = /^([\s\S]{15,140}?[.!?])(?=\s|$)/.exec(c) || /^([\s\S]{15,140}?[:;])(?=\s|$)/.exec(c);
+    if(!m) return null;
+    curta = m[1].trim(); resto = c.slice(m[1].length).trim();
+  }
+  if(!curta || !resto) return null;
+  const lg = String(legenda || '').trim();
+  const novaLg = (lg && lg.indexOf(resto) !== -1) ? lg : (resto + (lg ? '\n\n' + lg : ''));
+  return { chamada: curta, legenda: novaLg };
+}
+/* Aplica o padrao da casa num post (muda o objeto no lugar). Devolve true se
+   mexeu em algo. Vale pro construtor, pra pagina do cliente e pra correcao de
+   dados antigos. */
+function _calPadronizarPost(p){
+  if(!p || p.formato === '__material') return false;
+  let mudou = false;
+  if(!Array.isArray(p.slides)) p.slides = [];
+  const temSlides = p.slides.some(function(x){ return String(x || '').trim(); });
+  if(/carross/i.test(p.formato || '') && !temSlides){
+    let sep = _calSepararSlides(p.legenda);
+    if(sep){ p.slides = sep.slides; p.legenda = sep.legenda; mudou = true; }
+    else {
+      sep = _calSepararSlides(p.chamada);
+      if(sep){
+        p.slides = sep.slides;
+        if(!String(p.legenda || '').trim()) p.legenda = sep.legenda;
+        const c1 = _calChamadaLonga(sep.slides[0], '');
+        p.chamada = c1 ? c1.chamada : sep.slides[0];
+        mudou = true;
+      } else if(String(p.chamada || '').length > 140 || /\n/.test(String(p.chamada || ''))){
+        const div = _calDividirCarrossel(p.chamada);
+        if(div){ p.chamada = div.chamada; p.slides = div.slides; mudou = true; }
+      }
+    }
+  }
+  const lc = _calChamadaLonga(p.chamada, p.legenda);
+  if(lc){ p.chamada = lc.chamada; p.legenda = lc.legenda; mudou = true; }
+  return mudou;
+}
+if(typeof window !== 'undefined'){ window._calChamadaLonga = _calChamadaLonga; window._calPadronizarPost = _calPadronizarPost; }
 
 // ===== Regra: fim de semana so recebe data comemorativa =====
 function _calEhComemorativa(p){
@@ -35593,6 +36177,8 @@ function _calNovoCSS(){
     .cn-cell.over{border-color:var(--accent)!important;background:var(--accent-soft);transform:scale(1.03)}
     .cn-daynum{position:absolute;top:9px;right:11px;font-size:12px;font-weight:700;color:var(--text-3)}
     .cn-cell.tem .cn-daynum{color:var(--text-2)}
+    .cn-post.rasc{border-style:dashed;opacity:.8}
+    .cn-post.rasc::after{content:'rascunho';display:block;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin-top:4px}
     .cn-post{margin-top:22px;border:1px solid;border-radius:12px;padding:8px 10px 9px;cursor:grab;transition:transform .15s cubic-bezier(.2,.7,.2,1),box-shadow .15s,filter .15s}
     .cn-post:active{cursor:grabbing}
     .cn-post:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(0,0,0,.35);filter:brightness(1.1)}
@@ -35648,7 +36234,9 @@ function novoCalendario(cliId, calEdit){
       const d = parseInt(parts[0]), mo = parseInt(parts[1]) - 1;
       if(isNaN(d) || isNaN(mo)) return;
       if(primeiroMes === null) primeiroMes = mo;
-      window._calNovo.dias[mo + '-' + d] = Object.assign({}, p);
+      const cp = Object.assign({}, p);
+      if(_calPadronizarPost(cp)) window._calNovoPadronizou = (window._calNovoPadronizou || 0) + 1;
+      window._calNovo.dias[mo + '-' + d] = cp;
     });
     if(primeiroMes !== null) window._calNovo.mes = primeiroMes;
   }
@@ -35679,7 +36267,7 @@ function novoCalendario(cliId, calEdit){
         <div id="cnMesLabel" style="font-weight:700;font-size:14px;min-width:132px;text-align:center"></div>
         <button class="btn" type="button" onclick="_calNovoMes(1)" title="Próximo mês" style="padding:7px 11px">›</button>
       </div>
-      <button class="modal-close" type="button" onclick="document.getElementById('novoCalendarioModal').remove()">✕</button>
+      <button class="modal-close" type="button" onclick="document.getElementById('novoCalendarioModal')?.remove()">✕</button>
     </div>
     <div style="padding:16px 20px;overflow:auto;flex:1">
       <div style="display:flex;align-items:baseline;gap:8px;margin:0 0 16px">
@@ -35696,12 +36284,17 @@ function novoCalendario(cliId, calEdit){
         <span id="cnContador" class="text-xs text-3"></span>
         <span id="cnSalvoEm" class="text-xs" style="color:var(--text-3)">${_edit?'salva sozinho a cada mudança':'rascunho guardado neste navegador até você criar'}</span>
       </span>
-      <button class="btn" type="button" onclick="document.getElementById('novoCalendarioModal').remove()">Cancelar</button>
+      <button class="btn" type="button" onclick="document.getElementById('novoCalendarioModal')?.remove()">Cancelar</button>
       <button class="btn btn-primary" type="button" onclick="salvarNovoCalendario(${cli.id})">${_edit?'Salvar alterações':'Criar e gerar link'}</button>
     </div>
   </div>`;
   document.body.appendChild(m);
   _calNovoPintar();
+  if(window._calNovoPadronizou){
+    const n = window._calNovoPadronizou; window._calNovoPadronizou = 0;
+    try { toast('🧹 ' + n + ' conteúdo(s) ajustados ao padrão (chamada curta, slides separados).','info'); } catch(e){}
+    _cnAgendarSalvar();
+  }
 }
 
 /* ===== Salvamento automático do construtor =====
@@ -35745,8 +36338,14 @@ function _cnPostsDaGrade(s){
       editado: !!p.editado,
       decidido_em: p.decidido_em || null,
       ajuste_feito: !!p.ajuste_feito,
-      ajuste_feito_em: p.ajuste_feito_em || null
+      ajuste_feito_em: p.ajuste_feito_em || null,
+      rascunho: !!p.rascunho
     };
+  }).map(function(p){
+    // Ultima rede: nada sai do construtor com a descricao colada na chamada
+    // nem com carrossel sem slides. O padrao nao depende de ninguem lembrar.
+    try { _calPadronizarPost(p); } catch(e){}
+    return p;
   });
 }
 async function _cnGravarAgora(){
@@ -35811,7 +36410,10 @@ const _CAL_EV_ROTULOS = {
   moveu_post:     ['📆', 'Time mudou a data',          'var(--text-2)'],
   criou:          ['🗓', 'Calendário criado',          'var(--text-2)'],
   salvou:         ['💾', 'Time salvou o calendário',   'var(--text-2)'],
-  finalizou:      ['🏁', 'Revisão concluída',          'var(--accent)']
+  finalizou:      ['🏁', 'Revisão concluída',          'var(--accent)'],
+  liberou_mes:    ['📤', 'Time liberou pro cliente',   'var(--accent)'],
+  padronizou:     ['🧹', 'Texto entrou no padrão',     'var(--text-3)'],
+  desfez_aprovacao:['↩', 'Aprovação desfeita',         'var(--warning)']
 };
 function _calEvRotulo(tipo){
   return _CAL_EV_ROTULOS[tipo] || ['•', String(tipo||'Mexeu').replace(/_/g,' '), 'var(--text-3)'];
@@ -35860,7 +36462,7 @@ function _calNovoPintar(){
     const nSl = p && Array.isArray(p.slides) ? p.slides.filter(x=>String(x||'').trim()).length : 0;
     html += `<div class="cn-cell${p?' tem':''}${fds?' fds':''}${fora?' fora':''}" data-d="${d}" onclick="_calNovoDia(${d})"${fds?' title="Fim de semana: só data comemorativa entra aqui"':''}>
       <span class="cn-daynum">${d}</span>
-      ${p ? `<div class="cn-post" onpointerdown="_cnPointerDown(event,${d})" title="Arraste pra outro dia pra mudar a data" style="touch-action:none;--fmt:${cor};background:${cor}1c;border-color:${cor}40"><span class="cn-fmt">${escapeHtml(p.formato||'Post')}${p.midia?' 🎥':''}</span><span class="cn-tit">${escapeHtml(p.chamada||'')}</span>${nSl?`<span class="cn-sl">${nSl} ${nSl===1?'slide':'slides'}</span>`:''}</div>`
+      ${p ? `<div class="cn-post${p.rascunho?' rasc':''}" onpointerdown="_cnPointerDown(event,${d})" title="${p.rascunho?'Rascunho: o cliente ainda não vê. ':''}Arraste pra outro dia pra mudar a data" style="touch-action:none;--fmt:${cor};background:${cor}1c;border-color:${cor}40"><span class="cn-fmt">${escapeHtml(p.formato||'Post')}${p.midia?' 🎥':''}</span><span class="cn-tit">${escapeHtml(p.chamada||'')}</span>${nSl?`<span class="cn-sl">${nSl} ${nSl===1?'slide':'slides'}</span>`:''}</div>`
              : '<div class="cn-add">+</div>'}
       ${fora ? '<span class="cn-alerta" title="Fim de semana sem data comemorativa">⚠</span>' : ''}
     </div>`;
@@ -35884,7 +36486,11 @@ function _calPostsForaDaRegra(){
 function _calNovoAvisoRegra(){
   const box = document.getElementById('cnResumo'); if(!box) return;
   const fora = _calPostsForaDaRegra();
-  const legenda = '<div class="cn-legenda">' + _CAL_LEGENDA_PADRAO.map(function(l){
+  const s = window._calNovo || { dias:{} };
+  const nRasc = Object.keys(s.dias).filter(function(k){ return s.dias[k] && s.dias[k].rascunho; }).length;
+  const rasc = nRasc ? '<div class="cn-regra alerta" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span style="flex:1">📝 <b>' + nRasc + (nRasc===1?' conteúdo':' conteúdos') + ' em rascunho</b> — o cliente ainda não vê no link.</span>' +
+      '<button type="button" class="btn btn-sm btn-primary" onclick="_cnLiberarRascunhos()">📤 Liberar pro cliente</button></div>' : '';
+  const legenda = rasc + '<div class="cn-legenda">' + _CAL_LEGENDA_PADRAO.map(function(l){
       return '<span class="cn-lg"><i style="background:' + l[0] + '"></i>' + l[1] + '</span>';
     }).join('') + '</div>';
   if(!fora.length){
@@ -35900,6 +36506,19 @@ function _calNovoAvisoRegra(){
     'Mude a data ou marque como Data comemorativa.</div>';
 }
 
+// Libera todos os rascunhos deste calendario: o cliente passa a ver no link.
+function _cnLiberarRascunhos(){
+  const s = window._calNovo; if(!s) return;
+  const ks = Object.keys(s.dias).filter(function(k){ return s.dias[k] && s.dias[k].rascunho; });
+  if(!ks.length){ toast('Nada em rascunho.','info'); return; }
+  ks.forEach(function(k){ delete s.dias[k].rascunho; });
+  _calNovoPintar();
+  _cnAgendarSalvar();
+  if(s.editId) _calLogEquipe(s.editId, '', 'liberou_mes', '—', 'Conteúdos liberados', ks.length + ' conteúdo(s) liberados pro cliente ver e aprovar');
+  toast('📤 ' + ks.length + ' conteúdo(s) liberados — o cliente já vê no link.','success');
+}
+if(typeof window!=='undefined'){ window._cnLiberarRascunhos = _cnLiberarRascunhos; }
+
 function _calNovoDia(dia){
   if(window._cnJustDropped){ window._cnJustDropped=false; return; }   // não abrir modal logo depois de soltar
   const s = window._calNovo; if(!s) return;
@@ -35914,7 +36533,7 @@ function _calNovoDia(dia){
     <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">
       <div style="flex:1"><div style="font-size:15px;font-weight:700">Conteúdo de ${dd}</div>
       <div class="text-xs text-3" style="margin-top:2px">${_CAL_MESES[s.mes]} ${s.ano}${_fds?' · fim de semana':''}</div></div>
-      <button class="modal-close" type="button" onclick="document.getElementById('cnDiaModal').remove()">✕</button>
+      <button class="modal-close" type="button" onclick="document.getElementById('cnDiaModal')?.remove()">✕</button>
     </div>
     <div style="padding:16px 20px;overflow:auto;flex:1">
       ${_fds ? '<div class="cn-avisofds">⚠ <b>Fim de semana.</b> O padrão é não publicar sábado e domingo. Só entra aqui se for <b>data comemorativa</b>.</div>' : ''}
@@ -35949,7 +36568,7 @@ function _calNovoDia(dia){
     </div>
     <div style="padding:13px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end">
       ${s.dias[s.mes+'-'+dia] ? `<button class="btn" type="button" onclick="_calNovoRemoverDia(${dia})" style="color:var(--danger);margin-right:auto">Remover</button>` : ''}
-      <button class="btn" type="button" onclick="document.getElementById('cnDiaModal').remove()">Cancelar</button>
+      <button class="btn" type="button" onclick="document.getElementById('cnDiaModal')?.remove()">Cancelar</button>
       <button class="btn btn-primary" type="button" onclick="_calNovoSalvarDia(${dia})">Salvar conteúdo</button>
     </div>
   </div>`;
@@ -36071,6 +36690,10 @@ function _calNovoSalvarDia(dia){
       try { toast('Separei os ' + _slides.length + ' slides da descrição.','info'); } catch(e){}
     }
   }
+  // Chamada e frase curta em qualquer formato: descricao colada na chamada
+  // desce pra descricao (foi assim que dezembro da Weco saiu do padrao).
+  const _lc = _calChamadaLonga(chamada, _legendaTxt);
+  if(_lc){ chamada = _lc.chamada; _legendaTxt = _lc.legenda; try { toast('Chamada ficou curta; o texto foi pra descrição.','info'); } catch(e){} }
   const conteudo = Object.assign({}, anterior, {
     chamada,
     formato: _fmtEscolhido,
@@ -36078,6 +36701,12 @@ function _calNovoSalvarDia(dia){
     midia: (document.getElementById('cnMidia')?.value||'').trim(),
     slides: _slides
   });
+  // Conteudo NOVO num calendario que o cliente ja recebeu nasce como rascunho:
+  // ele so aparece no link depois que a equipe liberar o mes.
+  if(!(anterior && anterior.chamada) && s.editId){
+    const _calAtual = (typeof _calendarios!=='undefined' ? _calendarios : []).find(function(c){ return c.id === s.editId; });
+    if(_calAtual && _calAtual.enviado_em) conteudo.rascunho = true;
+  }
   if(keyNova !== keyAntiga){
     delete s.dias[keyAntiga];
     // se o dia destino já tinha conteúdo, empurra ele de volta pro dia antigo (troca)
@@ -36305,7 +36934,8 @@ async function verCalendario(id){
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-3)">
         <b style="color:var(--text)">${escapeHtml(p.data||'')}</b>
         <span class="badge b-default">${escapeHtml(p.formato||'')}</span>
-        <span style="margin-left:auto;color:${cor};font-weight:700">${rot}</span>
+        ${p.rascunho?'<span class="badge b-warning" title="O cliente ainda não vê este conteúdo no link">📝 Rascunho</span>':''}
+        <span style="margin-left:auto;color:${cor};font-weight:700">${p.rascunho?'não liberado':rot}</span>
       </div>
       <div style="font-weight:600;margin-top:6px;font-size:14px">${escapeHtml(p.chamada||'')}</div>
       ${mudouCh?`<div class="text-xs" style="color:var(--warning);margin-top:4px">✏️ O cliente mudou a chamada. Original: “${escapeHtml(p.chamada_orig||'')}”</div>`:''}
@@ -36336,7 +36966,7 @@ async function verCalendario(id){
       <div style="flex:1"><div style="font-size:16px;font-weight:700">${escapeHtml(cal.titulo||'')}</div>
         <div class="text-xs text-3" style="margin-top:3px">${escapeHtml(cal.cliente_nome||'')} · ${c.ok} de ${c.total} aprovados</div></div>
       <button class="btn" type="button" onclick="copiarLinkCalendario('${cal.token}')">🔗 Link</button>
-      <button class="modal-close" type="button" onclick="document.getElementById('verCalendarioModal').remove()">✕</button>
+      <button class="modal-close" type="button" onclick="document.getElementById('verCalendarioModal')?.remove()">✕</button>
     </div>
     <div style="padding:16px 20px;overflow:auto;flex:1">
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
@@ -36886,7 +37516,8 @@ async function renderPublicAprovarCalendario(token){
       const posts = cal2.posts||[];
       const mobile = window.innerWidth < 620;
       const grupos = {};
-      posts.forEach((p,i)=>{ const d=_pData(p.data); const k=d?(d.ano*100+d.mes):0; (grupos[k]=grupos[k]||{d,items:[]}).items.push({p,i,d}); });
+      posts.forEach((p,i)=>{ if(p && p.rascunho) return;   // ainda nao liberado pela equipe
+        const d=_pData(p.data); const k=d?(d.ano*100+d.mes):0; (grupos[k]=grupos[k]||{d,items:[]}).items.push({p,i,d}); });
       // ===== UM MÊS POR VEZ (navegação por setas), com 12 MESES SEMPRE DISPONÍVEIS =====
       let chaves = _calChavesMeses();
       // Na 1ª abertura cai no mês atual — o link é o MESMO todo mês, só o conteúdo vai virando.
@@ -37067,7 +37698,7 @@ async function renderPublicAprovarCalendario(token){
         await _supa.from('calendario_eventos').insert({
           calendario_id: cal2.id, cliente_nome: cal2.cliente_nome,
           post_ref: (p.data||('#'+(i+1))), post_titulo: (p.chamada||'').slice(0,140),
-          tipo, detalhe: (detalhe||'').slice(0,600), lido: false
+          tipo, detalhe: ('Cliente (pelo link)' + (detalhe ? ' · ' + detalhe : '')).slice(0,600), lido: false
         });
       } catch(e){ console.error('[evento cal]', e); }
     }
@@ -37182,7 +37813,9 @@ async function renderPublicAprovarCalendario(token){
       salvarDepois(i,'comentario',cmEl.value);
     };
     setTimeout(_pintaAdj, 0);
-    chEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; lgEl.onblur=()=>{ try{flushSalvar();}catch(e){} }; if(cmEl) cmEl.onblur=()=>{ try{flushSalvar();}catch(e){} };
+    // Ao sair do campo, o texto entra no padrao (chamada curta, slides separados)
+    const _padroniza=()=>{ try{ if(_calPadronizarPost(p)){ chEl.value=p.chamada; lgEl.value=p.legenda; try{ _slPintar(); }catch(e){} marcar(); _altPintar(); salvarDepois(i,'padronizou','chamada curta · descrição/slides separados'); } }catch(e){} };
+    chEl.onblur=()=>{ _padroniza(); try{flushSalvar();}catch(e){} }; lgEl.onblur=()=>{ _padroniza(); try{flushSalvar();}catch(e){} }; if(cmEl) cmEl.onblur=()=>{ try{flushSalvar();}catch(e){} };
 
     // ---- Slides 100% editáveis: escrever, adicionar e remover (com histórico do original) ----
     if(!Array.isArray(p.slides)) p.slides = [];
@@ -37430,7 +38063,7 @@ async function renderPublicAprovarCalendario(token){
         await _supa.from('calendario_eventos').insert({
           calendario_id: window._calPublico.id, cliente_nome: window._calPublico.cliente_nome,
           post_ref: '—', post_titulo: 'Revisão concluída', tipo:'finalizou',
-          detalhe: `${c.ok} aprovados, ${c.ajuste} com ajuste, ${c.pend} pendentes`, lido:false
+          detalhe: `Cliente (pelo link) · ${c.ok} aprovados, ${c.ajuste} com ajuste, ${c.pend} pendentes`, lido:false
         });
       } catch(e){}
       let ov=document.getElementById('calConcluido'); if(ov) ov.remove();
@@ -37443,7 +38076,7 @@ async function renderPublicAprovarCalendario(token){
           <div style="font-family:'Sora',sans-serif;font-weight:800;font-size:23px;letter-spacing:-.02em;margin-bottom:9px">Revisão concluída!</div>
           <div style="font-size:14px;color:#c9c6d6;line-height:1.5"><b style="color:#00e676">${c.ok}</b> aprovados · <b style="color:#FF9100">${c.ajuste}</b> com ajuste · <b>${c.pend}</b> pendentes</div>
           <div style="background:rgba(236,30,121,.12);border:1px solid rgba(236,30,121,.35);border-radius:15px;padding:16px;margin:18px 0 4px;font-size:14.5px;line-height:1.55">📸 <b>Tire um print desta tela</b> e mande no <b>nosso grupo do WhatsApp</b> pra darmos sequência na criação. 🚀</div>
-          <button type="button" onclick="document.getElementById('calConcluido').remove()" style="width:100%;margin-top:16px;border:none;background:linear-gradient(115deg,#F7941E,#EC1E79 42%,#A23BD6 72%,#29ABE2);color:#fff;border-radius:13px;padding:14px;font-size:15px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">Ok, entendi</button>
+          <button type="button" onclick="document.getElementById('calConcluido')?.remove()" style="width:100%;margin-top:16px;border:none;background:linear-gradient(115deg,#F7941E,#EC1E79 42%,#A23BD6 72%,#29ABE2);color:#fff;border-radius:13px;padding:14px;font-size:15px;font-weight:700;font-family:'Sora',sans-serif;cursor:pointer">Ok, entendi</button>
         </div>`;
       document.body.appendChild(ov);
     };
