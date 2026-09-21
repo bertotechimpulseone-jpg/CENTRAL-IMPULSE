@@ -1488,6 +1488,7 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   /* Cor de fundo da primeira coluna acompanha a cor de status da linha */
   .cron-table tr td:first-child{background:var(--surface)!important}
   .cron-table tr[data-status="apenas-trafego"] td:first-child{background:#bae6fd!important;color:#0c4a6e!important}
+  .cron-table tr[data-status="apenas-captacao"] td:first-child{background:#f5d0fe!important;color:#701a75!important}
   .cron-table tr[data-status="agendar"] td:first-child{background:#fed7aa!important;color:#7c2d12!important}
   .cron-table tr[data-status="agendado-mlabs"] td:first-child{background:#86efac!important;color:#14532d!important}
   .cron-table tr[data-status="agendado-meta"] td:first-child{background:#86efac!important;color:#14532d!important}
@@ -1825,6 +1826,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 
 /* Cores claras (pastel) na linha inteira por status */
 .cron-table tr[data-status="apenas-trafego"] td{background:#bae6fd !important;color:#0c4a6e !important}
+.cron-table tr[data-status="apenas-captacao"] td{background:#f5d0fe !important;color:#701a75 !important}
 .cron-table tr[data-status="agendar"] td{background:#fed7aa !important;color:#7c2d12 !important}
 .cron-table tr[data-status="agendado-mlabs"] td{background:#86efac !important;color:#14532d !important}
 .cron-table tr[data-status="agendado-meta"] td{background:#86efac !important;color:#14532d !important}
@@ -1864,6 +1866,7 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 
 /* Modo dark */
 :root[data-theme="dark"] .cron-table tr[data-status="apenas-trafego"] td{background:#075985 !important;color:#bae6fd !important}
+:root[data-theme="dark"] .cron-table tr[data-status="apenas-captacao"] td{background:#701a75 !important;color:#f5d0fe !important}
 :root[data-theme="dark"] .cron-table tr[data-status="agendar"] td{background:#9a3412 !important;color:#fed7aa !important}
 :root[data-theme="dark"] .cron-table tr[data-status="agendado-mlabs"] td,
 :root[data-theme="dark"] .cron-table tr[data-status="agendado-meta"] td{background:#15803d !important;color:#dcfce7 !important}
@@ -2540,6 +2543,16 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
   transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .flyout::before{content:'';position:absolute;left:-12px;top:0;bottom:0;width:12px}   /* ponte pro mouse não cair no vão */
 .rail-group:hover .flyout,.rail-group.open .flyout,.rail-group:focus-within .flyout{opacity:1;transform:none;pointer-events:auto}
+/* escolheu uma opção: fecha na hora, mesmo com o ponteiro ainda em cima */
+.rail-group.fechado .flyout{opacity:0;transform:translateX(-6px);pointer-events:none}
+/* fundo desfocado quando o menu está aberto: o painel ganha destaque */
+.rail-veu{position:fixed;inset:0;z-index:940;opacity:0;pointer-events:none;
+  -webkit-backdrop-filter:blur(5px) saturate(.9);backdrop-filter:blur(5px) saturate(.9);
+  background:rgba(8,8,12,.28);transition:opacity .2s var(--ease)}
+:root[data-theme="light"] .rail-veu{background:rgba(16,16,20,.14)}
+body.rail-aberto .rail-veu{opacity:1}
+@media(max-width:900px){ .rail-veu{display:none} }   /* no celular a gaveta já escurece */
+@media (prefers-reduced-motion:reduce){ .rail-veu{transition:none} }
 :root[data-theme="light"] .flyout{background:#fff;box-shadow:0 18px 44px rgba(16,16,20,.14)}
 .fly-title{font:800 11px 'Sora',sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:6px 10px 8px}
 .flyout .nav-item{padding:8px 10px}
@@ -2924,6 +2937,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
   </div>
 </div>
 <div class="app">
+  <div class="rail-veu" id="railVeu" aria-hidden="true"></div>
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
     <div class="brand" title="Impulse One · Central da agência">
@@ -2939,7 +2953,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.24 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.25 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -7094,9 +7108,51 @@ function _railSincronizar(){
   document.querySelectorAll('.rail-group').forEach(function(g){
     g.classList.toggle('ativo', !!g.querySelector('.nav-item.active'));
     g.classList.remove('open');
+    // O painel também abre por :hover, e depois do clique o ponteiro continua
+    // em cima dele. Sem trancar, ele ficava aberto por cima da tela escolhida.
+    let emCima = false;
+    try { emCima = g.matches(':hover') || g.contains(document.activeElement); } catch(e){}
+    if(!emCima) return;
+    g.classList.add('fechado');
+    // Solta quando o ponteiro sair da área do botão do bloco (com folga). Não dá
+    // pra usar pointerleave: travar o painel já dispara esse evento sozinho.
+    const bt = g.querySelector('.rail-btn') || g;
+    const solta = function(ev){
+      const r = bt.getBoundingClientRect();
+      const dentro = ev.clientX >= r.left - 8 && ev.clientX <= r.right + 8 &&
+                     ev.clientY >= r.top - 8 && ev.clientY <= r.bottom + 8;
+      if(dentro) return;
+      g.classList.remove('fechado');
+      document.removeEventListener('pointermove', solta, true);
+      if(typeof _railVeu === 'function') _railVeu();
+    };
+    document.addEventListener('pointermove', solta, true);
   });
+  // tira o foco do item clicado, senão o :focus-within segura o painel aberto
+  try { const a = document.activeElement; if(a && a.closest && a.closest('.flyout') && a.blur) a.blur(); } catch(e){}
+  try { document.body.classList.remove('rail-aberto'); } catch(e){}
 }
 if(typeof window !== 'undefined'){ window._railSincronizar = _railSincronizar; }
+
+// Fundo desfocado enquanto o ponteiro estiver no menu. Fica no body, então um
+// grupo que fecha e outro que abre não piscam o véu no meio do caminho.
+function _railVeu(){
+  if(window.innerWidth <= 900){ document.body.classList.remove('rail-aberto'); return; }
+  const algum = !!document.querySelector('.rail-group:hover, .rail-group.open, .rail-group:focus-within:not(.fechado)');
+  const aberto = algum && !document.querySelector('.rail-group:hover.fechado');
+  document.body.classList.toggle('rail-aberto', !!aberto);
+}
+if(typeof window !== 'undefined' && !window._railVeuLigado){
+  window._railVeuLigado = true;
+  const nav = function(){ return document.getElementById('nav'); };
+  document.addEventListener('pointerover', function(ev){
+    const n = nav(); if(!n) return;
+    if(n.contains(ev.target) || (ev.target.closest && ev.target.closest('.flyout'))) _railVeu();
+  }, true);
+  document.addEventListener('pointerout', function(){ setTimeout(_railVeu, 0); }, true);
+  window.addEventListener('blur', function(){ document.body.classList.remove('rail-aberto'); });
+  window.addEventListener('resize', _railVeu);
+}
 function renderNav(){
   const nav = document.getElementById('nav');
   if(!nav){ console.warn('[NAV] elemento #nav nao encontrado'); return; }
@@ -7825,6 +7881,7 @@ function renderDashboardPrazosHoje(){
   }
   const statusLabel = {
     'apenas-trafego':'🚀 Apenas tráfego pago',
+    'apenas-captacao':'🎥 Apenas captação',
     'agendar':'📅 Agendar',
     'agendado-mlabs':'📅 Agendado MLABS',
     'agendado-meta':'📊 Agendado Meta',
@@ -20547,7 +20604,7 @@ let cronQuery = '';
 let cronStatusFilter = 'all';
 let cronDesignerFilter = '';   // '' = todos, '__sem' = sem designer
 // Rotulos de status do cronograma, num lugar so (antes cada view tinha a sua copia)
-const CRON_STATUS_LABELS = {'planejado':'Planejado','agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprovação','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado'};
+const CRON_STATUS_LABELS = {'planejado':'Planejado','agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','apenas-captacao':'🎥 Apenas captação','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprovação','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado'};
 
 // Quantos conteudos o calendario editorial do cliente tem em cada mes.
 // Uma consulta so, guardada em cache: { cliente_dbid: { mes: quantidade } }
@@ -20641,6 +20698,7 @@ function renderCronograma(c){
   // Ordem fixa dos status (menor número = topo da lista)
   const STATUS_ORDER = {
     'apenas-trafego': 1,
+    'apenas-captacao': 1.2,
     'agendar': 1.5,
     'agendado-mlabs': 2,
     'agendado-meta': 2,
@@ -20741,6 +20799,7 @@ function renderCronograma(c){
         <span class="filter-chip ${cronStatusFilter==='desenvolvimento'?'active':''}" onclick="cronStatusFilter='desenvolvimento';renderCronograma(document.getElementById('content'))" style="border-color:#f59e0b;color:#9a6500">🎨 Desenvolvimento</span>
         <span class="filter-chip ${cronStatusFilter==='cal-pronto'?'active':''}" onclick="cronStatusFilter='cal-pronto';renderCronograma(document.getElementById('content'))" style="border-color:#9595a0;color:#6e6e73">✓ Cal pronto</span>
         <span class="filter-chip ${cronStatusFilter==='apenas-trafego'?'active':''}" onclick="cronStatusFilter='apenas-trafego';renderCronograma(document.getElementById('content'))" style="border-color:#7dd3fc;color:#0369a1">🚀 Apenas tráfego pago</span>
+        <span class="filter-chip ${cronStatusFilter==='apenas-captacao'?'active':''}" onclick="cronStatusFilter='apenas-captacao';renderCronograma(document.getElementById('content'))" style="border-color:#e879f9;color:#a21caf">🎥 Apenas captação</span>
         <span class="filter-chip ${cronStatusFilter==='ocultos'?'active':''}" onclick="cronStatusFilter='ocultos';renderCronograma(document.getElementById('content'))" style="border-color:#6b7280;color:#6b7280">👁‍🗨 Ocultos · ${clients.filter(c => c.oculto).length}</span>
       </div>
 
@@ -20837,6 +20896,7 @@ function renderCronograma(c){
                         <option value="desenvolvimento" ${d.status==='desenvolvimento'?'selected':''}>🎨 Desenvolvimento</option>
                         <option value="cal-pronto" ${d.status==='cal-pronto'?'selected':''}>✓ Cal pronto</option>
                         <option value="apenas-trafego" ${d.status==='apenas-trafego'?'selected':''}>🚀 Apenas tráfego pago</option>
+                        <option value="apenas-captacao" ${d.status==='apenas-captacao'?'selected':''}>🎥 Apenas captação</option>
                         <option value="cancelado" ${d.status==='cancelado'?'selected':''}>✕ Cancelado</option>
                       </select>
                     </td>
@@ -20874,8 +20934,8 @@ function renderCronograma(c){
               const diff = dl && !isNaN(dl.getTime()) ? Math.round((dl-today)/86400000) : null;
               const dlSub = diff===null ? '' : (diff===0?'HOJE':diff===1?'AMANHÃ':diff<0?'ATRASADO '+Math.abs(diff)+'d':'em '+diff+'d');
               const dlColor = diff===null?'#94a3b8':diff<=1?'#dc2626':diff<=3?'#f59e0b':'#10b981';
-              const statusColors = {'agendar':'#f97316','apenas-trafego':'#0ea5e9','agendado-mlabs':'#16a34a','agendado-meta':'#16a34a','aguardando-aprov':'#10b981','trello-vini':'#8b5cf6','mlabs-vini':'#8b5cf6','desenvolvimento':'#f59e0b','cal-pronto':'#6b7280','cancelado':'#dc2626','planejado':'#94a3b8'};
-              const statusLabels = {'agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprov','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado','planejado':'Planejado'};
+              const statusColors = {'agendar':'#f97316','apenas-trafego':'#0ea5e9','apenas-captacao':'#c026d3','agendado-mlabs':'#16a34a','agendado-meta':'#16a34a','aguardando-aprov':'#10b981','trello-vini':'#8b5cf6','mlabs-vini':'#8b5cf6','desenvolvimento':'#f59e0b','cal-pronto':'#6b7280','cancelado':'#dc2626','planejado':'#94a3b8'};
+              const statusLabels = {'agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','apenas-captacao':'🎥 Apenas captação','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprov','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado','planejado':'Planejado'};
               const cor = statusColors[d.status] || '#94a3b8';
               const teamPrimNomes = team.map(t => (t.name||'').split(' ')[0]).filter(Boolean);
               const cliName = (cli.name||'sem nome').replace(/`/g,'').replace(/</g,'&lt;');
@@ -20948,7 +21008,7 @@ function renderCronogramaMobile(c){
   });
 
   // Filtros e estado
-  const STATUS_ORDER = {'apenas-trafego':1,'agendar':1.5,'agendado-mlabs':2,'agendado-meta':2,'aguardando-aprov':3,'trello-vini':4,'mlabs-vini':4,'desenvolvimento':5,'cal-pronto':6,'planejado':99,'cancelado':100};
+  const STATUS_ORDER = {'apenas-trafego':1,'apenas-captacao':1.2,'agendar':1.5,'agendado-mlabs':2,'agendado-meta':2,'aguardando-aprov':3,'trello-vini':4,'mlabs-vini':4,'desenvolvimento':5,'cal-pronto':6,'planejado':99,'cancelado':100};
   const rows = clients.filter(cli=>{
     const d = cronograma[cli.id][cronMonth];
     if(cronStatusFilter === 'ocultos'){ if(!cli.oculto) return false; }
@@ -20972,8 +21032,8 @@ function renderCronogramaMobile(c){
     return a.name.localeCompare(b.name,'pt-BR');
   });
 
-  const statusColors = {'agendar':'#f97316','apenas-trafego':'#0ea5e9','agendado-mlabs':'#16a34a','agendado-meta':'#16a34a','aguardando-aprov':'#10b981','trello-vini':'#8b5cf6','mlabs-vini':'#8b5cf6','desenvolvimento':'#f59e0b','cal-pronto':'#6b7280','cancelado':'#dc2626','planejado':'#94a3b8'};
-  const statusLabels = {'planejado':'Planejado','agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprov','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado'};
+  const statusColors = {'agendar':'#f97316','apenas-trafego':'#0ea5e9','apenas-captacao':'#c026d3','agendado-mlabs':'#16a34a','agendado-meta':'#16a34a','aguardando-aprov':'#10b981','trello-vini':'#8b5cf6','mlabs-vini':'#8b5cf6','desenvolvimento':'#f59e0b','cal-pronto':'#6b7280','cancelado':'#dc2626','planejado':'#94a3b8'};
+  const statusLabels = {'planejado':'Planejado','agendar':'📅 Agendar','apenas-trafego':'🚀 Apenas tráfego','apenas-captacao':'🎥 Apenas captação','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta','aguardando-aprov':'⏳ Aguardando aprov','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini','desenvolvimento':'🎨 Desenvolvimento','cal-pronto':'✓ Cal pronto','cancelado':'❌ Cancelado'};
 
   // Header simplificado
   let html = '<div class="page active">' +
@@ -21121,7 +21181,7 @@ function abrirCombinadosPrazos(){
   let diaRef = mesRef < mesAtualReal ? 99 : mesRef > mesAtualReal ? 0 : diaHoje;
 
   const ENVIADO = new Set(['aguardando-aprov','agendado-mlabs','agendado-meta']);
-  const NA = new Set(['apenas-trafego','cancelado']);
+  const NA = new Set(['apenas-trafego','apenas-captacao','cancelado']);
   const statusLabels = {
     'planejado':'📋 Planejado','agendar':'📅 Agendar','agendado-mlabs':'📅 Agendado MLABS','agendado-meta':'📊 Agendado Meta',
     'aguardando-aprov':'⏳ Aguardando aprovação','trello-vini':'📋 Trello Vini','mlabs-vini':'📱 MLABS Vini',
@@ -35058,6 +35118,7 @@ const _CRON_ROT = {
   'agendado-meta':['📊','Agendado Meta','var(--success)'], 'aguardando-aprov':['⏳','Aguardando aprovação','var(--info)'],
   'trello-vini':['📋','Trello Vini','var(--text-2)'], 'mlabs-vini':['📱','mLabs Vini','var(--text-2)'],
   'cal-pronto':['✓','Calendário pronto','var(--success)'], 'apenas-trafego':['🚀','Só tráfego','var(--info)'],
+  'apenas-captacao':['🎥','Só captação','var(--purple-text)'],
   'cancelado':['✕','Cancelado','var(--danger)']
 };
 function _calsCron(cli, mes1){
