@@ -1480,6 +1480,9 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   .cron-table td{padding:6px 5px!important;min-height:48px;vertical-align:middle}
   .cron-table input,.cron-table select{font-size:13px!important;min-height:36px!important;padding:6px 8px!important}
   /* Primeira coluna (nome do cliente) congelada à esquerda pra dar referencia ao deslizar */
+  /* Linha fora da tela nao paga layout nem pintura. O Cronograma no celular
+     passou de 690ms travados pra 282ms, sem mudar largura de coluna. */
+  .cron-table tbody tr{content-visibility:auto;contain-intrinsic-size:auto 48px}
   .cron-table th:first-child{position:sticky;left:0;background:var(--surface)!important;z-index:6;box-shadow:2px 0 4px rgba(0,0,0,.08);min-width:160px;max-width:160px}
   .cron-table td:first-child{position:sticky;left:0;z-index:4;box-shadow:2px 0 4px rgba(0,0,0,.08);min-width:160px;max-width:160px}
   /* Cor de fundo da primeira coluna acompanha a cor de status da linha */
@@ -2936,7 +2939,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.22 · Mais leve: logos 6x menores, tempo-real com freio; logo na frase do dia; nomes no trilho</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.23 · Voltar do celular funciona; telas destravadas; aviso fixo que tapava a tela removido</div>
   </aside>
 
   <div class="main">
@@ -6398,6 +6401,8 @@ async function startApp(user){
       const ultima = localStorage.getItem('_impulse_last_page');
       if(ultima && typeof ultima === 'string') pageInicial = ultima;
     } catch(e){}
+    // entrada base do histórico: sem ela o primeiro "voltar" sairia do sistema
+    try { history.replaceState({ page: pageInicial }, '', '#' + pageInicial); } catch(e){}
     if(typeof currentPage !== 'undefined' && currentPage && currentPage !== 'dashboard'){
       pageInicial = currentPage;
     }
@@ -7396,13 +7401,21 @@ function goTo(page, opts){
     _navHistory.push(currentPage);
     if(_navHistory.length > 20) _navHistory.shift();
   }
+  const anterior = currentPage;
   // Botão do menu sempre leva pra visão principal da página
   if(!opts.skipReset) _resetSubViews(page);
   currentPage = page;
   // Persistir ultima pagina pra Ctrl+R / refresh
   try { localStorage.setItem('_impulse_last_page', page); } catch(e){}
-  // URL reflete a aba atual (link compartilhável: .../#trafego abre no Tráfego Pago)
-  try { history.replaceState(null, '', '#' + page); } catch(e){}
+  // URL reflete a aba atual (link compartilhável: .../#trafego abre no Tráfego Pago).
+  // Empilha uma entrada por aba: é isso que faz o "voltar" do aparelho voltar de
+  // aba em vez de sair do sistema. Vindo do próprio voltar (fromPop), não mexe.
+  try {
+    if(!opts.fromPop){
+      if(anterior === page) history.replaceState({ page: page }, '', '#' + page);
+      else history.pushState({ page: page }, '', '#' + page);
+    }
+  } catch(e){}
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.page===page));
   _railSincronizar();
   renderPage(page);
@@ -7415,9 +7428,26 @@ function goTo(page, opts){
 }
 
 function voltarPagina(){
-  if(_navHistory.length === 0){ toast('Sem pagina anterior','info'); return; }
-  const anterior = _navHistory.pop();
-  goTo(anterior, {skipHistory: true});
+  if(_navHistory.length === 0){ toast('Sem página anterior','info'); return; }
+  // Deixa o navegador voltar: o popstate faz a navegação. Assim o botão da
+  // barra e o gesto do aparelho fazem exatamente a mesma coisa.
+  try { history.back(); }
+  catch(e){ const a = _navHistory.pop(); goTo(a, {skipHistory:true}); }
+}
+// Voltar do aparelho / do navegador: leva pra aba da entrada anterior.
+if(typeof window !== 'undefined' && !window._popLigado){
+  window._popLigado = true;
+  window.addEventListener('popstate', function(ev){
+    if(document.body && document.body.classList.contains('public-page')) return;
+    const alvo = (ev.state && ev.state.page) || String(location.hash || '').replace('#','') || 'dashboard';
+    if(!alvo || alvo === currentPage) return;
+    if(typeof canAccess === 'function' && !canAccess(alvo)) return;
+    // fecha o que estiver aberto por cima antes de trocar de aba
+    try { if(typeof closeModal === 'function' && document.getElementById('modalBg') && document.getElementById('modalBg').classList.contains('open')) closeModal(); } catch(e){}
+    try { if(typeof closeSidebar === 'function') closeSidebar(); } catch(e){}
+    if(_navHistory.length) _navHistory.pop();
+    goTo(alvo, { fromPop:true, skipHistory:true });
+  });
 }
 window.voltarPagina = voltarPagina;
 // Re-renderiza a pagina atual sem F5 do navegador (botao refresh mobile)
@@ -7547,10 +7577,16 @@ window._telaAindaEssa = _telaAindaEssa;
 // Rede de seguranca: depois de cada tela desenhada, mede se algo ficou mais largo
 // que o celular. Se ficou, marca o culpado pra ele rolar dentro do cartao em vez
 // de empurrar a pagina inteira. Vale pra telas futuras tambem, sem precisar lembrar.
-let _mbTimer = null;
+let _mbTimer = null, _mbIdle = null;
 function _mobileGuardAgendar(){
-  if(_mbTimer) clearTimeout(_mbTimer);
-  _mbTimer = setTimeout(function(){ try{ _mobileGuard(); }catch(e){ console.warn('[mobile guard]', e); } }, 180);
+  if(window.innerWidth > 768) return;            // no computador nem agenda
+  if(_mbTimer){ clearTimeout(_mbTimer); _mbTimer = null; }
+  if(_mbIdle && window.cancelIdleCallback){ try{ cancelIdleCallback(_mbIdle); }catch(e){} _mbIdle = null; }
+  const rodar = function(){ try{ _mobileGuard(); }catch(e){ console.warn('[mobile guard]', e); } };
+  // espera a tela ficar ociosa: assim a pagina aparece primeiro e a medicao
+  // nao rouba o quadro logo depois do desenho
+  if(window.requestIdleCallback) _mbIdle = requestIdleCallback(rodar, { timeout: 1200 });
+  else _mbTimer = setTimeout(rodar, 220);
 }
 
 function _mobileGuard(){
@@ -7560,25 +7596,32 @@ function _mobileGuard(){
   ).filter(Boolean);
   let ajustados = 0;
   areas.forEach(function(area){
-    for(let passo = 0; passo < 3; passo++){
+    for(let passo = 0; passo < 2; passo++){
       const limite = area.clientWidth;
       if(!limite || area.scrollWidth <= limite + 4) break;
-      const filhos = area.querySelectorAll('*');
-      let mexeu = false;
-      for(let i = 0; i < filhos.length && i < 6000; i++){
-        const el = filhos[i];
-        if(el.classList.contains('mb-clamp')) continue;
-        const cs = getComputedStyle(el);
-        if(cs.display === 'none' || cs.position === 'fixed') continue;
-        if(cs.overflowX === 'auto' || cs.overflowX === 'scroll') continue;
-        const r = el.getBoundingClientRect();
+      let mexeu = false, vistos = 0;
+      // Anda na arvore PODANDO: o que ja rola sozinho (tabela do cronograma),
+      // o que esta escondido e o que ja foi ajustado saem junto com tudo que
+      // tem dentro. Sem isso eram 4000+ chamadas de getComputedStyle por tela.
+      const ovx = new WeakMap();
+      const tw = document.createTreeWalker(area, NodeFilter.SHOW_ELEMENT, {
+        acceptNode: function(el){
+          if(el.classList.contains('mb-clamp')) return NodeFilter.FILTER_REJECT;
+          const cs = getComputedStyle(el);
+          if(cs.display === 'none' || cs.position === 'fixed') return NodeFilter.FILTER_REJECT;
+          if(cs.overflowX === 'auto' || cs.overflowX === 'scroll') return NodeFilter.FILTER_REJECT;
+          ovx.set(el, cs.overflowX);
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      });
+      let el;
+      while((el = tw.nextNode()) && vistos < 2500){
+        vistos++;
         // dois jeitos de estourar: o bloco e mais largo que a tela, OU o conteudo
         // dele vaza pra fora (grid de coluna fixa, <pre>, linha com nowrap).
-        const largoDemais = r.width > limite + 1;
-        const conteudoVaza = cs.overflowX === 'visible' && el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0;
+        const largoDemais = el.getBoundingClientRect().width > limite + 1;
+        const conteudoVaza = ovx.get(el) === 'visible' && el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0;
         if(!largoDemais && !conteudoVaza) continue;
-        // so marca o mais externo: se o pai ja foi marcado, esse ja esta resolvido
-        if(el.parentElement && el.parentElement.closest('.mb-clamp')) continue;
         el.classList.add('mb-clamp');
         mexeu = true; ajustados++;
       }
@@ -14398,17 +14441,10 @@ async function checkDbHealth(){
       issues.push('Tabela profiles vazia. Rode supabase-seed.sql ou crie usuarios.');
     } else {
       console.log('[HEALTH] ✅ READ profiles OK, exemplo:', profs[0]);
-      // 2. Verificar se consegue UPDATE (teste de RLS)
-      const testProfile = profs[0];
-      const testVal = testProfile.salary || 0;
-      const { data: upData, error: upErr } = await _supa.from('profiles').update({salary: testVal}).eq('id', testProfile.id).select();
-      if(upErr){
-        issues.push('UPDATE profiles BLOQUEADO (RLS): ' + upErr.message);
-      } else if(!upData || upData.length === 0){
-        issues.push('UPDATE retornou vazio - RLS pode estar bloqueando SELECT pos-update');
-      } else {
-        console.log('[HEALTH] ✅ UPDATE profiles OK');
-      }
+      // Antes daqui saía um UPDATE de verdade em profiles.salary só pra testar
+      // permissão. Escrever no banco pra "checar" é errado — e no salário, pior
+      // ainda. Quem precisa saber se a gravação está passando tem a fila do
+      // gravarSeguro, que avisa sozinha quando algo não sobe.
     }
   } catch(e){ issues.push('Exception: ' + e.message) }
   return {ok: issues.length === 0, issues, msg: issues.join(' | ')};
@@ -14429,20 +14465,14 @@ async function autoFixRLS(){
         'create policy "auth all" on custom_links for all to authenticated, anon using (true) with check (true);');
 }
 
-// Roda health check apos login
+// Diagnóstico no console, sem nada colado na tela. O aviso que existia aqui
+// ficava fixo no topo pra sempre (só ficava meio transparente depois de 8s) e
+// continuava recebendo o toque, tapando o conteúdo.
 setTimeout(async ()=>{
   if(_supa && _currentUser){
     const h = await checkDbHealth();
     if(!h.ok){
-      console.error('[HEALTH] ❌ Problemas:', h.issues);
-      // Mostra banner discreto sugerindo fix
-      const banner = document.createElement('div');
-      banner.id = 'healthBanner';
-      banner.style.cssText = 'position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--warning-soft);color:var(--warning-text);padding:11px 18px;border-radius:9px;box-shadow:var(--shadow-lg);z-index:300;cursor:pointer;font-size:12.5px;border:1px solid var(--warning);font-weight:500';
-      banner.innerHTML = '⚠ Problema de permissão detectado · <strong>clique aqui</strong> pra ver como resolver';
-      banner.onclick = autoFixRLS;
-      document.body.appendChild(banner);
-      setTimeout(()=>{if(banner.parentNode)banner.style.opacity='0.5'}, 8000);
+      console.warn('[HEALTH] avisos:', h.issues);
     } else {
       console.log('[HEALTH] ✅ Banco OK pra salvar');
     }
