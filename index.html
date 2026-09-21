@@ -3057,7 +3057,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.29 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.30 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -10183,30 +10183,57 @@ function _orcClienteLeads(cli){
 }
 function _orcClienteHTML(budgets, leads, cli){
   const fmt = (d)=>{ try { return new Date(d).toLocaleDateString('pt-BR'); } catch(e){ return ''; } };
+  // Recusado: pelo campo do card ou pelo status do orçamento que o gerou.
+  const orcDoLead = function(l){
+    if(l.origem_orcamento_id) return (budgets||[]).find(function(x){ return x.id === l.origem_orcamento_id; }) || null;
+    return (budgets||[])[0] || null;
+  };
+  const leadRecusado = function(l){
+    if(l.recusado_em) return true;
+    const b = orcDoLead(l);
+    return !!(b && String(b.status||'').toLowerCase() === 'recusado');
+  };
   const leadCards = (leads||[]).map(l=>{
     const v = parseFloat(l.value)||0;
     const st = _STAGE_LABEL_CLI[l.stage]||l.stage||'Lead';
-    return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px;border-left:3px solid var(--accent)">
-      <div style="min-width:0"><div style="font-weight:600;font-size:13.5px">${escapeHtml(l.name||'Negociação')}</div>
-      <div class="text-xs text-3">Pipeline · ${escapeHtml(st)}${l.created_at?' · '+fmt(l.created_at):''}</div></div>
-      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><strong style="font-size:14px">R$ ${v.toLocaleString('pt-BR')}</strong>
-      <button class="btn btn-sm" onclick="abrirOrcamentoDoCliente(${cli.id})" title="Abre o orçamento salvo deste cliente">📄 Orçamento</button>
+    const rec = leadRecusado(l);
+    const b = orcDoLead(l);
+    const cor = rec ? 'var(--danger)' : (l.aprovado ? 'var(--success)' : 'var(--accent)');
+    return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-left:3px solid ${cor}${rec?';opacity:.72':''}">
+      <div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13.5px">${escapeHtml(l.name||'Negociação')}
+        ${rec ? '<span class="orc-selo" style="--c:var(--danger);margin-left:6px">✕ Recusada</span>' : (l.aprovado ? '<span class="orc-selo" style="--c:var(--success);margin-left:6px">✓ Aprovada</span>' : '')}</div>
+      <div class="text-xs text-3">Pipeline · ${escapeHtml(st)}${l.created_at?' · '+fmt(l.created_at):''}${rec && l.recusado_em ? ' · recusada em '+fmt(l.recusado_em) : ''}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap"><strong style="font-size:14px">R$ ${v.toLocaleString('pt-BR')}</strong>
+      ${b ? `<button class="btn btn-sm" onclick="verPdfOrcamento('${b.id}')" title="Abre o PDF do orçamento ${escapeHtml(b.numero||'')}">📄 Ver PDF</button>`
+          : `<button class="btn btn-sm" onclick="abrirOrcamentoDoCliente(${cli.id})" title="Abre o orçamento salvo deste cliente">📄 Orçamento</button>`}
       <button class="btn btn-sm" onclick="closeModal();goTo('comercial');setTimeout(()=>{try{abrirLeadDetalhe('${l.id}')}catch(e){}},120)" title="Abre o card no pipeline">Pipeline</button></div>
     </div>`;
   }).join('');
   const orcCards = (budgets||[]).map(b=>{
-    const total = parseFloat(b.total)||0; const st = b.status || 'enviado';
-    return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-      <div style="min-width:0"><div style="font-weight:600;font-size:13.5px">${escapeHtml(b.numero||'Orçamento')}</div>
+    const total = parseFloat(b.total)||0; const st = String(b.status || 'enviado').toLowerCase();
+    const rec = st === 'recusado';
+    const cor = rec ? 'var(--danger)' : (st === 'aprovado' ? 'var(--success)' : 'var(--border)');
+    return `<div class="card mb-3" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-left:3px solid ${cor}${rec?';opacity:.72':''}">
+      <div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13.5px">${escapeHtml(b.numero||'Orçamento')}</div>
       <div class="text-xs text-3">${fmt(b.created_at)} · ${(b.services||[]).length} item(ns) · ${_orcSelo(st)}</div></div>
-      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0"><strong style="font-size:14px">R$ ${total.toLocaleString('pt-BR')}</strong>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap"><strong style="font-size:14px">R$ ${total.toLocaleString('pt-BR')}</strong>
+      <button class="btn btn-sm" onclick="verPdfOrcamento('${b.id}')" title="Abre o PDF deste orçamento">📄 Ver PDF</button>
       <button class="btn btn-sm" onclick="closeModal();comTab='orcamento';goTo('comercial',{skipReset:true});carregarOrcSalvo('${b.id}')">Abrir</button></div>
     </div>`;
   }).join('');
   if(!(leads||[]).length && !(budgets||[]).length){
     return `<div class="empty-state"><div class="ico">📄</div><div class="ttl">Nada ainda</div><div class="desc">Os orçamentos e negociações de ${escapeHtml(cli.name)} aparecem aqui.</div></div>`;
   }
+  const nRec = (budgets||[]).filter(function(b){ return String(b.status||'').toLowerCase()==='recusado'; }).length
+              + (leads||[]).filter(function(l){ return l.recusado_em; }).length;
+  const nApr = (budgets||[]).filter(function(b){ return String(b.status||'').toLowerCase()==='aprovado'; }).length;
   let html = '';
+  if(nApr || nRec){
+    html += '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px">' +
+      (nApr ? '<span class="orc-selo" style="--c:var(--success)">✓ ' + nApr + ' aprovada' + (nApr>1?'s':'') + '</span>' : '') +
+      (nRec ? '<span class="orc-selo" style="--c:var(--danger)">✕ ' + nRec + ' recusada' + (nRec>1?'s':'') + '</span>' : '') +
+    '</div>';
+  }
   if((leads||[]).length) html += `<div class="info-label" style="margin:2px 0 8px">💼 Pipeline comercial (${leads.length})</div>` + leadCards;
   if((budgets||[]).length) html += `<div class="info-label" style="margin:14px 0 8px">📄 Orçamentos salvos (${budgets.length})</div>` + orcCards;
   return html;
@@ -17498,6 +17525,7 @@ async function updateCapStatus(id,status){
 // ============ COMERCIAL ============
 let comTab = 'pipeline';
 let comFunil = 'venda';   // prevenda | venda | carteira
+let comVerRecusados = false;   // quadro mostra os recusados em vez dos ativos
 
 // Os tres funis e suas etapas. Fica em app_settings.funis_comercial, entao o Vini
 // edita as etapas pela tela e vale pra todo mundo.
@@ -17721,14 +17749,24 @@ function renderPipelineCom(){
       ig: (typeof _igLimpo === 'function') ? _igLimpo(l.instagram||'') : ''
     };
   });
-  const leads = _todos.filter(l=>l.funil===comFunil);
+  // Recusado sai do quadro (e fica no chip "Recusados"): pelo campo do card ou
+  // pelo status do orçamento que o gerou.
+  const _ehRecusado = function(raw){
+    if(!raw) return false;
+    if(raw.recusado_em) return true;
+    const b = _leadOrcamento(raw);
+    return !!(b && String(b.status||'').toLowerCase() === 'recusado');
+  };
+  const _recusados = _todos.filter(function(l){ return l.funil===comFunil && _ehRecusado(l.raw); });
+  window._comRecusados = _recusados;
+  const leads = _todos.filter(function(l){ return l.funil===comFunil && (comVerRecusados ? _ehRecusado(l.raw) : !_ehRecusado(l.raw)); });
   // Card que ficou numa etapa que nao existe mais aparece na primeira, pra nunca sumir
   const _chaves = STAGES.map(x=>x.key);
   leads.forEach(l=>{ if(_chaves.indexOf(l.stageKey)===-1) l.stageKey = _chaves[0]; });
 
+  window._comVerRecusados = comVerRecusados;
   const ultKey = _chaves[_chaves.length-1];
-  // Proposta recusada sai da conta de "em aberto": o status do orçamento manda.
-  const _recusada = function(l){ const b = _leadOrcamento(l); return !!(b && String(b.status||'').toLowerCase() === 'recusado'); };
+  const _recusada = _ehRecusado;
   const emAberto  = leads.filter(l=>l.stageKey!==ultKey && !_recusada(l.raw||l));
   const naUltima  = leads.filter(l=>l.stageKey===ultKey);
   const aprovados = leads.filter(l=>l.ap);
@@ -17755,11 +17793,22 @@ function renderPipelineCom(){
       <span>${cfg.icone||''}</span>${escapeHtml(cfg.label)}<span style="font-size:11px;color:var(--text-3);font-weight:600">${n}</span></button>`;
   }).join('');
 
+  // Nada some: o que foi recusado fica atrás deste chip.
+  const chipRecusados = _recusados.length || comVerRecusados
+    ? `<button type="button" onclick="comVerRecusados=!comVerRecusados;renderComercial(document.getElementById('content'))"
+        title="${comVerRecusados?'Voltar pro quadro':'Ver as propostas recusadas deste funil'}"
+        style="display:inline-flex;align-items:center;gap:7px;border:1px solid ${comVerRecusados?'var(--danger)':'var(--border)'};background:${comVerRecusados?'rgba(239,68,68,.12)':'var(--surface)'};color:${comVerRecusados?'var(--danger-text,#dc2626)':'var(--text-2)'};border-radius:99px;padding:8px 14px;font-size:12.5px;font-weight:600;font-family:inherit;cursor:pointer;min-height:40px">
+        <span>✕</span>Recusadas<span style="font-size:11px;color:var(--text-3);font-weight:600">${_recusados.length}</span></button>`
+    : '';
+
   return `
   <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 14px">
-    ${chipsFunil}
+    ${chipsFunil}${chipRecusados}
     <button class="btn" type="button" onclick="abrirEditorEtapas()" title="Renomear, reordenar, adicionar ou remover etapas deste funil" style="margin-left:auto;font-size:12.5px">⚙ Etapas de ${escapeHtml(_funilLabel(comFunil))}</button>
   </div>
+  ${comVerRecusados ? `<div class="card mb-3" style="border-left:3px solid var(--danger);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <div style="flex:1;min-width:160px"><b>✕ Propostas recusadas</b><div class="text-xs text-3" style="margin-top:2px">Elas saem do quadro e dos números, mas continuam aqui. Abra o card pra desfazer.</div></div>
+    <button class="btn btn-sm" type="button" onclick="comVerRecusados=false;renderComercial(document.getElementById('content'))">← Voltar pro quadro</button></div>` : ''}
   <div class="stat-grid">
     ${cartao('ativos','Em aberto', String(emAberto.length), 'cards no funil','M16 21v-2')}
     ${cartao('proposta', propostaEt?propostaEt.label:'Aprovados', String(propostaEt?propostas.length:aprovados.length), propostaEt?'nesta etapa':'orçamentos','M22 12h-4l-3 9L9 3l-3 9H2')}
@@ -17933,6 +17982,14 @@ function abrirLeadDetalhe(leadId){
         '<button class="btn btn-sm" style="color:var(--danger);border-color:var(--danger)" onclick="excluirLead(\'' + lead.id + '\')">🗑 Excluir</button>' +
         '<div style="display:flex;gap:8px">' +
           '<button class="btn btn-sm" onclick="document.getElementById(\'leadDetalheModal\').remove()">Cancelar</button>' +
+          (function(){
+            // Ver o PDF do orçamento que já foi feito pra este card
+            const b = (typeof _leadOrcamento === 'function') ? _leadOrcamento(lead) : null;
+            return b ? '<button class="btn btn-sm" onclick="verPdfOrcamento(\'' + b.id + '\')" title="Abre o PDF do orçamento ' + escapeHtml(b.numero||'') + '">📄 Ver PDF do orçamento</button>' : '';
+          })() +
+          (lead.recusado_em
+            ? '<button class="btn btn-sm" onclick="desfazerRecusa(\'' + lead.id + '\')" title="Volta o card pro quadro">↺ Desfazer recusa</button>'
+            : '<button class="btn btn-sm" onclick="recusarProposta(\'' + lead.id + '\')" title="O card sai do quadro e vai pro chip Recusados" style="border-color:var(--danger);color:var(--danger-text,#dc2626)">✕ Proposta recusada</button>') +
           '<button class="btn btn-sm btn-primary" onclick="salvarLeadDetalhe(\'' + lead.id + '\')">💾 Salvar</button>' +
         '</div>' +
       '</div>' +
@@ -18960,15 +19017,25 @@ async function loadBudgetClients(){
 }
 
 
+// Assinatura do que importa na tela: se isso muda, a tela precisa repintar.
+// Comparar só a quantidade deixava passar mudança de status e de valor.
+function _orcAssinatura(lista){
+  return (lista||[]).map(function(b){
+    return String(b.id) + ':' + String(b.status||'') + ':' + String(b.total||'') + ':' + String(b.numero||'');
+  }).join('|');
+}
 async function loadOrcamentosSalvos(){
   if(!_supa) return;
   try {
-    const { data } = await _supa.from('budgets').select('*').order('created_at',{ascending:false}).limit(50);
+    const { data } = await _supa.from('budgets').select('*').order('created_at',{ascending:false}).limit(400);
     if(data){
-      const prev = orcamentosSalvos.length;
+      const antes = _orcAssinatura(orcamentosSalvos);
       orcamentosSalvos = data;
-      // Re-renderiza se a quantidade mudou (evita loop infinito)
-      if(data.length !== prev && comTab === 'orcamento'){
+      // Repinta em qualquer aba que mostre orçamento — o Histórico é uma delas.
+      // A assinatura evita o loop: igual, não repinta.
+      if(_orcAssinatura(data) !== antes &&
+         typeof currentPage !== 'undefined' && currentPage === 'comercial' &&
+         ['orcamento','historico','pipeline','cadastro'].indexOf(comTab) !== -1){
         renderComercial(document.getElementById('content'));
       }
     }
@@ -19209,11 +19276,55 @@ async function excluirOrcSalvo(id){
   renderComercial(document.getElementById('content'));
 }
 
-async function gerarPDFOrcamento(){
+/* Converte um orçamento salvo (linha de budgets) no formato que o gerador de
+   PDF usa. É a mesma conversão do "carregar orçamento", agora num lugar só. */
+function _orcDoBanco(b){
+  if(!b) return null;
+  let cliente = b.client_data;
+  if(!cliente || !cliente.nome){
+    const doCond = b.conditions && String(b.conditions).startsWith('CLIENTE:')
+      ? String(b.conditions).split('|')[0].replace('CLIENTE:','').trim() : '';
+    cliente = { nome: doCond || _orcNomeCliente(b) || '', cnpj:'', endereco:'', email:'', telefone:'', logo:'' };
+  }
+  return {
+    id: b.id,
+    numero: b.numero || ('ORC-' + String(b.id||'').slice(0,6)),
+    data: String(b.created_at||'').split('T')[0],
+    validade: b.valid_until || '',
+    cliente: cliente,
+    itens: (b.services || []).map(function(it){ return Object.assign({}, it, { descricao: it.descricao || it.description || '' }); }),
+    desconto: parseFloat(b.discount)||0,
+    descontoTipo: 'percentual',
+    formaPagamento: b.payment_method || b.conditions || '',
+    prazoEntrega: b.delivery_time || b.deadline || '',
+    observacoes: b.observations || '',
+    termos: ''
+  };
+}
+if(typeof window!=='undefined'){ window._orcDoBanco = _orcDoBanco; }
+
+/* Abre o PDF de um orçamento JÁ FEITO, sem mexer no que está em edição. */
+async function verPdfOrcamento(orcId){
+  const lista = (typeof orcamentosSalvos !== 'undefined' ? orcamentosSalvos : []);
+  const b = lista.find(function(x){ return x.id === orcId; });
+  if(!b){ toast('Não achei esse orçamento. Atualize a página.','info'); return; }
+  const dados = _orcDoBanco(b);
+  if(!dados || !(dados.itens||[]).length){ toast('Esse orçamento não tem itens pra montar o PDF.','info'); return; }
+  const guardado = orcamento;
+  try {
+    orcamento = dados;
+    await gerarPDFOrcamento({ ver:true });
+  } finally { orcamento = guardado; }
+}
+if(typeof window!=='undefined'){ window.verPdfOrcamento = verPdfOrcamento; }
+
+async function gerarPDFOrcamento(opts){
+  opts = opts || {};
   if(!orcamento.cliente.nome){toast('Informe o nome do cliente antes de gerar o PDF','info');return}
   if(orcamento.itens.length===0){toast('Adicione pelo menos um item','info');return}
   if(!window.jspdf){toast('Biblioteca PDF não carregou. Recarregue a página.','info');return}
-  if(typeof orcExigirAprovacaoDesconto === 'function'){
+  // Só quando está criando: ver um orçamento antigo não precisa de aprovação.
+  if(!opts.ver && typeof orcExigirAprovacaoDesconto === 'function'){
     const aprovado = await orcExigirAprovacaoDesconto();
     if(!aprovado) return;
   }
@@ -19423,17 +19534,51 @@ async function gerarPDFOrcamento(){
     doc.setTextColor(160,160,165);
     doc.text('Página ' + i + ' de ' + totalP, 105, 285, {align:'center'});
   }
-  // Salvar
   const fileName = 'orcamento-' + orcamento.numero + '-' + orcamento.cliente.nome.replace(/[^a-zA-Z0-9]/g,'_') + '.pdf';
+  // Ver: abre na tela, com botão de baixar. Não mexe no status do orçamento.
+  if(opts.ver){ _orcMostrarPdf(doc, fileName, orcamento); return; }
   doc.save(fileName);
   toast('✓ PDF gerado: '+fileName, 'success');
   setTimeout(()=>salvarOrcamento('enviado'), 200);
 }
 
+/* Mostra o PDF numa janela do sistema, com botão pra baixar ou abrir fora. */
+function _orcMostrarPdf(doc, fileName, orc){
+  let url = '';
+  try { url = doc.output('bloburl'); } catch(e){ console.warn('[pdf]', e); }
+  if(!url){ doc.save(fileName); return; }
+  let ov = document.getElementById('orcPdfModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'orcPdfModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.66);z-index:99996;display:flex;align-items:center;justify-content:center;padding:16px';
+  const fechar = function(){ try { URL.revokeObjectURL(url); } catch(e){} ov.remove(); document.removeEventListener('keydown', tecla, true); };
+  const tecla = function(e){ if(e.key === 'Escape'){ e.preventDefault(); fechar(); } };
+  ov.onclick = function(e){ if(e.target === ov) fechar(); };
+  document.addEventListener('keydown', tecla, true);
+  const nome = escapeHtml((orc && orc.cliente && orc.cliente.nome) || '');
+  ov.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px;max-width:860px;width:100%;height:92dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5);overflow:hidden">' +
+      '<div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<div style="flex:1;min-width:150px"><div style="font-size:15px;font-weight:700">📄 ' + escapeHtml((orc&&orc.numero)||'Orçamento') + '</div>' +
+          (nome ? '<div class="text-xs text-3" style="margin-top:2px">' + nome + '</div>' : '') + '</div>' +
+        '<button class="btn btn-sm" type="button" id="orcPdfBaixar">⬇ Baixar</button>' +
+        '<button class="btn btn-sm" type="button" id="orcPdfAbrir">↗ Abrir fora</button>' +
+        '<button class="modal-close" type="button" id="orcPdfX">✕</button>' +
+      '</div>' +
+      '<iframe src="' + url + '" title="Orçamento em PDF" style="flex:1;width:100%;border:none;background:#525659"></iframe>' +
+    '</div>';
+  document.body.appendChild(ov);
+  document.getElementById('orcPdfX').onclick = fechar;
+  document.getElementById('orcPdfBaixar').onclick = function(){ try { doc.save(fileName); } catch(e){ toast('Não consegui baixar: '+e.message,'info'); } };
+  document.getElementById('orcPdfAbrir').onclick = function(){ try { window.open(url, '_blank', 'noopener'); } catch(e){} };
+}
+
 
 
 // ============ HISTORICO DE ORÇAMENTOS ============
-let _histFilters = {ano: new Date().getFullYear(), mes: 'all', status: 'all', cliente: 'all'};
+// Começa em "todos os anos": travado no ano atual, a tela abria vazia quando
+// os orçamentos eram do ano passado e parecia que não tinha carregado.
+let _histFilters = {ano: 'all', mes: 'all', status: 'all', cliente: 'all'};
 let _histChart = null;
 
 function renderHistoricoOrcamentos(){
@@ -19467,7 +19612,19 @@ function renderHistoricoOrcamentos(){
 
   setTimeout(() => desenharGraficoHistorico(filtered), 100);
 
+  // Filtro que esconde tudo parece tela vazia/travada: avisa e oferece limpar.
+  const _vazioPorFiltro = !filtered.length && orcamentosSalvos.length > 0;
+  const _semNada = !orcamentosSalvos.length;
+
   return `
+    ${_vazioPorFiltro ? `<div class="card mb-3" style="border-left:3px solid var(--warning);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:170px"><b>Nenhum orçamento nesse filtro</b>
+      <div class="text-xs text-3" style="margin-top:2px">Existem ${orcamentosSalvos.length} orçamentos guardados — o filtro está escondendo todos.</div></div>
+      <button class="btn btn-sm btn-primary" type="button" onclick="_histFilters={ano:'all',mes:'all',status:'all',cliente:'all'};renderComercial(document.getElementById('content'))">Limpar filtros</button></div>` : ''}
+    ${_semNada ? `<div class="card mb-3" style="border-left:3px solid var(--info);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:170px"><b>Nada carregado ainda</b>
+      <div class="text-xs text-3" style="margin-top:2px">Se você já fez orçamentos, clique em atualizar.</div></div>
+      <button class="btn btn-sm btn-primary" type="button" onclick="refreshHistorico()">🔄 Atualizar do banco</button></div>` : ''}
     <div class="stat-grid">
       ${statCard('Enviados', totalEnv, _histFilters.ano + (_histFilters.mes!=='all' ? ' · ' + ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][parseInt(_histFilters.mes)] : ''), 'M22 12h-4l-3 9L9 3l-3 9H2')}
       ${statCard('Aprovados', aprovados, 'fecharam contrato', 'M9 11l3 3L22 4')}
@@ -19613,6 +19770,50 @@ function _leadsDoOrcamento(b){
   return leads.filter(function(l){ return (cli && _leadEhDoCliente(l, cli)) || (nome && _orcMatchNome(l.name, { name: nome })); });
 }
 
+/* Proposta recusada: o card sai do quadro e vai pro chip "Recusados" (nada
+   some do sistema). Se houver orçamento ligado, ele também fica como recusado. */
+async function recusarProposta(leadId){
+  const lead = (_leadsCache||[]).find(function(l){ return l.id === leadId; });
+  if(!lead){ toast('Não achei esse card.','info'); return; }
+  const r = await pedirDados('Proposta recusada', [
+    { id:'motivo', label:'Por que foi recusada?', tipo:'area', dica:'Preço, prazo, foi pra concorrência, adiou…' }
+  ], { ok:'Marcar como recusada', sub: (lead.name||'') + ' sai do quadro e fica no chip "Recusados".' });
+  if(!r) return;
+  const quando = new Date().toISOString();
+  const obs = ((lead.observacoes||'') + (r.motivo ? '\n✕ Recusada em ' + dataBR(quando.slice(0,10)) + ': ' + r.motivo : '')).trim();
+  try {
+    const { error } = await _supa.from('leads').update({ recusado_em: quando, aprovado: false, observacoes: obs || null }).eq('id', leadId);
+    if(error) throw error;
+    lead.recusado_em = quando; lead.aprovado = false; lead.observacoes = obs || null;
+    // o orçamento que gerou este card acompanha
+    const b = _leadOrcamento(lead);
+    if(b && String(b.status||'').toLowerCase() !== 'recusado'){
+      try { await _supa.from('budgets').update({ status:'recusado' }).eq('id', b.id); b.status = 'recusado'; } catch(e){ console.warn('[recusa orc]', e); }
+    }
+    document.getElementById('leadDetalheModal')?.remove();
+    toast('✕ Proposta recusada. O card saiu do quadro — está no chip "Recusados".','success');
+    renderComercial(document.getElementById('content'));
+  } catch(e){
+    console.warn('[recusar]', e);
+    toast(/recusado_em/.test(e.message||'') ? 'Falta a coluna recusado_em na tabela leads.' : ('Não consegui marcar: ' + (e.message||'')), 'info');
+  }
+}
+async function desfazerRecusa(leadId){
+  const lead = (_leadsCache||[]).find(function(l){ return l.id === leadId; });
+  if(!lead) return;
+  try {
+    await _supa.from('leads').update({ recusado_em: null }).eq('id', leadId);
+    lead.recusado_em = null;
+    const b = _leadOrcamento(lead);
+    if(b && String(b.status||'').toLowerCase() === 'recusado'){
+      try { await _supa.from('budgets').update({ status:'enviado' }).eq('id', b.id); b.status = 'enviado'; } catch(e){}
+    }
+    toast('↺ Card de volta pro quadro','success');
+    renderComercial(document.getElementById('content'));
+  } catch(e){ toast('Não consegui desfazer: ' + (e.message||''), 'info'); }
+}
+if(typeof window!=='undefined'){ window.recusarProposta = recusarProposta; window.desfazerRecusa = desfazerRecusa; }
+
 async function marcarOrcStatus(id, status){
   if(!_supa) return;
   try {
@@ -19645,8 +19846,12 @@ async function _orcAtualizarPipeline(b, status){
       const perdida = etapas.find(function(e){ return /perdid|recus/i.test(e.key + ' ' + (e.label||'')); });
       if(perdida) payload.stage = perdida.key;
       payload.aprovado = false;
+      // O card sai do quadro junto com a proposta (vai pro chip "Recusadas").
+      payload.recusado_em = new Date().toISOString();
     } else {
       payload.aprovado = false;
+      // Voltou atrás na recusa: o card volta pro quadro.
+      payload.recusado_em = null;
     }
     Object.assign(l, payload);
     if(_supa){ const { error } = await _supa.from('leads').update(payload).eq('id', l.id); if(error) throw error; }
@@ -29977,10 +30182,17 @@ function openNovoRelacionamentoModal(presetCliId){
           '<div><div class="info-label" style="margin-bottom:5px">Próxima ação</div><input id="rlProxAcao" class="login-input" placeholder="Ex: Enviar criativos" style="background:var(--surface-2)" /></div>' +
           '<div><div class="info-label" style="margin-bottom:5px">Quando</div><input id="rlProxData" class="login-input" type="date" style="background:var(--surface-2)" /></div>' +
         '</div>' +
-        '<div><div class="info-label" style="margin-bottom:5px">Responsável pela próxima ação <span class="text-3" style="font-weight:400">(vira tarefa no checklist dele)</span></div>' +
-          '<select id="rlProxResp" class="login-input" style="background:var(--surface-2)"><option value="">— ninguém (só anotar) —</option>' +
-          sortAlfa((team||[]).filter(function(x){ return x._dbId && !x.oculto; }), 'name').map(function(x){ return '<option value="' + x._dbId + '"' + (_currentProfile && _currentProfile.id === x._dbId ? ' selected' : '') + '>' + escapeHtml(x.name) + '</option>'; }).join('') +
-          '</select></div>' +
+        '<div><div class="info-label" style="margin-bottom:5px">Responsáveis pela próxima ação ' +
+            '<span class="text-xs text-3" style="font-weight:400;text-transform:none;letter-spacing:0">· marque quantos precisar, cada um recebe a tarefa no seu checklist</span></div>' +
+          '<div id="rlProxRespBox" style="display:flex;flex-wrap:wrap;gap:7px;max-height:126px;overflow:auto;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:10px">' +
+            sortAlfa((team||[]).filter(function(x){ return x._dbId && !x.oculto; }), 'name').map(function(x){
+              return '<label class="ntk-quem"><input type="checkbox" class="rl-resp" value="' + x._dbId + '"' +
+                (_currentProfile && _currentProfile.id === x._dbId ? ' checked' : '') + ' />' + escapeHtml((x.name||'').split(' ')[0]) + '</label>';
+            }).join('') +
+          '</div>' +
+          '<label style="display:flex;gap:8px;align-items:center;margin-top:9px;font-size:12.5px"><input type="checkbox" id="rlProxDaily" checked /> Entrar no checklist diário de cada um</label>' +
+          '<div class="text-xs text-3" style="margin-top:4px">Sem ninguém marcado, a próxima ação fica só anotada aqui.</div>' +
+        '</div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Observações internas (não vai pro cliente)</div><textarea id="rlObs" class="login-input" rows="2" style="background:var(--surface-2);resize:vertical;min-height:50px"></textarea></div>' +
       '</div>' +
       '<div style="padding:16px 24px 22px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)">' +
@@ -30008,7 +30220,8 @@ async function salvarRelacionamento(){
   const proxima_acao = document.getElementById('rlProxAcao').value.trim() || null;
   const proxima_data = document.getElementById('rlProxData').value || null;
   const participantes = ((document.getElementById('rlParticipantes')||{}).value || '').trim();
-  const proxResp = ((document.getElementById('rlProxResp')||{}).value || '').trim();
+  const proxResps = Array.from(document.querySelectorAll('.rl-resp:checked')).map(function(x){ return x.value; }).filter(Boolean);
+  const proxDaily = !!(document.getElementById('rlProxDaily')||{}).checked;
   let observacoes_internas = document.getElementById('rlObs').value.trim() || null;
   // Quem participou fica junto das observações (a tabela não tem coluna própria)
   if(participantes) observacoes_internas = '👥 Participaram: ' + participantes + (observacoes_internas ? '\n' + observacoes_internas : '');
@@ -30027,19 +30240,42 @@ async function salvarRelacionamento(){
   }
   // Próxima ação com responsável e data vira tarefa da pessoa, no checklist dela,
   // vinculada ao cliente. É o que liga Relacionamento a Tarefas.
-  if(proxima_acao && proxima_data && proxResp && _supa){
+  if(proxima_acao && proxima_data && proxResps.length && _supa){
     try {
       const cliObj = (clients||[]).find(function(c){ return c._dbId === client_id; });
-      const { error: te } = await _supa.from('tasks').insert({
-        title: proxima_acao, description: 'Combinado no contato de ' + dataBR(data_contato) + (resumo ? ' · ' + resumo.slice(0,180) : ''),
-        client_id: client_id, assigned_to: proxResp, priority: 'med', status: 'todo', tag: 'relacionamento',
-        due_date: proxima_data, is_daily: false, done: false
-      });
+      const nomeCli = cliObj ? (typeof _nomeCli==='function' ? _nomeCli(cliObj) : cliObj.name) : 'Geral';
+      const base = {
+        title: proxima_acao,
+        description: 'Combinado no contato de ' + dataBR(data_contato) + (resumo ? ' · ' + resumo.slice(0,180) : ''),
+        client_id: client_id, priority: 'med', status: 'todo', tag: 'relacionamento',
+        due_date: proxima_data, is_daily: proxDaily, done: false
+      };
+      // Cada responsável tem a SUA tarefa (o checklist é individual); o grupo_id
+      // liga as que nasceram do mesmo combinado.
+      const grupo = proxResps.length > 1
+        ? ((typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now()))
+        : null;
+      const linhas = proxResps.map(function(q){ return Object.assign({}, base, { assigned_to:q, grupo_id:grupo }); });
+      const { error: te } = await _supa.from('tasks').insert(linhas);
       if(te) throw te;
-      const quem = (team||[]).find(function(x){ return x._dbId === proxResp; });
-      toast('✓ Contato registrado. Tarefa criada pra ' + (quem ? quem.name.split(' ')[0] : 'responsável') + ' em ' + dataBR(proxima_data) + '.','success');
+      // aparece no checklist na hora, sem esperar o recarregamento
+      if(proxDaily){
+        try {
+          proxResps.forEach(function(q){
+            const m = (team||[]).find(function(x){ return x._dbId === q; });
+            const nome = m ? (m.name||'').split(' ')[0] : null;
+            if(!nome) return;
+            if(!dailyChecklists[nome]) dailyChecklists[nome] = [];
+            dailyChecklists[nome].push({ t: proxima_acao, p:'med', time:'09:00', client: nomeCli, done:false, _dbId:null });
+          });
+        } catch(e){ console.warn('[relac→checklist]', e); }
+      }
+      const nomes = proxResps.map(function(q){ const m=(team||[]).find(function(x){ return x._dbId===q; }); return m ? (m.name||'').split(' ')[0] : ''; }).filter(Boolean);
+      toast('✓ Contato registrado. Tarefa criada pra ' + (nomes.join(', ') || 'responsável') + ' em ' + dataBR(proxima_data) + '.','success');
       try { await loadDataFromSupabase(); } catch(e){}
     } catch(e){ console.warn('[relac→tarefa]', e); toast('Contato salvo, mas não consegui criar a tarefa: ' + (e.message||''), 'info'); }
+  } else if(proxima_acao && proxResps.length && !proxima_data){
+    toast('✓ Contato registrado. Marque o "Quando" pra virar tarefa no checklist.','info');
   } else {
     toast('✓ Contato registrado','success');
   }
