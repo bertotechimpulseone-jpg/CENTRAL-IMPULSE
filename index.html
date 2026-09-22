@@ -1845,6 +1845,22 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .cron-table tr.cron-row-status td{transition:background .15s;font-size:12px}
 .cron-table tr.cron-row-status td{padding:7px 8px !important;line-height:1.3}
 .cron-table th{padding:6px 8px !important;font-size:10px}
+/* Histórico do cronograma */
+.cron-hist-lista{display:flex;flex-direction:column;gap:8px}
+.cron-hist-item{border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:11px;padding:10px 12px;background:var(--surface-2)}
+.cron-hist-item.auto{border-left-color:var(--text-3);background:var(--surface)}
+.cron-hist-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--text-3);margin-bottom:5px}
+.cron-hist-quem{font-weight:700;color:var(--text-2)}
+.cron-hist-cli{font-weight:600;color:var(--text-2)}
+.cron-hist-mes{padding:1px 7px;border-radius:99px;background:var(--surface-3);font-weight:600}
+.cron-hist-quando{margin-left:auto;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cron-hist-mud{font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.cron-hist-de{color:var(--text-3);text-decoration:line-through}
+.cron-hist-seta{color:var(--text-3)}
+.cron-hist-para{font-weight:700}
+.cron-hist-motivo{font-size:11.5px;color:var(--text-3);margin-top:4px;line-height:1.4}
+@media(max-width:768px){ .cron-hist-quando{margin-left:0;width:100%} }
+
 /* Cards mobile do cronograma — escondido no desktop */
 .cron-mobile{display:none}
 .cron-acoes-btns{display:contents}
@@ -3082,7 +3098,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.33 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.34 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -4283,6 +4299,11 @@ async function saveCronogramaObs(cliId, month, value){
   if(!cli || !cli._dbId) return;
   const entry = cronograma[cliId] && cronograma[cliId][month];
   if(!entry) return;
+  // a observação salva por aqui (não passa pelo updateCronField): registra também
+  if(String(entry._obsRegistrada === undefined ? '' : entry._obsRegistrada) !== String(value || '')){
+    entry._obsRegistrada = value || '';
+    try { _cronRegistrar(cli, month, 'obs', null, value); } catch(e){}
+  }
   if(entry._dbId){
     await dbUpdate('cronograma', entry._dbId, {observations: value});
   } else {
@@ -4368,6 +4389,125 @@ async function toggleClienteOculto(cliId){
   else if(typeof renderClientes === 'function') renderClientes(_cont);
 }
 
+/* Tela do histórico: quem mudou o quê, com dia e hora. Sem filtro = tudo do
+   mês; com cliente = só daquele cliente. */
+async function abrirHistoricoCron(cliId, mes){
+  if(!_supa){ toast('Banco não conectado','info'); return; }
+  const cli = cliId ? (clients||[]).find(function(c){ return c.id === cliId; }) : null;
+  let ov = document.getElementById('cronHistModal'); if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'cronHistModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99995;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.onclick = function(e){ if(e.target === ov) ov.remove(); };
+  const titulo = cli ? ('Histórico · ' + (typeof _nomeCli==='function' ? _nomeCli(cli) : cli.name)) : 'Histórico do cronograma';
+  const sub = cli ? (typeof monthNamesLong!=='undefined' ? monthNamesLong[(mes||cronMonth)-1] : '') + ' 2026'
+                  : 'Todas as mudanças, da mais recente pra mais antiga';
+  ov.innerHTML =
+    '<div style="background:var(--surface);border-radius:16px;max-width:680px;width:100%;max-height:90dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.5)">' +
+      '<div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:16px;font-weight:700">🕓 ' + escapeHtml(titulo) + '</div>' +
+          '<div class="text-xs text-3" style="margin-top:2px">' + escapeHtml(sub) + '</div></div>' +
+        '<button class="modal-close" type="button" onclick="document.getElementById(\'cronHistModal\')?.remove()">✕</button>' +
+      '</div>' +
+      '<div id="cronHistBody" style="padding:14px 18px;overflow:auto;flex:1">' +
+        '<div class="text-xs text-3" style="text-align:center;padding:26px">Carregando…</div></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+
+  let linhas = [];
+  try {
+    let q = _supa.from('cronograma_historico').select('*').order('created_at', { ascending:false }).limit(300);
+    if(cli && cli._dbId) q = q.eq('client_id', cli._dbId);
+    if(cli && mes) q = q.eq('mes', mes);
+    const { data, error } = await q;
+    if(error) throw error;
+    linhas = data || [];
+  } catch(e){
+    const b = document.getElementById('cronHistBody');
+    if(b) b.innerHTML = '<div class="empty-state" style="padding:30px"><div class="ico">⚠</div><div class="ttl">Não consegui carregar</div><div class="desc">' + escapeHtml(e.message||'') + '</div></div>';
+    return;
+  }
+  const box = document.getElementById('cronHistBody'); if(!box) return;
+  if(!linhas.length){
+    box.innerHTML = '<div class="empty-state" style="padding:34px"><div class="ico">🕓</div><div class="ttl">Nada registrado ainda</div>' +
+      '<div class="desc">A partir de agora, toda mudança no cronograma aparece aqui: quem mexeu, o que mudou, dia e hora.</div></div>';
+    return;
+  }
+  const quando = function(iso){
+    try { const d = new Date(iso);
+      return d.toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit'}) + ' · ' +
+             d.toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo',hour:'2-digit',minute:'2-digit'});
+    } catch(e){ return ''; }
+  };
+  const MES = (typeof monthNames!=='undefined') ? monthNames : [];
+  box.innerHTML = '<div class="cron-hist-lista">' + linhas.map(function(l){
+    const auto = !!l.automatico;
+    return '<div class="cron-hist-item' + (auto ? ' auto' : '') + '">' +
+      '<div class="cron-hist-top">' +
+        '<span class="cron-hist-quem">' + (auto ? '⚙ ' : '👤 ') + escapeHtml(l.quem || 'Alguém') + '</span>' +
+        (cli ? '' : '<span class="cron-hist-cli">' + escapeHtml(l.cliente_nome || '') + '</span>') +
+        '<span class="cron-hist-mes">' + escapeHtml(MES[(l.mes||1)-1] || ('mês ' + l.mes)) + '</span>' +
+        '<span class="cron-hist-quando">' + quando(l.created_at) + '</span>' +
+      '</div>' +
+      '<div class="cron-hist-mud"><b>' + escapeHtml(_cronCampoRot(l.campo)) + '</b>: ' +
+        '<span class="cron-hist-de">' + escapeHtml(_cronValorRot(l.campo, l.de)) + '</span>' +
+        ' <span class="cron-hist-seta">→</span> ' +
+        '<span class="cron-hist-para">' + escapeHtml(_cronValorRot(l.campo, l.para)) + '</span></div>' +
+      (auto && l.motivo ? '<div class="cron-hist-motivo">o sistema mudou sozinho porque ' + escapeHtml(l.motivo) + '</div>' : '') +
+    '</div>';
+  }).join('') + '</div>';
+}
+if(typeof window !== 'undefined'){ window.abrirHistoricoCron = abrirHistoricoCron; }
+
+// ===== Histórico do cronograma: quem mudou o quê, com dia e hora =====
+// Quando o sistema muda sozinho (sincronização do calendário), _cronAutor é
+// preenchido e o registro sai marcado como automático — assim ninguém leva a
+// culpa por uma mudança que a equipe não fez.
+let _cronAutor = null;   // {quem, motivo} enquanto uma rotina automática roda
+function _cronComoAutomatico(quem, motivo, fn){
+  const antes = _cronAutor;
+  _cronAutor = { quem: quem, motivo: motivo };
+  const devolver = function(){ _cronAutor = antes; };
+  try {
+    const r = fn();
+    if(r && typeof r.then === 'function') return r.then(function(v){ devolver(); return v; }, function(e){ devolver(); throw e; });
+    devolver(); return r;
+  } catch(e){ devolver(); throw e; }
+}
+const _CRON_CAMPO_ROT = {
+  status:'Status', target:'Conteúdos', designer:'Designer', deadline:'Prazo',
+  hasTraffic:'Tráfego pago', trafficManager:'Gestor de tráfego', pop:'POP', obs:'Observações'
+};
+function _cronCampoRot(c){ return _CRON_CAMPO_ROT[c] || c; }
+// Valor legível (o status vira o rótulo que aparece na tela)
+function _cronValorRot(campo, v){
+  if(v === null || v === undefined || v === '') return '—';
+  if(campo === 'status') return (typeof CRON_STATUS_LABELS !== 'undefined' && CRON_STATUS_LABELS[v]) || String(v);
+  if(campo === 'hasTraffic') return v ? 'Sim' : 'Não';
+  if(campo === 'deadline') return (typeof dataBR === 'function') ? dataBR(v) : String(v);
+  return String(v);
+}
+async function _cronRegistrar(cli, month, field, de, para){
+  if(!_supa || !cli) return;
+  const aut = _cronAutor;
+  const quem = aut ? aut.quem
+    : ((typeof _currentProfile !== 'undefined' && _currentProfile && (_currentProfile.name || _currentProfile.full_name)) || 'Alguém');
+  try {
+    await _supa.from('cronograma_historico').insert({
+      client_id: cli._dbId || null,
+      cliente_nome: (typeof _nomeCli === 'function' ? _nomeCli(cli) : (cli.name || '')),
+      ano: 2026, mes: month, campo: field,
+      de: (de === null || de === undefined) ? null : String(de),
+      para: (para === null || para === undefined) ? null : String(para),
+      quem: quem,
+      quem_id: (!aut && typeof _currentProfile !== 'undefined' && _currentProfile && _currentProfile.id) ? _currentProfile.id : null,
+      automatico: !!aut,
+      motivo: aut ? aut.motivo : null
+    });
+  } catch(e){ console.warn('[cron hist]', e); }
+}
+if(typeof window !== 'undefined'){ window._cronRegistrar = _cronRegistrar; window._cronComoAutomatico = _cronComoAutomatico; }
+
 async function updateCronField(cliId, month, field, value){
   // Os cards do celular mandavam 'observations' (nome da coluna) e o campo em
   // memoria e 'obs' — caia no "coluna nao mapeada" e a observacao nunca salvava.
@@ -4377,8 +4517,13 @@ async function updateCronField(cliId, month, field, value){
   if(!cronograma[cliId]) cronograma[cliId] = {};
   if(!cronograma[cliId][month]) cronograma[cliId][month] = {produced:0,target:0,status:'planejado',deadline:'',obs:'',hasTraffic:false,designer:'',trafficManager:''};
   const entry = cronograma[cliId][month];
+  const _antes = entry[field];
   // 1) Atualiza memória
   entry[field] = value;
+  // Registra quem mudou o quê (só quando mudou de verdade)
+  if(String(_antes === undefined || _antes === null ? '' : _antes) !== String(value === undefined || value === null ? '' : value)){
+    try { _cronRegistrar(cli, month, field, _antes, value); } catch(e){}
+  }
   // 2) Salva cache local SEMPRE (não perde com refresh mesmo se banco falhar)
   _cronLocalSet(cliId, month, field, value);
 
@@ -4397,9 +4542,14 @@ async function updateCronField(cliId, month, field, value){
       const datasAuto = Object.values(PRAZO_ETAPA).map(d => '2026-'+mm+'-'+String(d).padStart(2,'0'));
       const atual = (entry.deadline || '').slice(0,10);
       if(atual === '' || datasAuto.includes(atual)){
+        const _prazoAntes = entry.deadline;
         entry.deadline = novoPrazo;
         _cronLocalSet(cliId, month, 'deadline', novoPrazo);
         _autoPrazoAplicado = true;
+        // só registra se o prazo realmente mudou (senão polui o histórico a cada clique)
+        if(String(_prazoAntes||'') !== String(novoPrazo)){
+          try { _cronComoAutomatico('Sistema', 'prazo automático da etapa', function(){ return _cronRegistrar(cli, month, 'deadline', _prazoAntes, novoPrazo); }); } catch(e){}
+        }
         const nomeEtapa = value==='planejado'?'Planejado':value==='desenvolvimento'?'Desenvolvimento':'Aguardando aprovação';
         toast('🗓 Prazo automático: dia '+dia+' ('+nomeEtapa+'). Pode alterar manualmente.','info');
       }
@@ -20731,6 +20881,7 @@ function renderCronograma(c){
           <button class="btn" onclick="abrirCombinadosPrazos()" title="Manual de combinados e prazos do calendário editorial — quem está atrasado no prazo do dia 20" style="background:var(--accent);color:var(--surface);border:none;font-weight:700">⚡ Combinados & Prazos</button>
           <button class="btn" onclick="puxarConteudosDeTodos(cronMonth)" title="Conta os conteúdos do calendário editorial de cada cliente neste mês e preenche a coluna Conteúdos">🗓 Puxar conteúdos do calendário</button>
           <button class="btn" onclick="replicarMesParaFuturos(cronMonth)" title="Copia designer e gestor de tráfego deste mês pros próximos meses do ano que estão vazios">📋 Replicar daqui pra frente</button>
+          <button class="btn" onclick="abrirHistoricoCron()" title="Quem mudou o quê no cronograma, com dia e hora">🕓 Histórico</button>
           <button class="btn" onclick="exportarCronogramaCSV()" title="Baixa a visão atual em planilha (CSV)">📤 Exportar</button>
           <button class="btn btn-primary" onclick="openNovoClienteModal()" title="Cadastrar um cliente novo — ele entra no cronograma automaticamente">+ Novo cliente</button>
           </div>
@@ -20830,6 +20981,7 @@ function renderCronograma(c){
                     <td><div class="cron-cli" style="position:relative">
                       <div class="cron-cli-logo ${cli.logo_url?'has-image':''}" style="background:${cli.logo_url?'transparent':cli.color}">${cli.logo_url?`<img src="${cli.logo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" />`:cli.init}</div>
                       <div style="flex:1;min-width:0"><div class="cron-cli-name">${cli.name}</div><div class="text-xs text-3">${cli.segment||'—'}</div>${nSolic>0?`<div style="font-size:10.5px;color:var(--accent);font-weight:700;margin-top:2px">📥 ${nSolic} solicitaç${nSolic>1?'ões':'ão'} no mês</div>`:''}</div>
+                      <button class="icon-btn" onclick="event.stopPropagation();abrirHistoricoCron(${cli.id},${cronMonth})" title="Quem mexeu neste cliente, com dia e hora" style="width:24px;height:24px;color:var(--text-3);font-size:12px;background:transparent;border:none">🕓</button>
                       <button class="icon-btn" onclick="event.stopPropagation();toggleClienteOculto(${cli.id})" title="${cli.oculto?'Voltar pra lista visivel':'Ocultar da lista'}" style="width:24px;height:24px;color:var(--text-3);font-size:13px;background:transparent;border:none">${cli.oculto?'👁':'👁‍🗨'}</button>
                     </div></td>
                     <td>
@@ -20977,6 +21129,7 @@ function _cronMobCard(cli){
         '<textarea rows="2" placeholder="Anotar observação…" oninput="cronograma['+id+']['+m+'].obs=this.value;debouncedSaveCron('+id+','+m+',this.value)">'+escapeHtml(d.obs||'')+'</textarea></label>' +
       '<div class="cmc-rodape">' +
         '<button type="button" class="btn btn-sm" onclick="if(typeof abrirCalendarioDoCliente===\'function\'){abrirCalendarioDoCliente('+id+')}else{goTo(\'calendarios\')}">📅 Calendário</button>' +
+        '<button type="button" class="btn btn-sm" onclick="abrirHistoricoCron('+id+','+m+')">🕓 Histórico</button>' +
         '<button type="button" class="btn btn-sm" onclick="toggleClienteOculto('+id+')">'+(cli.oculto?'👁 Mostrar na lista':'👁‍🗨 Ocultar da lista')+'</button>' +
       '</div>' +
     '</div>' +
@@ -34983,9 +35136,15 @@ function _calsCron(cli, mes1){
   const r = _CRON_ROT[d.status] || ['•', d.status, 'var(--text-3)'];
   return { status:d.status, ico:r[0], rot:r[1], cor:r[2] };
 }
-// Empurra o estado do calendário pro Cronograma, só quando ele ainda está num
-// estado "automático". Estados marcados à mão pela equipe ficam como estão.
+// O status do Cronograma é a VERDADE e quem manda nele é a equipe, na mão.
+// A ÚNICA coisa que o sistema faz sozinho: quando o calendário do mês fica
+// pronto (o cliente aprovou tudo, ou a equipe marcou como pronto), a etiqueta
+// vira "Cal pronto". Calendário ter conteúdo lançado NÃO quer dizer que foi
+// enviado pra aprovação — a regra que fazia isso saiu (v4.34).
+// E mesmo o "Cal pronto" só entra por cima de status que ainda não decidiram
+// nada: o que a equipe marcou (agendado, trello, só tráfego…) fica de pé.
 const _CRON_AUTO = ['', 'planejado', 'desenvolvimento', 'aguardando-aprov'];
+const _CAL_ESTADO_PRONTO = ['aprovado', 'pronto'];
 async function _calsSincronizarCronograma(lista, mes1, ano){
   if(typeof updateCronField !== 'function' || typeof cronograma === 'undefined') return;
   let mudou = 0;
@@ -34995,9 +35154,17 @@ async function _calsSincronizarCronograma(lista, mes1, ano){
     const atual = (cronograma[cli.id] && cronograma[cli.id][mes1] && cronograma[cli.id][mes1].status) || '';
     if(_CRON_AUTO.indexOf(atual) === -1) continue;
     let alvo = null;
-    if(st.total && st.estado === 'aprovado' && atual !== 'cal-pronto') alvo = 'cal-pronto';
-    else if(st.total && st.estado !== 'aprovado' && atual !== 'aguardando-aprov') alvo = 'aguardando-aprov';
-    if(alvo){ try { await updateCronField(cli.id, mes1, 'status', alvo); mudou++; } catch(e){ console.warn('[cals→cron]', e); } }
+    if(_CAL_ESTADO_PRONTO.indexOf(st.estado) !== -1 && atual !== 'cal-pronto') alvo = 'cal-pronto';
+    if(alvo){
+      try {
+        // Isso aqui muda o cronograma SEM ninguém ter clicado nele: fica
+        // registrado como Sistema, dizendo de onde veio.
+        await _cronComoAutomatico('Sistema · calendário',
+          'o calendário de ' + (typeof _CAL_MESES !== 'undefined' ? _CAL_MESES[mes1-1] : mes1) + ' ficou pronto',
+          function(){ return updateCronField(cli.id, mes1, 'status', alvo); });
+        mudou++;
+      } catch(e){ console.warn('[cals→cron]', e); }
+    }
   }
   return mudou;
 }
