@@ -237,7 +237,9 @@ body.public-page #lembretesWidget{display:none!important}
 /* Page */
 .page{display:none;animation:fade .25s ease}
 .page.active{display:block}
-@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* So opacidade: um translateY no contêiner da página inteira obriga a
+   re-rasterizar todo o conteúdo a cada quadro — pesa no celular. */
+@keyframes fade{from{opacity:0}to{opacity:1}}
 
 .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px;gap:18px;flex-wrap:wrap}
 .page-title{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.2;font-family:'Sora',sans-serif}
@@ -759,6 +761,18 @@ body.public-page #lembretesWidget{display:none!important}
 .pauta-card-top{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}
 .pauta-titulo{margin:0;font-size:15.5px;font-weight:700;letter-spacing:-.01em;line-height:1.3;overflow-wrap:anywhere}
 .pauta-meta{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:6px;font-size:11.5px;color:var(--text-3)}
+/* PDFs anexados na pauta */
+.pauta-anexos{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.pauta-anexos.compacto{flex-direction:row;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pauta-anexo{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2);min-height:40px}
+.pauta-anexo-link{text-decoration:none;color:inherit;transition:border-color var(--dur) var(--ease)}
+.pauta-anexo-link:hover{border-color:var(--accent)}
+.pauta-anexos.compacto .pauta-anexo{padding:6px 10px;min-height:34px;font-size:12px}
+.pauta-anexo-ico{flex-shrink:0}
+.pauta-anexo-nome{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none}
+.pauta-anexos.compacto .pauta-anexo-nome{max-width:200px}
+.pauta-anexo-tam{font-size:11px;color:var(--text-3);flex-shrink:0;font-variant-numeric:tabular-nums}
+.pauta-anexo-vazio{font-size:12px;color:var(--text-3);padding:10px 12px;border:1px dashed var(--border);border-radius:10px;line-height:1.4}
 .pauta-tag{padding:1px 8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2);font-weight:600}
 .pauta-acoes{display:flex;gap:3px;flex-shrink:0}
 .pauta-itens{list-style:none;counter-reset:pt;margin:13px 0 0;padding:0;display:grid;gap:7px}
@@ -2751,6 +2765,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
 
 /* --- 15. Movimento honesto: entrada curta, e nada disso com movimento reduzido --- */
 .page{animation:fade .2s var(--ease-out)}
+@media (max-width:768px){ .page{animation-duration:.14s} }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .card-hover:hover,.client-card:hover,.btn:active,.filter-chip:active{transform:none!important}
@@ -3057,7 +3072,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.30 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.31 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -4046,35 +4061,10 @@ async function loadDataFromSupabase(){
 let _logosMap = {};            // _dbId -> logo_url (persiste entre reloads)
 let _logosCarregando = false;
 // Reaplica as logos já conhecidas nos clients recém-carregados (síncrono, sem esperar rede).
-function _aplicarLogosMap(){
-  if(!Array.isArray(clients)) return;
-  clients.forEach(cli => { if(cli._dbId && _logosMap[cli._dbId]) cli.logo_url = _logosMap[cli._dbId]; });
-}
 // Detecta se HÁ um modal realmente aberto (não os estáticos #modalBg/#clientModal que sempre existem).
 function _algumModalAberto(){
   if(document.querySelector('.modal-bg.open')) return true;               // modal do cliente e afins
   return !!document.querySelector('[id$="Modal"]:not(#clientModal), [id$="ModalBg"]');  // modais dinâmicos (rel/solic/dúvida/cred...)
-}
-async function _carregarLogosEmBackground(){
-  if(!_supa || _logosCarregando) return;
-  _logosCarregando = true;
-  try {
-    const { data } = await _supa.from('clients').select('id,logo_url');
-    _logosCarregando = false;
-    if(!data) return;
-    let mudou = false;
-    data.forEach(row => {
-      _logosMap[row.id] = row.logo_url || '';                 // atualiza o mapa (fonte da verdade)
-      const cli = clients.find(c => c._dbId === row.id);
-      if(cli && (cli.logo_url||'') !== (row.logo_url||'')){ cli.logo_url = row.logo_url||''; mudou = true; }
-    });
-    // re-render silencioso só se ninguém estiver digitando e não houver modal aberto
-    const ativo = document.activeElement;
-    const digitando = ativo && (ativo.tagName === 'INPUT' || ativo.tagName === 'TEXTAREA' || ativo.isContentEditable);
-    if(mudou && !digitando && !_algumModalAberto() && typeof renderPage === 'function' && typeof currentPage !== 'undefined'){
-      try { renderPage(currentPage); } catch(e){ console.warn('[logos rerender]', e); }
-    }
-  } catch(e){ _logosCarregando = false; console.warn('[logos bg]', e); }
 }
 // Busca sob demanda o anexo do briefing (base64 pesado) de uma captação; cacheia no objeto.
 async function _capBriefingUrl(cap){
@@ -4649,14 +4639,6 @@ async function propagarCronCampo(cliId, fromMonth, field, value){
   return count;
 }
 
-async function saveCronogramaStatus(cliId, month, status){
-  const cli = clients.find(c=>c.id===cliId);
-  if(!cli || !cli._dbId) return;
-  const entry = cronograma[cliId] && cronograma[cliId][month];
-  if(!entry) return;
-  entry.status = status;
-  if(entry._dbId) await dbUpdate('cronograma', entry._dbId, {status});
-}
 
 async function saveTaskDone(collab, idx, done, done_at){
   const list = dailyChecklists[collab];
@@ -4686,15 +4668,6 @@ async function saveTaskDone(collab, idx, done, done_at){
   }
 }
 
-async function saveFeedbackDb(collabName, fb){
-  const tm = team.find(t=>t.name===collabName);
-  if(!tm || !tm._dbId){toast('Colaborador sem registro no banco','info');return null}
-  return await dbCreate('feedbacks', {
-    collaborator_id: tm._dbId,
-    type: fb.type, period: fb.period, score: fb.score, text: fb.text,
-    author_id: tm._dbId  // por enquanto autor = mesmo (mock)
-  });
-}
 
 async function saveAutomationToggle(idx, enabled){
   if(!_serverAutomations || !_serverAutomations[idx]) return;
@@ -6335,9 +6308,6 @@ function isAdmin(){ return _ehDaAdministracao(); }
 
 // Ver valores financeiros (planos, MRR, pagamentos): mesma regra da administração.
 // Sem atalho por primeiro nome.
-function podeVerValores(){
-  return _ehDaAdministracao();
-}
 
 // Retorna true se o usuario eh admin OU gestor/coordenador/gerente
 // ===== CARGOS DA IMPULSE =====
@@ -6763,19 +6733,6 @@ async function _addColabExcluido(nome, dbId){
   }
 }
 
-async function _removeColabExcluido(nome, dbId){
-  const chaves = [(dbId||'').toLowerCase().trim(), (nome||'').toLowerCase().trim()].filter(Boolean);
-  const lista = _getColabExcluidos();
-  _colabExcluidosCache = lista.filter(x => !chaves.includes(x));
-  try { localStorage.setItem('colaboradoresExcluidos', JSON.stringify(_colabExcluidosCache)); } catch(e){}
-  if(_supa){
-    try {
-      for(const c of chaves){
-        await _supa.from('colaboradores_excluidos').delete().eq('nome_normalizado', c);
-      }
-    } catch(e){ console.warn('[excluidos] erro ao remover do banco', e); }
-  }
-}
 
 // ===== Colaboradores ocultos =====
 // Duas portas de entrada: o botao "ocultar" na aba Equipe e o status Inativo (bloqueado)
@@ -6908,14 +6865,6 @@ const journey = ['Lead','Contato inicial','Reunião de diagnóstico','Proposta e
 const meetings = [];
 
 // Acessos do cliente — vazios. Preencher manualmente no modal do cliente.
-function getAcessos(name){
-  return [
-    {cat:'Redes sociais',items:[]},
-    {cat:'Anúncios',items:[]},
-    {cat:'Ferramentas',items:[]},
-    {cat:'Hospedagem & domínio',items:[]},
-  ];
-}
 // Cronograma anual — gera dados determinísticos por cliente x mês
 const cronograma = {};
 clients.forEach((cli)=>{
@@ -7296,6 +7245,14 @@ window.aplicarOrdenacao = aplicarOrdenacao;
 
 // ============ NAV ============
 let currentPage = 'dashboard';
+// Roda depois que a tela ja apareceu: em vez de disputar o primeiro quadro,
+// espera o navegador ficar ocioso (teto de `teto` ms pra nao atrasar demais).
+function _quandoOcioso(fn, teto){
+  const rodar = function(){ try { fn(); } catch(e){ console.warn('[ocioso]', e); } };
+  if(window.requestIdleCallback) return requestIdleCallback(rodar, { timeout: teto || 600 });
+  return setTimeout(rodar, 80);
+}
+if(typeof window !== 'undefined'){ window._quandoOcioso = _quandoOcioso; }
 // O bloco do trilho acende quando a pagina atual esta dentro dele, e o painel
 // aberto por toque fecha ao navegar.
 function _railSincronizar(){
@@ -7630,19 +7587,6 @@ async function uploadClienteLogo(input, cliId){
   }
 }
 
-async function removerClienteLogo(cliId){
-  if(!(await confirmDelete('a logo dcliente\n\nVolta a mostrar as iniciais.'))) return;
-  const cli = clients.find(c => c.id === cliId);
-  if(!cli) return;
-  cli.logo_url = '';
-  if(_supa && cli._dbId){
-    await _supa.from('clients').update({logo_url: null}).eq('id', cli._dbId);
-  }
-  toast('Logo removida','success');
-  closeModal();
-  setTimeout(()=>openClient(cliId), 100);
-  if(currentPage === 'clientes') renderClientes(document.getElementById('content'));
-}
 
 async function removerLogo(){
   if(!(await confirmDelete('logo da agência', {aviso:'Volta ao padrão i1.'}))) return;
@@ -8019,13 +7963,6 @@ if(typeof window !== 'undefined'){
   document.addEventListener('visibilitychange', function(){ if(!document.hidden) _checarVersaoNova(); });
 }
 
-function statBadge(s){
-  // Compat: status antigos (onboarding/paused/late) viram active. Só active/cancelado.
-  const status = (s === 'cancelado' || s === 'cancelled') ? 'cancelado' : 'active';
-  const m = {active:['b-success','Ativo'], cancelado:['b-danger','Cancelado']};
-  const [c,l] = m[status];
-  return `<span class="badge ${c}" onclick="toggleClienteStatus(event)" data-cli-status="${status}" style="cursor:pointer" title="Clique pra alternar"><span class="dot"></span>${l}</span>`;
-}
 // Toggle direto do status (chamado pelo botão grande no modal)
 async function toggleClientStatusDirect(cliId){
   const cli = clients.find(c => c.id === cliId);
@@ -8064,77 +8001,6 @@ function prioBadge(p){const m={urgent:'Urgente',high:'Alta',med:'Média',low:'Ba
 let dashFilter = {prio:'all',collab:'all',client:'all'};
 
 // Card de prazos no dashboard (hoje + atrasados)
-function renderDashboardPrazosHoje(){
-  const hoje = getDeadlineAlerts({range:'today', debug:true});
-  const atrasados = getDeadlineAlerts({range:'overdue'});
-  const amanha = getDeadlineAlerts({range:'soon'}).filter(a => a.diff === 1);
-  const total = hoje.length + atrasados.length + amanha.length;
-  console.log('[Dashboard prazos] hoje:', hoje.length, '· atrasados:', atrasados.length, '· amanhã:', amanha.length);
-  if(total === 0){
-    return '';  // sem prazos urgentes, não polui o dashboard
-  }
-  const statusLabel = {
-    'apenas-trafego':'🚀 Apenas tráfego pago',
-    'apenas-captacao':'🎥 Apenas captação',
-    'agendar':'📅 Agendar',
-    'agendado-mlabs':'📅 Agendado MLABS',
-    'agendado-meta':'📊 Agendado Meta',
-    'aguardando-aprov':'⏳ Aguardando aprovação',
-    'trello-vini':'📋 Trello Vini',
-    'mlabs-vini':'📱 MLABS Vini',
-    'desenvolvimento':'🎨 Desenvolvimento',
-    'cal-pronto':'✓ Cal pronto',
-    'planejado':'📋 Planejado'
-  };
-  const row = (alert) => {
-    const cli = alert.client;
-    const labelStatus = statusLabel[alert.data.status] || (alert.data.status || 'planejado');
-    let badge = '';
-    if(alert.diff === 0) badge = '<span class="badge b-danger" style="font-size:10px">🚨 HOJE</span>';
-    else if(alert.diff === 1) badge = '<span class="badge b-warning" style="font-size:10px">⏰ Amanhã</span>';
-    else if(alert.diff < 0) badge = `<span class="badge b-danger" style="font-size:10px">⚠ Atrasado ${Math.abs(alert.diff)}d</span>`;
-    return `
-      <div class="list-item" style="cursor:pointer;padding:10px 12px;border-bottom:1px solid var(--border)" onclick="goToCronCli(${cli.id},${alert.month})">
-        <div class="cron-cli-logo ${cli.logo_url?'has-image':''}" style="width:30px;height:30px;font-size:11px;border-radius:7px;background:${cli.logo_url?'transparent':cli.color};color:#fff;display:grid;place-items:center;flex-shrink:0;overflow:hidden">${cli.logo_url?`<img src="${cli.logo_url}" style="width:100%;height:100%;object-fit:cover" />`:cli.init}</div>
-        <div class="list-content">
-          <div class="list-title" style="font-size:13px">${cli.name}</div>
-          <div class="list-meta" style="font-size:11px">${labelStatus} · ${alert.data.target||0} conteúdos meta</div>
-        </div>
-        <div class="list-right">${badge}</div>
-      </div>
-    `;
-  };
-  return `
-    <div class="card mb-3" style="border:1px solid var(--warning);background:linear-gradient(135deg,var(--warning-soft),var(--surface));overflow:hidden">
-      <div class="card-header" style="padding-bottom:8px;border-bottom:1px solid var(--border)">
-        <div class="card-title" style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:20px">🚨</span>
-          <span>Prazos urgentes</span>
-          <span class="badge b-danger" style="margin-left:4px">${hoje.length+atrasados.length} crítico(s)</span>
-        </div>
-        <span class="card-link" onclick="goTo('cronograma')">Cronograma →</span>
-      </div>
-      ${atrasados.length > 0 ? `
-        <div style="padding:6px 0">
-          <div class="text-xs text-3" style="padding:4px 12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">⚠ Vencidos (${atrasados.length})</div>
-          ${atrasados.slice(0,5).map(row).join('')}
-        </div>
-      ` : ''}
-      ${hoje.length > 0 ? `
-        <div style="padding:6px 0">
-          <div class="text-xs text-3" style="padding:4px 12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">🚨 Hoje (${hoje.length})</div>
-          ${hoje.map(row).join('')}
-        </div>
-      ` : ''}
-      ${amanha.length > 0 ? `
-        <div style="padding:6px 0">
-          <div class="text-xs text-3" style="padding:4px 12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">⏰ Amanhã (${amanha.length})</div>
-          ${amanha.map(row).join('')}
-        </div>
-      ` : ''}
-    </div>
-  `;
-}
 
 // ============ CAPTACOES: PRAZO DE ENTREGA (+15 dias) ============
 function getCaptacoesPrazoAlertas(){
@@ -9333,29 +9199,6 @@ function openWhatsAppQuick(numero, msg){
   window.open(url, '_blank');
 }
 
-function dashListCard(title,icon,pageId,items){
-  const filtered = items.filter(it=>{
-    if(dashFilter.prio!=='all' && it.p!==dashFilter.prio) return false;
-    if(dashFilter.collab!=='all' && it.o && !it.o.includes(dashFilter.collab)) return false;
-    if(dashFilter.client!=='all' && it.c!==dashFilter.client) return false;
-    return true;
-  });
-  return `
-    <div class="card">
-      <div class="card-header"><div class="card-title">${icon} ${title} <span class="badge b-default" style="margin-left:6px">${filtered.length}</span></div><span class="card-link" onclick="goTo('${pageId}')">Ver tudo</span></div>
-      ${filtered.length===0?'<div class="text-mu text-sm">Nenhum item nos filtros atuais.</div>':filtered.map(it=>`
-        <div class="list-item">
-          ${prioBadge(it.p)}
-          <div class="list-content" style="margin-left:4px">
-            <div class="list-title">${it.t}</div>
-            <div class="list-meta">${it.c}${it.o?' · '+it.o:''}</div>
-          </div>
-          <div class="list-right"><span class="badge b-default">${it.tag}</span></div>
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
 
 function statCard(label,value,sub,iconPath,extra,color,aoClicar){
   const colorClass = color==='warning'?'style="background:var(--warning-soft);color:var(--warning-text)"':color==='pink'?'style="background:var(--pink-soft);color:var(--pink-text)"':'';
@@ -11596,21 +11439,7 @@ async function updateJourneyStepField(cliId, stepId, field, value){
   // Não reabre o modal — mantém o input focado/em edição
 }
 
-async function renomearJourneyStep(cliId, stepId){
-  const atual = (function(){ try { const cli = clients.find(function(c){ return c.id === cliId; });
-    const st = getJourneySteps(cli).find(function(x){ return x.id === stepId; }); return (st && st.name) || ''; } catch(e){ return ''; } })();
-  const r = await pedirDados('Renomear etapa', [{ id:'nome', label:'Nome da etapa', valor:atual, obrigatorio:true }], { ok:'Renomear' });
-  if(!r) return;
-  return updateJourneyStepField(cliId, stepId, 'name', r.nome);
-}
 
-async function editarDescJourneyStep(cliId, stepId){
-  const atual = (function(){ try { const cli = clients.find(function(c){ return c.id === cliId; });
-    const st = getJourneySteps(cli).find(function(x){ return x.id === stepId; }); return (st && st.description) || ''; } catch(e){ return ''; } })();
-  const r = await pedirDados('Descrição da etapa', [{ id:'desc', label:'Descrição', tipo:'area', valor:atual }], { ok:'Salvar' });
-  if(!r) return;
-  return updateJourneyStepField(cliId, stepId, 'description', r.desc);
-}
 
 async function moverJourneyStep(cliId, stepId, delta){
   const cli = clients.find(c => c.id === cliId);
@@ -12953,107 +12782,8 @@ function paneHistorico(cli){
   '</div>';
 }
 
-async function loadTransactions(){
-  if(!_supa) return [];
-  const { data } = await _supa.from('transactions').select('*').order('date',{ascending:false}).limit(50);
-  return data || [];
-}
 
 // ============ FINANCEIRO ============
-function renderFinanceiro(c){
-  // Restrição: só gestor/admin
-  if(!isGestor()){
-    c.innerHTML = `<div class="page active"><div class="empty-state" style="padding:80px 20px"><div class="ico">🔒</div><div class="ttl">Acesso restrito</div><div class="desc">A aba Financeiro é visível apenas para gestores e administradores.</div></div></div>`;
-    return;
-  }
-  const totalMrr = clients.reduce((s,c)=>s+c.mrr,0);
-  c.innerHTML = `
-    <div class="page active">
-      <div class="page-header">
-        <div><div class="page-title">Financeiro</div><div class="page-subtitle">Visão consolidada · maio/2026</div></div>
-        <div class="page-actions">
-          ${searchBar('Buscar transação...','.card table')}<button class="btn" onclick="openNovaTransacaoModal('out')">💸 Nova despesa</button>
-          <button class="btn">💸 Nova despesa</button>
-          <button class="btn btn-primary" onclick="openNovaTransacaoModal('in')">+ Nova cobrança</button>
-        </div>
-      </div>
-      <div class="stat-grid">
-        ${statCard('Faturamento mês','R$ '+totalMrr.toLocaleString('pt-BR'),`${clients.length} clientes`,'M22 12h-4l-3 9L9 3l-3 9H2')}
-        ${statCard('Despesas mês','R$ 0','Cadastre despesas','M5 12h14')}
-        ${statCard('Lucro líquido','R$ '+totalMrr.toLocaleString('pt-BR'),'Sem despesas','M12 1v22')}
-        ${statCard('A receber','R$ 0','Sem cobranças','M12 8v4l3 3')}
-        ${statCard('Inadimplência','R$ 0','—','M12 9v4')}
-        ${statCard('MRR total','R$ '+totalMrr.toLocaleString('pt-BR'),`${clients.length} contratos`,'M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0')}
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><div class="card-title">Fluxo de caixa — 12 meses</div></div>
-          <div class="chart-box"><canvas id="cashChart"></canvas></div>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">Categorias de despesa</div></div>
-          <div class="chart-box"><canvas id="expChart"></canvas></div>
-        </div>
-      </div>
-      <div class="grid-2">
-        <div class="card">
-          <div class="card-header"><div class="card-title">DRE simplificado</div></div>
-          <table class="table">
-            <tbody>
-              <tr><td>Receita bruta</td><td style="text-align:right"><strong>R$ ${totalMrr.toLocaleString('pt-BR')}</strong></td></tr>
-              <tr><td class="text-mu">(–) Impostos (Simples 6%)</td><td style="text-align:right;color:var(--danger-text)">R$ ${Math.round(totalMrr*.06).toLocaleString('pt-BR')}</td></tr>
-              <tr><td><strong>Receita líquida</strong></td><td style="text-align:right"><strong>R$ ${Math.round(totalMrr*.94).toLocaleString('pt-BR')}</strong></td></tr>
-              <tr><td class="text-mu">(–) Salários e PJs</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
-              <tr><td class="text-mu">(–) Ferramentas/SaaS</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
-              <tr><td class="text-mu">(–) Tráfego pago</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
-              <tr><td class="text-mu">(–) Outras despesas</td><td style="text-align:right;color:var(--text-3)">R$ 0,00</td></tr>
-              <tr style="background:var(--surface-2)"><td><strong>Lucro líquido</strong></td><td style="text-align:right;color:var(--success-text)"><strong>R$ ${Math.round((totalMrr-24560)*0.85).toLocaleString('pt-BR')}</strong></td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="card">
-          <div class="card-header"><div class="card-title">Próximos vencimentos</div></div>
-          ${clients.slice(0,7).map(cli=>`
-            <div class="list-item">
-              <div class="list-icon" style="background:${cli.color}1a;color:${cli.color}">${cli.init}</div>
-              <div class="list-content"><div class="list-title">${cli.name}</div><div class="list-meta">Vence em ${20+Math.floor(Math.random()*10)} mai</div></div>
-              <div class="list-right"><strong>R$ ${cli.mrr.toLocaleString('pt-BR')}</strong><div>${cli.status==='late'?'<span class="badge b-danger">Atrasado</span>':'<span class="badge b-warning">Pendente</span>'}</div></div>
-            </div>
-          `).join('')}
-        </div>
-      </div>
-    </div>
-  `;
-  drawCashChart();drawExpChart();
-}
-function drawCashChart(){
-  const ctx=document.getElementById('cashChart');if(!ctx)return;
-  if(typeof Chart==='undefined'){ return; }  // lib carrega em defer; se ainda não veio, ignora
-  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
-  const txtCol=isDark?'#9595a0':'#6e6e73';const gridCol=isDark?'#23232a':'#e8e8ed';
-  new Chart(ctx,{type:'bar',
-    data:{labels:['Jun','Jul','Ago','Set','Out','Nov','Dez','Jan','Fev','Mar','Abr','Mai'],
-      datasets:[
-        {label:'Entradas',data:[58,62,66,60,70,76,84,78,82,88,92,87],backgroundColor:isDark?'#f5f5f7':'#1d1d1f',borderRadius:4,barPercentage:.6},
-        {label:'Saídas',data:[28,29,30,29,31,32,34,32,33,34,35,24.5],backgroundColor:isDark?'#3a3a44':'#d2d2d7',borderRadius:4,barPercentage:.6},
-      ]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{position:'bottom',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:8}}},
-      scales:{x:{grid:{display:false},ticks:{color:txtCol}},y:{grid:{color:gridCol},ticks:{color:txtCol,callback:v=>'R$ '+v+'k'}}}}
-  });
-}
-function drawExpChart(){
-  const ctx=document.getElementById('expChart');if(!ctx)return;
-  if(typeof Chart==='undefined'){ return; }  // lib carrega em defer; se ainda não veio, ignora
-  const isDark=document.documentElement.getAttribute('data-theme')==='dark';
-  const txtCol=isDark?'#9595a0':'#6e6e73';
-  new Chart(ctx,{type:'doughnut',
-    data:{labels:['Equipe','Tráfego','Ferramentas','Impostos','Outras'],
-      datasets:[{data:[16200,4500,1860,5220,2000],backgroundColor:['#EC1E79','#A23BD6','#29ABE2','#F7941E',isDark?'#4A4A57':'#B9B9C4'],borderColor:isDark?'#141417':'#fff',borderWidth:3}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'68%',
-      plugins:{legend:{position:'right',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:10}}}}
-  });
-}
 // ============ OPERACIONAL ============
 let _operacionalJaAberto = false;
 let currentCollab = 'Éllen';
@@ -14788,20 +14518,6 @@ async function checkDbHealth(){
   return {ok: issues.length === 0, issues, msg: issues.join(' | ')};
 }
 
-async function autoFixRLS(){
-  toast('Tentando aplicar fix de RLS...','info');
-  // Nao podemos rodar DDL do front. So mostra instrucao.
-  alert('PARA HABILITAR SALVAMENTO\n\nCole este SQL no Supabase → SQL Editor → Run:\n\n' +
-        '-- Libera UPDATE em todas as tabelas pra autenticados\n' +
-        'drop policy if exists "auth all" on profiles;\n' +
-        'create policy "auth all" on profiles for all to authenticated, anon using (true) with check (true);\n\n' +
-        'drop policy if exists "auth all" on clients;\n' +
-        'create policy "auth all" on clients for all to authenticated, anon using (true) with check (true);\n\n' +
-        'drop policy if exists "auth all" on budgets;\n' +
-        'create policy "auth all" on budgets for all to authenticated, anon using (true) with check (true);\n\n' +
-        'drop policy if exists "auth all" on custom_links;\n' +
-        'create policy "auth all" on custom_links for all to authenticated, anon using (true) with check (true);');
-}
 
 // Diagnóstico no console, sem nada colado na tela. O aviso que existia aqui
 // ficava fixo no topo pra sempre (só ficava meio transparente depois de 8s) e
@@ -14872,23 +14588,6 @@ async function autoSyncField(table, recordId, field, value){
 }
 
 // Versao com feedback visual sutil
-async function autoSyncFieldUI(table, recordId, field, value, label){
-  const ok = await autoSyncField(table, recordId, field, value);
-  if(ok){
-    // Toast minimalista verde
-    const toastWrap = document.getElementById('toastWrap');
-    if(toastWrap){
-      const t = document.createElement('div');
-      t.className = 'toast success';
-      t.innerHTML = '<span>✓</span><span>' + (label||field) + ' atualizado</span>';
-      t.style.minWidth = '180px';
-      t.style.opacity = '0.9';
-      toastWrap.appendChild(t);
-      setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(10px)';setTimeout(()=>t.remove(),250)},1500);
-    }
-  }
-  return ok;
-}
 
 // Reload silencioso de uma tabela (atualiza array global)
 // Coloca uma tarefa recem-criada no checklist de quem vai fazer, SEM esperar recarregar
@@ -15115,25 +14814,7 @@ async function loadProfileDocuments(dbId){
   } catch(e){ return [] }
 }
 
-async function abrirAddDocModal(profileIdx){
-  const member = team[profileIdx];
-  const _r = await pedirDados('Novo documento', [
-    { id:'name', label:'Nome do documento', obrigatorio:true, dica:'Ex.: Contrato CLT, RG, Comprovante de endereço' },
-    { id:'url', label:'Link do documento', tipo:'url', obrigatorio:true, dica:'https://drive.google.com/file/d/…' }
-  ], { ok:'Adicionar' });
-  const name = _r && _r.name;
-  if(!name) return;
-  const url = _r && _r.url;
-  if(!url || !url.startsWith('http')){toast('URL inválida','info');return}
-  addProfileDocument(profileIdx, name, url);
-}
 
-async function removeProfileDoc(linkId){
-  if(!(await confirmDelete('documento'))) return;
-  if(_supa) await _supa.from('custom_links').delete().eq('id', linkId);
-  toast('Documento removido','success');
-  renderPage('equipe');
-}
 
 
 // ============ EQUIPE (RH completo) ============
@@ -15657,9 +15338,6 @@ function renderEquipeLista(){
   `;
 }
 
-function renderPerfil(){
-  return renderPerfilFull();
-}
 
 function renderPerfilModal(){
   return ''; // perfil is shown as separate view
@@ -15924,70 +15602,6 @@ function renderEquipePerfil(){
 }
 
 // ============ FOLHA PONTO ============
-function renderPonto(){
-  const now=new Date();
-  const opts={timeZone:'America/Sao_Paulo',hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'};
-  const time=now.toLocaleTimeString('pt-BR',opts);
-  const dateStr=now.toLocaleDateString('pt-BR',{timeZone:'America/Sao_Paulo',weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  if(!pontoAuth){
-    return `<div style="max-width:440px;margin:40px auto"><div class="card">
-      <div class="ponto-clock" style="border:none;padding:0;margin-bottom:20px">
-        <div class="ponto-time" id="liveClock">${time}</div>
-        <div class="ponto-date">${dateStr.charAt(0).toUpperCase()+dateStr.slice(1)}</div>
-        <div class="text-xs text-3" style="margin-top:6px">🇧🇷 Horário oficial de Brasília</div>
-      </div>
-      <div class="section-title" style="margin-top:0">Identifique-se para bater o ponto</div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-        <div><div class="info-label" style="margin-bottom:5px">Colaborador</div>
-        <select id="pontoSelect" style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13px">
-          <option value="">Selecione...</option>
-          ${team.map(t=>`<option value="${t.name}">${t.name}</option>`).join('')}
-        </select></div>
-        <div><div class="info-label" style="margin-bottom:5px">Senha individual</div>
-        <input type="password" id="pontoPwd" placeholder="••••" style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-family:inherit;font-size:13px"/></div>
-        <button class="btn btn-primary" style="justify-content:center;padding:11px" onclick="pontoLogin()">🔐 Entrar para bater ponto</button>
-      </div>
-      <div class="text-xs text-3 center mt-4">🔒 Registro seguro · Logs auditáveis · Senha pessoal e intransferível</div>
-    </div></div>`;
-  }
-  return `<div class="grid-2e"><div>
-    <div class="ponto-clock">
-      <div style="font-size:13px;color:var(--text-2);margin-bottom:8px">Olá, <strong style="color:var(--text)">${pontoUser}</strong></div>
-      <div class="ponto-time" id="liveClock">${time}</div>
-      <div class="ponto-date">${dateStr.charAt(0).toUpperCase()+dateStr.slice(1)}</div>
-      <div class="text-xs text-3" style="margin-top:6px">🇧🇷 Horário oficial de Brasília</div>
-      <div class="ponto-actions">
-        <button class="ponto-btn ${pontoToday.entrada?'done':''}" onclick="batePonto('entrada')"><span class="icon">🌅</span><span>Entrada</span><span class="text-xs text-3">${pontoToday.entrada||'—'}</span></button>
-        <button class="ponto-btn ${pontoToday.intervaloIn?'done':''}" onclick="batePonto('intervaloIn')"><span class="icon">🍽</span><span>Início intervalo</span><span class="text-xs text-3">${pontoToday.intervaloIn||'—'}</span></button>
-        <button class="ponto-btn ${pontoToday.intervaloOut?'done':''}" onclick="batePonto('intervaloOut')"><span class="icon">☕</span><span>Fim intervalo</span><span class="text-xs text-3">${pontoToday.intervaloOut||'—'}</span></button>
-        <button class="ponto-btn ${pontoToday.saida?'done':''}" onclick="batePonto('saida')"><span class="icon">🌙</span><span>Saída</span><span class="text-xs text-3">${pontoToday.saida||'—'}</span></button>
-      </div>
-      <div style="margin-top:16px;display:flex;gap:8px;justify-content:center"><button class="btn btn-sm" onclick="pontoAuth=false;pontoUser=null;renderEquipe(document.getElementById('content'))">Trocar usuário</button></div>
-    </div>
-    <div class="card mt-4">
-      <div class="card-header"><div class="card-title">📊 Resumo do mês — maio/2026</div></div>
-      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-        ${statCard('Horas trabalhadas','156h','de 176h','M12 8v4l3 3')}
-        ${statCard('Banco de horas','+8h','crédito','M12 1v22')}
-        ${statCard('Atrasos','2','total','M12 9v4')}
-      </div>
-    </div>
-  </div>
-  <div>
-    <div class="card mb-3">
-      <div class="card-header"><div class="card-title">📅 Histórico mensal</div><div style="display:flex;gap:6px"><button class="btn btn-sm">PDF</button><button class="btn btn-sm">Excel</button></div></div>
-      <table class="table"><thead><tr><th>Dia</th><th>Entrada</th><th>Intervalo</th><th>Saída</th><th>Total</th></tr></thead><tbody>
-        ${Array.from({length:10}).map((_,i)=>{const d=18-i;if(d<1)return '';return `<tr><td><strong>${d.toString().padStart(2,'0')}/05</strong></td><td>09:0${Math.floor(Math.random()*9)}</td><td>12:0${Math.floor(Math.random()*9)} → 13:0${Math.floor(Math.random()*9)}</td><td>18:0${Math.floor(Math.random()*9)}</td><td><strong>8h 0${Math.floor(Math.random()*9)}min</strong></td></tr>`}).join('')}
-      </tbody></table>
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">🏖 Saldo de férias</div></div>
-      <div class="text-xs text-mu mb-2">Período aquisitivo atual</div>
-      <div class="meter mb-3"><div class="meter-fill" style="width:60%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px"><span>18 dias acumulados</span><span class="font-semi">de 30 dias</span></div>
-    </div>
-  </div></div>`;
-}
 
 function pontoLogin(){
   const sel=document.getElementById('pontoSelect').value;
@@ -16673,17 +16287,6 @@ function renderAutomacao(c){
 }
 
 // ============ RELATÓRIOS (LEGADO — tela demo antiga, sem uso; a aba real é renderRelatorios lá em cima) ============
-function renderRelatoriosLegado(c){
-  c.innerHTML=`<div class="page active"><div class="page-header"><div><div class="page-title">Relatórios</div><div class="page-subtitle">Performance consolidada · maio/2026</div></div><div class="page-actions">${searchBar('Buscar...','.grid-3, .grid-2')}${searchBar('Buscar colaborador...','.card')}<button class="btn" onclick="toast('Exportando PDF…','info')">📤 PDF</button><button class="btn" onclick="toast('Exportando Excel…','info')">📊 Excel</button><button class="btn btn-primary">+ Novo</button></div></div>
-  <div class="filter-bar"><span class="filter-chip active">Todos clientes</span><span class="filter-chip">7 dias</span><span class="filter-chip active">30 dias</span><span class="filter-chip">YTD</span><span style="margin-left:auto" class="text-xs text-3">🤖 Gerado automaticamente</span></div>
-  <div class="stat-grid">${statCard('Alcance','—','conecte redes','M22 12h-4l-3 9L9 3l-3 9H2')}${statCard('Engajamento','—','conecte redes','M22 11.08V12a10 10 0 1 1-5.93-9.14')}${statCard('Leads','0','sem dados','M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2')}${statCard('Conversões','0','sem dados','M9 11l3 3L22 4')}${statCard('ROI','—','sem dados','M3 3v18h18')}${statCard('Seguidores','—','conecte redes','M16 21v-2')}</div>
-  <div class="grid-2"><div class="card"><div class="card-header"><div class="card-title">Crescimento de seguidores</div></div><div class="chart-box"><canvas id="growChart"></canvas></div></div><div class="card"><div class="card-header"><div class="card-title">Performance por plataforma</div></div><div class="chart-box"><canvas id="platChart"></canvas></div></div></div>
-  <div class="grid-3"><div class="card"><div class="card-header"><div class="card-title">🏆 Top conteúdos</div></div><div class="empty-state"><div class="ico">📊</div><div class="ttl">Sem dados</div><div class="desc">Conecte suas redes sociais para ver métricas.</div></div></div>
-  <div class="card"><div class="card-header"><div class="card-title">💰 ROI por cliente</div></div><div class="empty-state"><div class="ico">💰</div><div class="ttl">Sem dados</div><div class="desc">ROI aparecerá quando houver dados.</div></div></div>
-  <div class="card"><div class="card-header"><div class="card-title">📑 Prontos</div></div>${[['Mensal abril','PDF','3.2 MB'],['Q1 2026','PDF','5.8 MB'],['Concorrência','PDF','2.1 MB'],['Tráfego','Excel','1.4 MB']].map(r=>`<div class="list-item"><div class="list-icon">📄</div><div class="list-content"><div class="list-title">${r[0]}</div><div class="list-meta">${r[1]} · ${r[2]}</div></div><div class="list-right"><button class="btn btn-sm" onclick="toast('Baixando…','info')">Baixar</button></div></div>`).join('')}</div></div>
-  </div>`;
-  drawGrowChart();drawPlatChart();
-}
 function drawGrowChart(){const ctx=document.getElementById('growChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';const gridCol=isDark?'#23232a':'#e8e8ed';new Chart(ctx,{type:'line',data:{labels:['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10','S11','S12'],datasets:[{label:'Instagram',data:[2100,2400,2900,3200,3800,4100,4600,5200,5800,6400,7100,8400],borderColor:isDark?'#f5f5f7':'#1d1d1f',backgroundColor:isDark?'rgba(245,245,247,.1)':'rgba(29,29,31,.06)',fill:true,tension:.4,borderWidth:2,pointRadius:0},{label:'TikTok',data:[800,1100,1500,2000,2400,2900,3200,3600,4000,4500,4900,5400],borderColor:'#7c3aed',tension:.4,borderWidth:2,pointRadius:0,borderDash:[4,4]},{label:'LinkedIn',data:[300,400,450,520,580,640,710,780,840,920,1010,1100],borderColor:'#0ea5e9',tension:.4,borderWidth:2,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:txtCol,font:{family:'Inter',size:11},usePointStyle:true,pointStyle:'circle',boxWidth:8}}},scales:{x:{grid:{display:false},ticks:{color:txtCol}},y:{grid:{color:gridCol},ticks:{color:txtCol}}}}});}
 function drawPlatChart(){const ctx=document.getElementById('platChart');if(!ctx)return;const isDark=document.documentElement.getAttribute('data-theme')==='dark';const txtCol=isDark?'#9595a0':'#6e6e73';const gridCol=isDark?'#23232a':'#e8e8ed';new Chart(ctx,{type:'bar',data:{labels:['Instagram','Reels','Stories','TikTok','LinkedIn','YouTube'],datasets:[{data:[420,380,180,220,40,80],backgroundColor:isDark?'#f5f5f7':'#1d1d1f',borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gridCol},ticks:{color:txtCol}},y:{grid:{display:false},ticks:{color:txtCol}}}}});}
 
@@ -17062,10 +16665,6 @@ function renderCapKanban(filt, today){
   `;
 }
 
-function toggleCapGroup(name){
-  capOpenGroups[name] = capOpenGroups[name]===false;
-  document.querySelectorAll(`.cap-group[data-client="${name}"]`).forEach(el=>el.classList.toggle('open'));
-}
 
 function openCaptacaoDetail(id){
   const cap = captacoes.find(x=>x.id===id); if(!cap) return;
@@ -17497,21 +17096,6 @@ function abrirWhatsCaptacao(telefone, nome, tipo, capId){
   toast('WhatsApp aberto com '+nome.split(' ')[0],'success');
 }
 
-function confirmarCaptacao(id){
-  const cap=captacoes.find(c=>c.id===id);if(!cap)return;
-  // Procura telefone na ordem: contato local > cliente cadastrado > campo phone bruto
-  const cli = clients.find(c => c.name === cap.client);
-  const tel = (cap.contato_local_telefone || (cli && cli.phone) || cap.phone || '').replace(/\D/g,'');
-  if(!tel){
-    toast('Sem telefone cadastrado pra confirmar. Edite a captação e adicione o contato.','info');
-    return;
-  }
-  const dateObj=new Date(cap.date+'T'+(cap.time||'10:00'));
-  const dateStr=dateObj.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
-  const nomeContato = cap.contato_local_nome || cap.client;
-  window.open(`https://wa.me/${tel}`,'_blank');
-  toast('✓ WhatsApp aberto','success');
-}
 async function updateCapStatus(id,status){
   const cap=captacoes.find(c=>c.id===id);
   if(cap){
@@ -18700,21 +18284,8 @@ function updateOrcTotals(){
   }
 }
 
-function addServicoPersonalizado(){
-  orcamento.itens.push({desc:'Serviço personalizado', qtd:1, valor:0, custom:true});
-  renderComercial(document.getElementById('content'));
-}
 
 // Toggle visibilidade do textarea de descricao do servico
-function toggleDescServico(servId){
-  const box = document.getElementById('descBox-' + servId);
-  if(!box) return;
-  const aberto = box.style.display !== 'none';
-  box.style.display = aberto ? 'none' : 'block';
-  if(!aberto){
-    setTimeout(() => { const tx = document.getElementById('descTxt-' + servId); if(tx) tx.focus(); }, 50);
-  }
-}
 
 // Salva descricao no servico (local + banco se aplicavel)
 async function salvarDescricaoServico(servId, descricao){
@@ -18763,21 +18334,6 @@ function _aplicarDescricoesCache(lista){
   } catch(e){}
 }
 
-function toggleOrcServ(id){
-  const item = _budgetServices.find(s=>s.id===id);
-  if(!item){
-    // fallback mock
-    const fallback = [{id:'m1',name:'Gestão de rede social',value:1800},{id:'m2',name:'Design fixo',value:1200},{id:'m3',name:'Tráfego pago',value:2200},{id:'m4',name:'Vídeos',value:1800},{id:'m5',name:'Captação',value:2500},{id:'m6',name:'Branding',value:4500},{id:'m7',name:'Campanhas',value:3200},{id:'m8',name:'Consultoria',value:1500}];
-    const f = fallback.find(s=>s.id===id);
-    if(!f) return;
-    item = f;
-  }
-  const realItem = item;
-  const idx = orcamento.itens.findIndex(x=>x.desc===realItem.name && !x.custom);
-  if(idx>=0) orcamento.itens.splice(idx,1);
-  else orcamento.itens.push({desc:realItem.name, qtd:1, valor:parseFloat(realItem.value), descricao: (realItem.description || realItem.descricao || '')});
-  renderComercial(document.getElementById('content'));
-}
 
 function selecionarClienteOrc(val){
   console.log('[ORC] cliente selecionado:', val);
@@ -18950,9 +18506,6 @@ function abrirGerenciarClientes(){
   document.getElementById('modalBg').classList.add('open');
 }
 
-function abrirNovoClienteOrc(){
-  abrirGerenciarClientes();
-}
 
 async function addBgCli(){
   const name = document.getElementById('bgcliName').value.trim();
@@ -19043,25 +18596,7 @@ async function loadOrcamentosSalvos(){
 }
 
 
-function addItemOrc(desc, valor){
-  orcamento.itens.push({desc: desc||'', qtd: 1, valor: valor||0});
-  renderComercial(document.getElementById('content'));
-}
 
-async function carregarClienteOrc(){
-  const opt = clients.map(c=>c.name).join('|');
-  const _r = await pedirDados('Puxar dados do cliente', [{ id:'cli', label:'Cliente', tipo:'escolha', obrigatorio:true,
-    opcoes: clients.map(function(c){ return [c.name, (typeof _nomeCli==='function' ? _nomeCli(c) : c.name)]; }) }], { ok:'Puxar' });
-  const escolhido = _r && _r.cli;
-  if(!escolhido) return;
-  const cli = clients.find(c => c.name.toLowerCase().includes(escolhido.toLowerCase()));
-  if(!cli){toast('Cliente não encontrado','info');return}
-  orcamento.cliente.nome = cli.name;
-  orcamento.cliente.email = cli.email||'';
-  orcamento.cliente.telefone = cli.phone||'';
-  toast(`Dados de ${cli.name} importados`,'success');
-  renderComercial(document.getElementById('content'));
-}
 
 function limparOrcamento(){
   orcamento = {
@@ -19932,19 +19467,6 @@ let _pontoFilterCollab = 'all';
 let _pontoFilterMes = new Date().getMonth();
 let _pontoFilterAno = new Date().getFullYear();
 
-function applyPontoFilters(items, getDateFn){
-  return items.filter(it => {
-    if(_pontoFilterCollab !== 'all'){
-      const memberId = typeof it === 'object' && it.profile_id ? it.profile_id : (it.member?._dbId || it._dbId);
-      if(memberId !== _pontoFilterCollab) return false;
-    }
-    if(getDateFn){
-      const d = new Date(getDateFn(it));
-      if(d.getMonth() !== _pontoFilterMes || d.getFullYear() !== _pontoFilterAno) return false;
-    }
-    return true;
-  });
-}
 
 function renderPontoFilters(){
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -20053,12 +19575,6 @@ function isFaltaForMember(log, member, dateStr){
   return workDays.includes(d.getDay());
 }
 
-function calcExtraHoursForMember(log, member){
-  if(!log || !log.entrada || !log.saida) return 0;
-  const horas = calcularHoras(log);
-  const carga = parseFloat(calcularCargaDiaria(member));
-  return Math.max(0, horas - carga);
-}
 
 
 async function loadPontoLogs(){
@@ -20145,13 +19661,6 @@ async function updatePontoHora(inp){
   }
 }
 
-function getLogsByDateRange(profileId, dateStart, dateEnd){
-  return _pontoLogs.filter(l => 
-    l.profile_id === profileId &&
-    l.work_date >= dateStart &&
-    l.work_date <= dateEnd
-  );
-}
 
 // Retorna o profile-id do usuário logado pra restringir Ponto
 // Retorna o nome completo do usuário logado
@@ -21084,6 +20593,23 @@ if(typeof window!=='undefined'){ window.puxarConteudosDoCalendario=puxarConteudo
 const monthNames = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const monthNamesLong = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
+// Um so dos dois layouts e montado por vez (o outro ficava escondido no CSS
+// e custava metade do tempo de abertura no celular).
+function _cronEhCelular(){ return window.innerWidth <= 768; }
+if(typeof window !== 'undefined' && !window._cronResizeLigado){
+  window._cronResizeLigado = true;
+  let _ultimo = null, _t = null;
+  window.addEventListener('resize', function(){
+    clearTimeout(_t);
+    _t = setTimeout(function(){
+      const agora = _cronEhCelular();
+      if(_ultimo !== null && agora !== _ultimo && typeof currentPage !== 'undefined' && currentPage === 'cronograma'){
+        try { renderCronograma(document.getElementById('content')); } catch(e){}
+      }
+      _ultimo = agora;
+    }, 150);
+  });
+}
 function renderCronograma(c){
   try {
     if(typeof clients === 'undefined' || !Array.isArray(clients) || clients.length === 0){
@@ -21234,7 +20760,7 @@ function renderCronograma(c){
         <span class="filter-chip ${cronStatusFilter==='ocultos'?'active':''}" onclick="cronStatusFilter='ocultos';renderCronograma(document.getElementById('content'))" style="border-color:#6b7280;color:#6b7280">👁‍🗨 Ocultos · ${clients.filter(c => c.oculto).length}</span>
       </div>
 
-      <div class="cron-scroll-hint" style="display:none">👆 Deslize pra ver mais colunas →</div>
+      ${_cronEhCelular() ? '' : `<div class="cron-scroll-hint" style="display:none">👆 Deslize pra ver mais colunas →</div>
       <div class="cron-table-wrap">
         <div class="cron-scroll">
           <table class="cron-table">
@@ -21350,14 +20876,14 @@ function renderCronograma(c){
             </tbody>
           </table>
         </div>
-      </div>
+      </div>`}
 
       <!-- Versao celular: lista compacta, cada cliente abre por toque -->
-      <div class="cron-mobile">
+      ${_cronEhCelular() ? `<div class="cron-mobile">
         ${rows.length===0
           ? '<div class="empty-state" style="padding:36px"><div class="ico">📅</div><div class="ttl">Nenhum cliente</div><div class="desc">Ajuste filtros ou mês.</div></div>'
           : rows.map(cli => _cronMobCard(cli)).join('')}
-      </div>
+      </div>` : ''}
 
       <div class="card mt-4" style="border-left:3px solid var(--info)">
         <div class="card-header"><div class="card-title">🔔 Sistema de notificações</div><span class="badge b-info">Automático</span></div>
@@ -21834,44 +21360,6 @@ function goToCronCli(clientId, month){
 }
 
 // Sistema de notificação geral — modal central que aparece ao abrir o sistema
-function showDeadlineAlerts(){
-  const alerts = getDeadlineAlerts();
-  if(alerts.length===0) return;
-  const urgent = alerts.filter(a=>a.diff===0);
-  const tomorrow = alerts.filter(a=>a.diff===1);
-  const isUrgent = urgent.length>0;
-  const total = alerts.length;
-  let html = `<div class="alert-modal open" id="alertModal" onclick="if(event.target===this)closeAlertModal()">
-    <div class="alert-modal-box">
-      <div class="alert-modal-head">
-        <div class="alert-modal-ico ${isUrgent?'urgent':''}">${isUrgent?'🚨':'⏰'}</div>
-        <div style="flex:1">
-          <div style="font-size:15px;font-weight:700;letter-spacing:-.01em">${isUrgent?'Prazos vencendo HOJE':'Prazos próximos'}</div>
-          <div class="text-xs text-3">${total} prazo(s) precisam de atenção</div>
-        </div>
-        <button class="modal-close" onclick="closeAlertModal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
-      </div>
-      <div class="alert-modal-body">
-        ${alerts.map(a=>`<div class="alert-item" onclick="closeAlertModal();goToCronCli(${a.client.id},${a.month})">
-          <div class="cron-cli-logo" style="background:${a.client.color};width:36px;height:36px;font-size:12px">${a.client.init}</div>
-          <div style="flex:1">
-            <div style="font-size:13px;font-weight:600">${a.client.name}</div>
-            <div class="text-xs text-3">${a.data.produced}/${a.data.target} conteúdos · Designer: ${a.data.designer}</div>
-          </div>
-          <span class="badge ${a.diff===0?'b-danger':'b-warning'}">${a.diff===0?'HOJE':'amanhã'}</span>
-        </div>`).join('')}
-      </div>
-      <div class="alert-modal-foot">
-        <button class="btn" onclick="closeAlertModal()">Mais tarde</button>
-        <button class="btn btn-primary" onclick="closeAlertModal();goTo('cronograma')">Ver cronograma</button>
-      </div>
-    </div>
-  </div>`;
-  // Avoid duplicate
-  const old = document.getElementById('alertModal');
-  if(old) old.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
-}
 
 function closeAlertModal(){
   const m = document.getElementById('alertModal');
@@ -21910,15 +21398,6 @@ function _solicPerguntasDefault(){
   return ['Qual conteúdo?','Qual o título?','Qual o objetivo?','Descrição','Quando deve ser postado?'];
 }
 // Formatos de conteúdo (multi-seleção fixa no formulário, com descrição)
-function _formatosConteudo(){
-  return [
-    {nome:'Carrossel', desc:'Vários cards deslizáveis (até 10) — ideal para tutoriais, listas e storytelling.'},
-    {nome:'Estático', desc:'Imagem única de feed — direto e objetivo.'},
-    {nome:'Reels / Vídeo', desc:'Vídeo curto e dinâmico, ótimo para alcance.'},
-    {nome:'Story', desc:'Conteúdo vertical e efêmero (24h) para engajamento rápido.'},
-    {nome:'Motion / Animação', desc:'Peça com movimento ou motion graphics.'}
-  ];
-}
 var _solicPerguntasCache = null;
 async function loadSolicPerguntas(){
   if(!_supa) return _solicPerguntasCache || _solicPerguntasDefault();
@@ -24876,38 +24355,6 @@ function renderDesabafo(c){
 }
 
 // ============ HUMANIZAR TEXTO (IA) ============
-function renderTexto(c){
-  c.innerHTML = `
-    <div class="page active">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Humanizar Texto</div>
-          <div class="page-subtitle">Cole o texto do time e receba uma versão mais humana, sem cara de IA, sem travessão e com ganchos melhores.</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;align-items:start">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
-            <div style="font-weight:700;font-size:13px;color:var(--text-2)">Texto original</div>
-            <span id="txtCount" style="font-size:11.5px;color:var(--text-3)">0</span>
-          </div>
-          <textarea id="txtIn" oninput="const _c=document.getElementById('txtCount');if(_c)_c.textContent=this.value.length" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();humanizarTexto()}" placeholder="Cole aqui o texto que o time escreveu (legenda, copy, roteiro)..." style="width:100%;min-height:320px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);font-size:14px;line-height:1.6;resize:vertical;font-family:inherit;box-sizing:border-box"></textarea>
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px">
-            <span style="font-size:11px;color:var(--text-3)">Ctrl + Enter pra humanizar</span>
-            <button id="txtBtn" class="btn btn-primary" onclick="humanizarTexto()">✨ Humanizar</button>
-          </div>
-        </div>
-        <div class="card">
-          <div id="txtOut">
-            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:48px 16px;text-align:center;color:var(--text-3)">
-              <div style="font-size:26px">🪄</div>
-              <div style="font-size:13px;max-width:260px">A versão humanizada aparece aqui. Cole um texto ao lado e toque em <strong>Humanizar</strong>.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
 
 function _txtErroHTML(msg){
   const esc = (typeof escapeHtml==='function') ? escapeHtml : (t)=>String(t==null?'':t);
@@ -24992,53 +24439,6 @@ async function humanizarTexto(){
 window.humanizarTexto = humanizarTexto;
 
 // ============ GERADOR DE CONTEÚDO (IA) — exclusivo Vinícius ============
-function renderGerador(c){
-  if(typeof isVini === 'function' && !isVini()){
-    c.innerHTML = `<div class="page active"><div class="page-header"><div><div class="page-title">Gerador de Conteúdo</div></div></div><div class="card" style="padding:30px;color:var(--text-2)">Esta área é exclusiva.</div></div>`;
-    return;
-  }
-  const anoAtual = new Date().getFullYear();
-  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  const mesIdx = new Date().getMonth();
-  c.innerHTML = `
-    <div class="page active">
-      <div class="page-header">
-        <div>
-          <div class="page-title">Gerador de Conteúdo</div>
-          <div class="page-subtitle">Escolha o mês e os temas. A IA pesquisa as tendências do momento e monta o calendário inteiro: chamada, slides, legenda, CTA e hashtags.</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
-        <div class="card">
-          <div style="font-weight:700;font-size:13px;color:var(--text-2);margin-bottom:12px">Configuração do mês</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-            <div><label style="font-size:12px;color:var(--text-3)">Mês</label>
-              <select id="gerMes" class="login-input" style="width:100%;background:var(--surface-2)">${meses.map((m,i)=>`<option value="${m}" ${i===mesIdx?'selected':''}>${m}</option>`).join('')}</select></div>
-            <div><label style="font-size:12px;color:var(--text-3)">Ano</label>
-              <input id="gerAno" type="number" class="login-input" style="width:100%;background:var(--surface-2)" value="${anoAtual}"></div>
-          </div>
-          <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--text-3)">Quantidade de conteúdos</label>
-            <input id="gerQtd" type="number" min="1" max="12" class="login-input" style="width:100%;background:var(--surface-2)" value="8"></div>
-          <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--text-3)">Região (opcional, para pautas locais)</label>
-            <input id="gerRegiao" class="login-input" style="width:100%;background:var(--surface-2)" placeholder="ex: Caxias do Sul, RS"></div>
-          <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--text-3)">Temas em foco (um por linha)</label>
-            <textarea id="gerTemas" style="width:100%;min-height:90px;padding:10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;font-family:inherit;box-sizing:border-box" placeholder="Saturação de conteúdo e IA&#10;Marca versus moda&#10;O custo de adiar"></textarea></div>
-          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-2);margin-bottom:14px;cursor:pointer">
-            <input id="gerOferta" type="checkbox"> Incluir post da promoção de aniversário (R$699)</label>
-          <button id="gerBtn" class="btn btn-primary" style="width:100%" onclick="gerarConteudoIA()">✨ Gerar calendário</button>
-          <div style="font-size:11px;color:var(--text-3);margin-top:8px;line-height:1.4">A pesquisa de tendências pode levar de 30s a 2 minutos. Não feche a aba.</div>
-        </div>
-        <div class="card" style="min-height:320px">
-          <div id="gerOut">
-            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:60px 16px;text-align:center;color:var(--text-3)">
-              <div style="font-size:28px">🗓️</div>
-              <div style="font-size:13px;max-width:300px">O calendário do mês aparece aqui. Configure ao lado e toque em <strong>Gerar calendário</strong>.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
 
 function _gerErroHTML(msg){
   const esc = (typeof escapeHtml==='function') ? escapeHtml : (t)=>String(t==null?'':t);
@@ -25372,8 +24772,8 @@ function renderFeedback(c){
     </div>
   `;
 
-  // Desenhar gráficos
-  setTimeout(()=>{drawFbCharts(tm)},50);
+  // Desenhar gráficos — depois que a tela pintou, quando o navegador estiver ocioso
+  _quandoOcioso(()=>{ drawFbCharts(tm); });
 }
 
 // ===== Registro rápido (padrão planilha): média ao vivo + salvar =====
@@ -25619,56 +25019,6 @@ function drawFbCharts(tm){
 // Abre modal de captação (nova ou edição). Passa cap=null pra criar.
 // Auto-preenche telefone do responsavel ao selecionar (busca no team)
 // Modal rapido pra cadastrar/editar telefone dos 3 responsaveis (Gabriel/Yas/Vini)
-function abrirCadastroResponsavelRapido(){
-  const RESPS = ['Gabriel','Yas','Vini'];
-  // Acha cada um no team
-  const norm = (s) => (s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').trim();
-  const sinonimos = {gabriel:['gabriel','gael'], gael:['gabriel','gael'], vini:['vini','vinicius']};
-  const dados = RESPS.map(nome => {
-    const alvo = norm(nome);
-    const candidatos = sinonimos[alvo] || [alvo];
-    const colab = (team||[]).find(tm => {
-      if(!tm.name) return false;
-      const primeiro = norm(tm.name.split(/\s+/)[0]);
-      return candidatos.some(c => primeiro === c);
-    });
-    return {nome, colab, tel: colab?.phone||'', existe: !!colab};
-  });
-
-  let modal = document.getElementById('respRapidoModal');
-  if(modal) modal.remove();
-  modal = document.createElement('div');
-  modal.id = 'respRapidoModal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.onclick = (ev) => { if(ev.target === modal) modal.remove(); };
-
-  modal.innerHTML =
-    '<div style="background:var(--surface);border-radius:14px;max-width:480px;width:100%;max-height:88vh;overflow:auto;box-shadow:0 24px 60px rgba(0,0,0,.3)">' +
-      '<div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
-        '<div style="width:40px;height:40px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:18px">📱</div>' +
-        '<div style="flex:1"><div style="font-size:16px;font-weight:700">Telefones dos responsáveis</div>' +
-        '<div class="text-xs text-3" style="margin-top:2px">Esses telefones aparecem nas captações</div></div>' +
-        '<button class="icon-btn" onclick="document.getElementById(\'respRapidoModal\').remove()" style="width:30px;height:30px">×</button>' +
-      '</div>' +
-      '<div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">' +
-        dados.map((d, idx) => (
-          '<div style="padding:12px;background:var(--surface-2);border-radius:9px;border:1px solid var(--border)">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">' +
-              '<div><div style="font-size:14px;font-weight:700">' + d.nome + '</div>' +
-              '<div class="text-xs text-3">' + (d.existe ? '✓ Cadastrado como ' + d.colab.name : '⚠ Ainda não cadastrado na Equipe') + '</div></div>' +
-            '</div>' +
-            '<input type="tel" id="respTelRapido_' + idx + '" value="' + d.tel + '" placeholder="55 51 99999-9999" class="login-input" style="background:var(--surface);width:100%" />' +
-          '</div>'
-        )).join('') +
-      '</div>' +
-      '<div style="padding:14px 22px 18px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)">' +
-        '<button class="btn" onclick="document.getElementById(\'respRapidoModal\').remove()">Cancelar</button>' +
-        '<button class="btn btn-primary" onclick="salvarTelefonesResponsaveis()">💾 Salvar telefones</button>' +
-      '</div>' +
-    '</div>';
-  document.body.appendChild(modal);
-  window._respRapidoDados = dados;
-}
 
 async function salvarTelefonesResponsaveis(){
   const dados = window._respRapidoDados || [];
@@ -26147,8 +25497,6 @@ async function salvarCaptacaoForm(capId){
 }
 
 // Apelidos pra compatibilidade
-function openNovaCaptacaoModal(){ openCaptacaoFormModal(null); }
-function salvarNovaCaptacao(){ salvarCaptacaoForm(null); }
 
 
 
@@ -26552,16 +25900,6 @@ async function salvarNovaTarefa(){
 }
 
 // ============ EDIÇÃO INLINE NO CLIENTE ============
-async function saveClienteField(clientId, field, value){
-  const cli = clients.find(c=>c.id===clientId);
-  if(!cli || !cli._dbId) return;
-  const map = {name:'name',segment:'segment',phone:'phone',email:'email',instagram:'instagram',website:'website',status:'status'};
-  const dbField = map[field];
-  if(!dbField) return;
-  await dbUpdate('clients', cli._dbId, {[dbField]: value});
-  cli[field === 'instagram' ? 'ig' : field === 'website' ? 'site' : field] = value;
-  toast('✓ Atualizado','success');
-}
 
 
 // ============ USUARIOS (admin only) ============
@@ -26990,34 +26328,8 @@ async function trocarSenhaUsuario(profileId, novaEmail){
 
 // Define nova senha DIRETO no Supabase (só funciona se a senha do USUÁRIO ATUAL — você logado)
 // Útil quando você quer trocar SUA PRÓPRIA senha sem email
-async function trocarMinhaSenha(){
-  if(!_supa){ toast('Supabase necessario','info'); return; }
-  const _r = await pedirDados('Trocar minha senha', [{ id:'senha', label:'Nova senha', tipo:'senha', obrigatorio:true, ajuda:'Mínimo 6 caracteres.' }], { ok:'Trocar senha' });
-  const novaSenha = _r && _r.senha;
-  if(!novaSenha || novaSenha.length < 6){ toast('Senha inválida','info'); return; }
-  try {
-    const { error } = await _supa.auth.updateUser({password: novaSenha});
-    if(error){ toast('Erro: '+error.message,'info'); return; }
-    toast('✓ Sua senha foi alterada','success');
-    // Salva como hint no próprio profile
-    if(_currentProfile && _currentProfile.id){
-      await _supa.from('profiles').update({stored_password_hint: novaSenha}).eq('id', _currentProfile.id);
-    }
-  } catch(e){
-    toast('Erro: '+e.message,'info');
-  }
-}
 
 // Atualiza a anotação de senha (NÃO troca a senha real — só pra você lembrar)
-async function salvarAnotacaoSenha(profileId, novaSenha){
-  if(!_supa){ toast('Supabase necessario','info'); return; }
-  if(!novaSenha){ toast('Digite uma senha','info'); return; }
-  try {
-    const { error } = await _supa.from('profiles').update({stored_password_hint: novaSenha}).eq('id', profileId);
-    if(error){ toast('Erro: '+error.message,'info'); return; }
-    toast('✓ Anotação atualizada (a senha REAL não mudou)','success');
-  } catch(e){ toast('Erro: '+e.message,'info'); }
-}
 
 
 
@@ -27202,31 +26514,7 @@ async function loadPagamentosFixos(){
   } catch(e){ console.error(e); return []; }
 }
 
-async function addPagamentoFixo(){
-  if(!_supa){ toast('Supabase necessário','info'); return; }
-  if(!isGestor()){ toast('🔒 Apenas admin/gestor pode adicionar','info'); return; }
-  const novo = {nome: 'Novo pagamento fixo', valor: 0, ativo: true};
-  const { data, error } = await _supa.from('pagamentos_fixos').insert(novo).select().single();
-  if(error){ toast('Erro: '+error.message,'info'); return; }
-  _pagamentosFixos.push(data);
-  toast('✓ Adicionado','success');
-  renderPagamentos(document.getElementById('content'));
-}
 
-async function updatePagamentoFixo(id, campo, valor){
-  if(!isGestor()){ toast('🔒 Apenas admin/gestor pode editar','info'); return; }
-  const p = _pagamentosFixos.find(x => x.id === id);
-  if(!p) return;
-  p[campo] = valor;
-  if(_supa){
-    const { error } = await _supa.from('pagamentos_fixos').update({[campo]: valor, updated_at: new Date().toISOString()}).eq('id', id);
-    if(error){ console.warn(error); toast('Erro: '+error.message,'info'); return; }
-  }
-  // Re-renderizar pra atualizar o total geral
-  if(campo === 'valor' || campo === 'ativo'){
-    renderPagamentos(document.getElementById('content'));
-  }
-}
 
 async function excluirPagamentoFixo(id){
   if(!isGestor()){ toast('🔒 Apenas admin/gestor pode excluir','info'); return; }
@@ -27993,19 +27281,6 @@ function resumoMensalTrafego(camps){
 }
 
 // Agrupa o resumo mensal por ano — relatório anual
-function resumoAnualTrafego(camps){
-  const mensal = resumoMensalTrafego(camps);
-  const anos = {};
-  const ordem = [];
-  mensal.forEach(r => {
-    const ano = r.mes.slice(0,4);
-    if(!anos[ano]){ anos[ano] = {ano, gastoAno:0, resAno:0, meses:0}; ordem.push(ano); }
-    anos[ano].gastoAno += r.gastoMes;
-    anos[ano].resAno += r.resMes;
-    anos[ano].meses++;
-  });
-  return ordem.map(a => Object.assign(anos[a], {cpaAno: anos[a].resAno > 0 ? anos[a].gastoAno/anos[a].resAno : 0}));
-}
 
 
 // Retrato da ÚLTIMA atualização semanal (a que o André lançou por último).
@@ -31411,14 +30686,6 @@ async function loadI3Learning(){
   } catch(e){ console.error('[loadI3Learning]', e); _i3Learning = []; return []; }
 }
 
-function _i3FmtMes(d){
-  if(!d) return '—';
-  try {
-    const [a,m] = d.split('-');
-    const nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-    return nomes[parseInt(m)-1] + '/' + a;
-  } catch(e){ return d; }
-}
 
 function _i3FmtData(d, comDiaSemana){
   if(!d) return '—';
@@ -32376,6 +31643,7 @@ function renderI3PautasAba(){
             '<span>📅 ' + esc(_i3FmtData(p.data_pauta, true)) + '</span>' +
             '<span>🗒 ' + itens.length + (itens.length === 1 ? ' assunto' : ' assuntos') + '</span>' +
             (tempo ? '<span>⏱ ' + tempo + ' min</span>' : '') +
+            ((p.anexos||[]).length ? '<span>📎 ' + p.anexos.length + (p.anexos.length === 1 ? ' PDF' : ' PDFs') + '</span>' : '') +
             (encerrada ? '<span class="pauta-tag">encerrada</span>' : '') +
           '</div>' +
         '</div>' +
@@ -32392,6 +31660,7 @@ function renderI3PautasAba(){
           (itens.length > 4 ? '<li class="pauta-mais">mais ' + (itens.length-4) + ' na pauta completa</li>' : '') +
           '</ol>'
         : '<p class="pauta-vazia">Sem assuntos lançados ainda.</p>') +
+      _i3AnexosHTML(p, true) +
       '<footer class="pauta-rodape">' +
         '<div class="pauta-assins">' +
           (ass.length
@@ -32463,6 +31732,12 @@ function openI3PautaModal(id){
         '</div>' +
         '<div><div class="info-label" style="margin-bottom:4px">Observações</div>' +
           '<textarea id="i3PtObs" rows="3" class="pauta-ta" placeholder="O que mais precisa entrar no radar da reunião">' + esc(p ? (p.observacoes||'') : '') + '</textarea></div>' +
+        '<div>' +
+          '<div class="pauta-edit-cab"><div class="info-label">Anexos <span class="text-xs text-3" style="font-weight:400;text-transform:none;letter-spacing:0">· PDF, até 15 MB cada</span></div>' +
+            '<button type="button" class="btn btn-sm" id="i3PtAnexoBt" onclick="document.getElementById(\'i3PtFile\').click()">📎 Subir PDF</button></div>' +
+          '<input type="file" id="i3PtFile" accept="application/pdf,.pdf" multiple style="display:none" onchange="i3PautaSubirPdf(this.files)" />' +
+          '<div id="i3PtAnexos" class="pauta-anexos"></div>' +
+        '</div>' +
         '<div><div class="info-label" style="margin-bottom:4px">Status</div>' +
           '<select id="i3PtStatus" class="login-input" style="background:var(--surface-2)">' +
             '<option value="aberta"' + (p && p.status === 'encerrada' ? '' : ' selected') + '>Aberta</option>' +
@@ -32478,9 +31753,76 @@ function openI3PautaModal(id){
       '</div>' +
     '</div>';
   document.body.appendChild(modal);
+  window._i3PtAnexos = p && Array.isArray(p.anexos) ? p.anexos.slice() : [];
+  _i3PtAnexosPintar();
   const t = document.getElementById('i3PtTitulo'); if(t && !p) setTimeout(()=>t.focus(), 60);
 }
 window.openI3PautaModal = openI3PautaModal;
+
+// ===== Anexos da pauta (PDF no bucket 'uploads') =====
+function _i3AnexoTam(b){ b = Number(b)||0; return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : Math.max(1, Math.round(b/1024))+' KB'; }
+function _i3PtAnexosPintar(){
+  const box = document.getElementById('i3PtAnexos'); if(!box) return;
+  const lista = window._i3PtAnexos || [];
+  if(!lista.length){ box.innerHTML = '<div class="pauta-anexo-vazio">Nenhum PDF ainda. O arquivo sobe na hora e fica guardado junto da pauta.</div>'; return; }
+  box.innerHTML = lista.map(function(a, i){
+    return '<div class="pauta-anexo">' +
+      '<span class="pauta-anexo-ico">📄</span>' +
+      '<a class="pauta-anexo-nome" href="' + escapeHtml(a.url||'#') + '" target="_blank" rel="noopener" title="Abrir o PDF">' + escapeHtml(a.nome||'PDF') + '</a>' +
+      '<span class="pauta-anexo-tam">' + _i3AnexoTam(a.tamanho) + '</span>' +
+      '<button type="button" class="icon-btn" onclick="i3PautaTirarPdf(' + i + ')" title="Tirar este PDF da pauta" style="width:28px;height:28px;color:var(--danger)">×</button>' +
+    '</div>';
+  }).join('');
+}
+async function i3PautaSubirPdf(files){
+  if(!_supa){ toast('Banco não conectado','info'); return; }
+  const arr = Array.prototype.slice.call(files || []);
+  if(!arr.length) return;
+  const bt = document.getElementById('i3PtAnexoBt');
+  const id = (document.getElementById('i3PtId')||{}).value || ('novo-' + Date.now());
+  let ok = 0;
+  for(const f of arr){
+    const ehPdf = /pdf$/i.test(f.type||'') || /\.pdf$/i.test(f.name||'');
+    if(!ehPdf){ toast('"' + f.name + '" não é PDF','info'); continue; }
+    if(f.size > 15*1048576){ toast('"' + f.name + '" passa de 15 MB','info'); continue; }
+    if(bt){ bt.disabled = true; bt.textContent = '⏳ Subindo ' + f.name.slice(0,22) + '…'; }
+    try {
+      const limpo = String(f.name||'arquivo.pdf').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9._-]+/g,'-').slice(0,80);
+      const path = 'pautas/' + id + '/' + Date.now() + '-' + limpo;
+      const { error: upErr } = await _supa.storage.from('uploads').upload(path, f, { upsert:false, contentType: f.type || 'application/pdf' });
+      if(upErr) throw upErr;
+      const { data: pub } = _supa.storage.from('uploads').getPublicUrl(path);
+      (window._i3PtAnexos = window._i3PtAnexos || []).push({
+        nome: f.name, url: (pub && pub.publicUrl) || '', path: path, tamanho: f.size,
+        em: new Date().toISOString(), por: (typeof _i3MeuEmail === 'function' ? _i3MeuEmail() : '') || ''
+      });
+      ok++;
+    } catch(e){ console.warn('[pauta pdf]', e); toast('Não consegui subir "' + f.name + '": ' + (e.message||''), 'info'); }
+  }
+  if(bt){ bt.disabled = false; bt.textContent = '📎 Subir PDF'; }
+  const inp = document.getElementById('i3PtFile'); if(inp) inp.value = '';
+  _i3PtAnexosPintar();
+  if(ok) toast('📎 ' + ok + (ok===1 ? ' PDF anexado' : ' PDFs anexados') + ' — salve a pauta pra guardar', 'success');
+}
+async function i3PautaTirarPdf(i){
+  const lista = window._i3PtAnexos || [];
+  const a = lista[i]; if(!a) return;
+  lista.splice(i, 1);
+  _i3PtAnexosPintar();
+  // tira do bucket tambem, pra nao deixar arquivo orfao (se falhar, nao trava)
+  try { if(a.path && _supa) await _supa.storage.from('uploads').remove([a.path]); } catch(e){}
+}
+// Lista de PDFs pra mostrar no cartao e na pauta aberta
+function _i3AnexosHTML(p, compacto){
+  const lista = (p && Array.isArray(p.anexos)) ? p.anexos : [];
+  if(!lista.length) return '';
+  return '<div class="pauta-anexos' + (compacto ? ' compacto' : '') + '">' + lista.map(function(a){
+    return '<a class="pauta-anexo pauta-anexo-link" href="' + escapeHtml(a.url||'#') + '" target="_blank" rel="noopener" title="Abrir o PDF">' +
+      '<span class="pauta-anexo-ico">📄</span><span class="pauta-anexo-nome">' + escapeHtml(a.nome||'PDF') + '</span>' +
+      '<span class="pauta-anexo-tam">' + _i3AnexoTam(a.tamanho) + '</span></a>';
+  }).join('') + '</div>';
+}
+window.i3PautaSubirPdf = i3PautaSubirPdf; window.i3PautaTirarPdf = i3PautaTirarPdf; window._i3AnexosHTML = _i3AnexosHTML;
 
 function _i3LerItensDoForm(){
   return Array.from(document.querySelectorAll('#i3PtItens .pauta-edit-item')).map(row => ({
@@ -32502,7 +31844,7 @@ async function salvarI3Pauta(){
   const btn = document.getElementById('i3PtSave');
   if(btn){ btn.disabled = true; btn.textContent = '⏳ Salvando...'; }
   try {
-    const payload = { titulo, data_pauta, observacoes, status, itens };
+    const payload = { titulo, data_pauta, observacoes, status, itens, anexos: (window._i3PtAnexos || []) };
     if(!id) payload.created_by_email = _i3MeuEmail() || null;
     const res = id
       ? await _supa.from('i3_pautas').update(payload).eq('id', id).select()
@@ -32577,6 +31919,7 @@ async function verI3Pauta(id){
               '</div></li>').join('') + '</ol>'
           : '<p class="pauta-vazia">Sem assuntos lançados.</p>') +
         (p.observacoes ? '<div class="pauta-ver-obs"><div class="info-label" style="margin-bottom:5px">Observações</div>' + esc(p.observacoes) + '</div>' : '') +
+        ((p.anexos||[]).length ? '<div class="pauta-ver-obs"><div class="info-label" style="margin-bottom:5px">📎 PDFs da pauta</div>' + _i3AnexosHTML(p) + '</div>' : '') +
         '<div class="pauta-sig">' +
           '<div class="pauta-sig-cab"><span>🖊 Assinaturas</span><span class="text-xs text-3">' + (ass.length ? ass.length + (ass.length === 1 ? ' assinatura' : ' assinaturas') : 'nenhuma ainda') + '</span></div>' +
           (ass.length
@@ -34660,57 +34003,6 @@ function comissaoAbrirOrigem(id){
   }
 }
 
-async function comissaoVincularModal(id){
-  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
-  if(!p) return;
-  try { if(typeof loadOrcamentosSalvos === 'function') await loadOrcamentosSalvos(); } catch(e){}
-  try { if(typeof carregarLeads === 'function' && !_leadsCache) await carregarLeads(); } catch(e){}
-  const orcs = (orcamentosSalvos||[]).slice(0, 60);
-  const leads = (_leadsCache||[]).slice(0, 60);
-  let m = document.getElementById('comVincModal'); if(m) m.remove();
-  m = document.createElement('div');
-  m.id = 'comVincModal';
-  m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:220;display:flex;align-items:center;justify-content:center;padding:20px';
-  m.onclick = (ev) => { if(ev.target === m) m.remove(); };
-  const linhaOrc = (b) => {
-    const nome = (b.client_data && b.client_data.nome) ? b.client_data.nome : '(sem cliente)';
-    const tot = parseFloat(b.total)||0;
-    return '<button onclick="comissaoVincular(\'' + p.id + '\',\'orcamento\',\'' + b.id + '\')" class="com-vinc-item" ' +
-      'style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:6px">' +
-      '<span style="font-size:15px">📄</span><span style="flex:1;min-width:0">' +
-      '<span style="display:block;font-size:12.5px;font-weight:600;color:var(--text)">' + escapeHtml(nome) + '</span>' +
-      '<span style="display:block;font-size:11px;color:var(--text-3)">' + escapeHtml(b.numero||'') + ' · ' + new Date(b.created_at).toLocaleDateString('pt-BR') + (b.status?' · '+escapeHtml(b.status):'') + '</span></span>' +
-      '<strong style="font-size:12.5px;color:var(--success-text);white-space:nowrap">R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong></button>';
-  };
-  const linhaLead = (l) => {
-    const v = parseFloat(l.value)||0;
-    return '<button onclick="comissaoVincular(\'' + p.id + '\',\'lead\',\'' + l.id + '\')" class="com-vinc-item" ' +
-      'style="width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:9px 11px;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;cursor:pointer;font-family:inherit;margin-bottom:6px">' +
-      '<span style="font-size:15px">🎯</span><span style="flex:1;min-width:0">' +
-      '<span style="display:block;font-size:12.5px;font-weight:600;color:var(--text)">' + escapeHtml(l.name||'(sem nome)') + '</span>' +
-      '<span style="display:block;font-size:11px;color:var(--text-3)">pipeline' + (l.stage?' · '+escapeHtml(l.stage):'') + (l.aprovado?' · aprovado':'') + '</span></span>' +
-      '<strong style="font-size:12.5px;color:var(--success-text);white-space:nowrap">R$ ' + v.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong></button>';
-  };
-  const vazio = (!orcs.length && !leads.length);
-  m.innerHTML =
-    '<div style="background:var(--surface);border-radius:14px;max-width:520px;width:100%;max-height:85dvh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.3)">' +
-      '<div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">' +
-        '<div style="width:38px;height:38px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:17px">🔗</div>' +
-        '<div style="flex:1"><div style="font-size:15px;font-weight:700">De onde vem essa comissão?</div>' +
-        '<div class="text-xs text-3" style="margin-top:2px">' + escapeHtml(p.descricao||'') + '</div></div>' +
-        '<button class="icon-btn" onclick="document.getElementById(\'comVincModal\').remove()" style="width:30px;height:30px">×</button>' +
-      '</div>' +
-      '<div style="padding:8px 14px 6px"><input id="comVincBusca" placeholder="🔍 Buscar cliente ou número..." oninput="comissaoVincFiltrar(this.value)" class="login-input" style="background:var(--surface-2);width:100%" /></div>' +
-      '<div style="padding:6px 14px 16px;overflow:auto;flex:1" id="comVincLista">' +
-        (vazio
-          ? '<div class="empty-state" style="padding:26px"><div class="ico">📄</div><div class="ttl">Nada pra vincular ainda</div><div class="desc">Orçamentos salvos e cards do pipeline aparecem aqui.</div></div>'
-          : (orcs.length ? '<div class="info-label" style="margin:6px 0 7px">Orçamentos salvos</div>' + orcs.map(linhaOrc).join('') : '') +
-            (leads.length ? '<div class="info-label" style="margin:12px 0 7px">Negociações do pipeline</div>' + leads.map(linhaLead).join('') : '')) +
-      '</div>' +
-    '</div>';
-  document.body.appendChild(m);
-  setTimeout(()=>{ const el = document.getElementById('comVincBusca'); if(el) el.focus(); }, 60);
-}
 
 function comissaoVincFiltrar(termo){
   const t = (termo||'').toLowerCase().trim();
@@ -34765,44 +34057,11 @@ async function comissaoVincular(id, tipo, origemId){
   renderPagamentos(document.getElementById('content'));
 }
 
-async function comissaoDesvincular(id){
-  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
-  if(!p) return;
-  const com = _comissaoDados(p);
-  if(!com) return;
-  if(!confirm('Tirar o vínculo com a origem?\n\nO valor da comissão continua o mesmo.')) return;
-  delete com.orcamento_id; delete com.orc_numero; delete com.lead_id;
-  const obs = JSON.stringify({comissao: com});
-  const { data, error } = await _supa.from('colaborador_pagamentos').update({observacoes: obs}).eq('id', id).select();
-  if(error || !data || !data.length){ toast('Não consegui salvar: ' + (error ? error.message : 'sem permissão'),'info'); return; }
-  p.observacoes = obs;
-  toast('Vínculo removido','success');
-  renderPagamentos(document.getElementById('content'));
-}
 
 function _comissaoDados(p){
   try { const o = JSON.parse(p.observacoes||'{}'); return (o && o.comissao) ? o.comissao : null; } catch(e){ return null; }
 }
 
-async function comissaoEditRow(id, campo, valor){
-  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
-  if(!p) return;
-  const com = _comissaoDados(p) || _comissaoDraft(p);
-  const num = parseFloat(String(valor).replace(',','.'));
-  if(isNaN(num) || num < 0){ toast('Valor inválido','info'); renderPagamentos(document.getElementById('content')); return; }
-  if(campo === 'percent' && num > 100){ toast('A comissão é uma porcentagem (0 a 100)','info'); renderPagamentos(document.getElementById('content')); return; }
-  if(!com.manual && parseFloat(com[campo]) === num) return; // nada mudou
-  com[campo] = num;
-  const fech = parseFloat(com.fechado)||0;
-  // Só recalcula quando o valor fechado está preenchido — senão preserva o valor atual da linha
-  const novoValor = fech > 0 ? Math.round(fech * (parseFloat(com.percent)||0)) / 100 : (parseFloat(p.valor)||0);
-  const obs = JSON.stringify({comissao: com});
-  const { data, error } = await _supa.from('colaborador_pagamentos').update({valor: novoValor, observacoes: obs}).eq('id', id).select();
-  if(error || !data || !data.length){ toast('Não consegui salvar: ' + (error ? error.message : 'sem permissão'),'info'); renderPagamentos(document.getElementById('content')); return; }
-  p.valor = novoValor; p.observacoes = obs;
-  toast(fech > 0 ? '✓ Comissão recalculada: R$ ' + novoValor.toFixed(2) : '✓ Salvo — preencha o valor fechado pra calcular a comissão','success');
-  renderPagamentos(document.getElementById('content'));
-}
 
 // ===== NF MENSAL — uma nota por colaborador/mês, cobrindo fixo + variáveis =====
 // A pessoa recebe fixo + comissões no mesmo mês; a nota é do total, não de cada linha.
@@ -34855,40 +34114,9 @@ async function nfEnviarMensal(profileId, mes){
   renderPagamentos(document.getElementById('content'));
 }
 
-function _nfMesCelulaHTML(profileId, mes, ehDono){
-  const nf = _nfDoMes(profileId, mes);
-  if(nf && nf.url){
-    const quando = nf.enviada_em ? new Date(nf.enviada_em).toLocaleDateString('pt-BR') : '';
-    return '<div style="display:flex;flex-direction:column;align-items:center;gap:1px">' +
-      '<a href="' + escapeHtml(nf.url) + '" target="_blank" rel="noopener" title="Nota fiscal do mês' + (nf.nome?': '+escapeHtml(nf.nome):'') + (nf.enviada_por?' — '+escapeHtml(nf.enviada_por):'') + '" style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 Ver NF</a>' +
-      (quando ? '<span style="font-size:9.5px;color:var(--text-3)">' + quando + '</span>' : '') +
-      (ehDono ? '<button onclick="nfEnviarMensal(\'' + profileId + '\',\'' + mes + '\')" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>' : '') +
-      '</div>';
-  }
-  if(ehDono) return '<button class="btn btn-sm" onclick="nfEnviarMensal(\'' + profileId + '\',\'' + mes + '\')" title="Enviar a sua nota fiscal do mês (fixo + variáveis)" style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
-  return '<span class="badge b-warning" style="font-size:10px" title="Aguardando a nota fiscal do mês">aguardando NF</span>';
-}
 
 // ===== NOTA FISCAL — pagamento só sai depois que a NF estiver no sistema =====
 // Vale pra variável e pra fixo. Colaborador manda a dele; a administração vê e abre.
-function _nfCelulaHTML(p, ehGestor, ehMeu){
-  // Quem MANDA a nota é o colaborador (dono do pagamento). A administração só acessa.
-  const podeSubir = ehMeu && !p.status_pago;
-  if(p.nf_url){
-    const quando = p.nf_em ? new Date(p.nf_em).toLocaleDateString('pt-BR') : '';
-    return '<div style="display:flex;flex-direction:column;align-items:center;gap:2px">' +
-      '<a href="' + escapeHtml(p.nf_url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (p.nf_nome?': '+escapeHtml(p.nf_nome):'') + (p.nf_por?' (enviada por '+escapeHtml(p.nf_por)+')':'') + '" ' +
-      'style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 Ver NF</a>' +
-      (quando ? '<span style="font-size:9.5px;color:var(--text-3)">' + quando + '</span>' : '') +
-      (podeSubir ? '<button onclick="nfEnviar(\'' + p.id + '\')" title="Substituir a nota fiscal" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>' : '') +
-      '</div>';
-  }
-  if(podeSubir){
-    return '<button class="btn btn-sm" onclick="nfEnviar(\'' + p.id + '\')" title="Anexar a sua nota fiscal deste pagamento" ' +
-      'style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
-  }
-  return '<span class="badge b-warning" style="font-size:10px" title="O colaborador ainda não enviou a nota fiscal">aguardando NF</span>';
-}
 
 function _nfsFixo(fixo){
   try { const o = JSON.parse(fixo.nfs_meses || '{}'); return (o && typeof o === 'object') ? o : {}; } catch(e){ return {}; }
@@ -34917,19 +34145,6 @@ function _fixoDono(fixo){
 }
 
 // Igual aos variáveis: a administração ESPERA a nota, quem envia é quem recebe o pagamento.
-function _nfFixoCelulaHTML(fixo, mes, ehDono){
-  const nf = _nfFixoDoMes(fixo, mes);
-  if(nf){
-    return '<a href="' + escapeHtml(nf.url) + '" target="_blank" rel="noopener" title="Abrir a nota fiscal' + (nf.nome?': '+escapeHtml(nf.nome):'') + (nf.por?' (enviada por '+escapeHtml(nf.por)+')':'') + '" style="font-size:11px;color:var(--success-text);text-decoration:none;font-weight:600">🧾 Ver NF</a>' +
-      (ehDono ? ' <button onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Substituir a nota deste mês" style="background:none;border:none;color:var(--text-3);font-size:9.5px;cursor:pointer;padding:0;font-family:inherit">trocar</button>' : '');
-  }
-  if(ehDono){
-    return '<button class="btn btn-sm" onclick="nfEnviarFixo(\'' + fixo.id + '\',\'' + mes + '\')" title="Enviar a sua nota fiscal deste mês" style="padding:3px 9px;font-size:11px;border-style:dashed">🧾 Enviar NF</button>';
-  }
-  const dono = _fixoDono(fixo);
-  if(!dono) return '<span class="text-3" style="font-size:11px" title="Não é pagamento de colaborador — não precisa de nota fiscal">—</span>';
-  return '<span class="badge b-warning" style="font-size:10px" title="Aguardando a nota fiscal de ' + escapeHtml(dono.name) + '">aguardando NF</span>';
-}
 
 // Abre o seletor de arquivo e devolve {url, nome} depois de subir pro storage
 function _nfEscolherArquivo(pasta){
@@ -35036,7 +34251,6 @@ async function pagamentoLiberar(id){
 }
 
 // Mantido pelo nome antigo (comissões) — mesmo duplo check
-async function comissaoLiberar(id){ return pagamentoLiberar(id); }
 
 function novoPagamentoVariavelModal(presetColabId){
   if(!_supa){ toast('Banco nao conectado','info'); return; }
@@ -37107,35 +36321,6 @@ function _calNovoRemoverDia(dia){
 }
 
 // Converte o texto colado em posts estruturados.
-function _calPostsFromTexto(txt){
-  const blocos = String(txt||'').split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
-  const posts = [];
-  blocos.forEach((bloco, i)=>{
-    const linhas = bloco.split('\n').map(l=>l.trim()).filter(Boolean);
-    if(!linhas.length) return;
-    const cab = linhas[0].split('|').map(s=>s.trim());
-    let data='', formato='', chamada='';
-    if(cab.length >= 3){ data = cab[0]; formato = cab[1]; chamada = cab.slice(2).join(' | '); }
-    else if(cab.length === 2){ data = cab[0]; chamada = cab[1]; }
-    else { chamada = linhas[0]; }
-    const slides = [];
-    let legenda = '';
-    linhas.slice(1).forEach(l=>{
-      const mLeg = l.match(/^legenda\s*:\s*(.*)$/i);
-      const mSli = l.match(/^slide\s*\d*\s*:\s*(.*)$/i);
-      if(mLeg) legenda = mLeg[1].trim();
-      else if(mSli) slides.push(mSli[1].trim());
-      else if(legenda) legenda += ' ' + l;   // continuação da legenda
-    });
-    posts.push({
-      ref: String(i+1).padStart(2,'0'),
-      data, formato: formato || 'Post', chamada, legenda, slides,
-      chamada_orig: chamada, legenda_orig: legenda,
-      status: 'pendente', comentario: '', editado: false, decidido_em: null
-    });
-  });
-  return posts;
-}
 
 async function salvarNovoCalendario(cliId){
   const cli = clients.find(x=>x.id===cliId);
