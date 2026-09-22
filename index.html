@@ -3072,7 +3072,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.31 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.32 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -4861,7 +4861,7 @@ async function checkAuth(){
     await loadCurrentProfile();
     document.getElementById('loginScreen')?.classList.add('hidden');
     // BLOQUEIO MENSAL (pós-login): pesquisa NR-1 obrigatória, EXCETO colaborador novo (< 2 meses de cadastro) ou quem já respondeu no mês. Saída: ?nogate
-    if(typeof _nr1GateDeveBloquear==='function' && typeof renderPublicPesquisa==='function' && _nr1GateDeveBloquear()){
+    if(typeof _nr1GateDeveBloquearAsync==='function' && typeof renderPublicPesquisa==='function' && (await _nr1GateDeveBloquearAsync())){
       renderPublicPesquisa(true);
       return;
     }
@@ -22533,7 +22533,8 @@ window._nr1GateAtivo = _nr1GateAtivo;
 function _nr1GateBypass(){
   if(!_pesqGateMode) return;
   try { localStorage.setItem('nr1_gate_'+_nr1GateMes(), '1'); } catch(e){}
-  location.href = location.origin + location.pathname;  // recarrega limpo → passa o bloqueio → login/app
+  Promise.resolve().then(function(){ try { return _nr1MarcarFeitoNoBanco(); } catch(e){} })
+    .finally(function(){ location.href = location.origin + location.pathname; });  // recarrega limpo → passa o bloqueio → login/app
 }
 window._nr1GateBypass = _nr1GateBypass;
 // Colaborador novo? (cadastrado há menos de 2 meses) → isento do bloqueio
@@ -22554,6 +22555,44 @@ function _nr1ObrigDesdeParaMim(){
   } catch(e){}
   return NR1_OBRIG_DESDE;
 }
+// "Já respondeu este mês" agora mora no banco, por pessoa (pesquisa_nr1_feito:
+// só perfil + mês, sem data e sem ligação com a resposta — anonimato intacto).
+// O localStorage vira atalho: se diz que respondeu, confia; se não diz, pergunta
+// ao banco antes de bloquear (era isso que fazia a pesquisa voltar em outro
+// navegador/celular depois de respondida).
+function _nr1MeuPerfilId(){
+  try { return (typeof _currentProfile!=='undefined' && _currentProfile && _currentProfile.id) ? String(_currentProfile.id) : ''; } catch(e){ return ''; }
+}
+async function _nr1JaRespondeuNoBanco(){
+  const pid = _nr1MeuPerfilId();
+  if(!pid || typeof _supa==='undefined' || !_supa) return null;          // sem como saber
+  try {
+    const { data, error } = await _supa.from('pesquisa_nr1_feito').select('mes').eq('profile_id', pid).eq('mes', _nr1GateMes()).limit(1);
+    if(error) return null;
+    const sim = !!(data && data.length);
+    if(sim){ try { localStorage.setItem('nr1_gate_'+_nr1GateMes(), '1'); } catch(e){} }
+    return sim;
+  } catch(e){ return null; }
+}
+async function _nr1MarcarFeitoNoBanco(){
+  const pid = _nr1MeuPerfilId();
+  if(!pid || typeof _supa==='undefined' || !_supa) return false;
+  try {
+    const { error } = await _supa.from('pesquisa_nr1_feito').upsert({ profile_id: pid, mes: _nr1GateMes() }, { onConflict:'profile_id,mes' });
+    return !error;
+  } catch(e){ return false; }
+}
+// Versão que consulta o banco. Usada no login; a síncrona abaixo continua
+// existindo pra quem chama sem await.
+async function _nr1GateDeveBloquearAsync(){
+  if(!_nr1GateDeveBloquear()) return false;
+  const noBanco = await _nr1JaRespondeuNoBanco();
+  return noBanco === true ? false : true;
+}
+window._nr1GateDeveBloquearAsync = _nr1GateDeveBloquearAsync;
+window._nr1JaRespondeuNoBanco = _nr1JaRespondeuNoBanco;
+window._nr1MarcarFeitoNoBanco = _nr1MarcarFeitoNoBanco;
+
 // Decide se mostra o bloqueio (pós-login): não respondeu, com localStorage, e já chegou a data de obrigatoriedade dessa pessoa
 function _nr1GateDeveBloquear(){
   try { if(new URL(location.href).searchParams.has('nogate')) return false; } catch(e){}
@@ -23711,8 +23750,11 @@ async function enviarPesquisaNr1(ev){
   try {
     const { error } = await _supa.from('pesquisa_nr1').insert({ respostas });
     if(error) throw error;
-    // Marca respondido neste mês/navegador SEMPRE (respondendo pelo gate OU pelo link público) → o gate não reaparece este mês.
+    // Marca respondido neste mês: no navegador (atalho) E no banco por pessoa
+    // (vale em qualquer aparelho). Se a pessoa não estiver logada (link público),
+    // só o navegador sabe — igual antes.
     try { localStorage.setItem('nr1_gate_'+_nr1GateMes(), '1'); } catch(e){}
+    try { await _nr1MarcarFeitoNoBanco(); } catch(e){}
     if(_pesqGateMode){
       document.getElementById('publicCapView').innerHTML = `<div style="max-width:520px;width:100%;font-family:Inter,sans-serif;background:#121219;border:1px solid rgba(255,255,255,.09);border-radius:22px;overflow:hidden;box-shadow:0 22px 64px rgba(0,0,0,.55)">
         <div style="height:4px;background:linear-gradient(115deg,#F7941E,#EC1E79 40%,#A23BD6 70%,#29ABE2)"></div>
