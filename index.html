@@ -1874,6 +1874,26 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .cron-table tr.cron-row-status td{transition:background .15s;font-size:12px}
 .cron-table tr.cron-row-status td{padding:7px 8px !important;line-height:1.3}
 .cron-table th{padding:6px 8px !important;font-size:10px}
+.info-escolha{width:100%;margin-top:3px;background:var(--surface-2);border:1px solid var(--border);
+  border-radius:9px;padding:7px 9px;color:var(--text);font:inherit;font-size:13px;outline:none;cursor:pointer}
+.info-escolha:focus{border-color:var(--accent-border,var(--border))}
+
+.fer-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.fer-num{background:var(--surface-2);border:1px solid var(--border);border-radius:11px;padding:11px 12px}
+.fer-num-val{font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.fer-num-rot{font-size:11.5px;color:var(--text-2);margin-top:2px;font-weight:600}
+.fer-num-dica{font-size:10.5px;color:var(--text-3);margin-top:1px}
+.fer-linha-info{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--text-2);line-height:1.5}
+.fer-lista{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.fer-item{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:8px 11px;border:1px solid var(--border);border-radius:9px;background:var(--surface-2);font-size:12.5px}
+.fer-tag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:99px}
+.fer-tag.fez{background:var(--surface-3,var(--surface));color:var(--text-3)}
+.fer-tag.vai{background:color-mix(in srgb,var(--warn,#f59e0b) 18%,transparent);color:var(--warn-text,#b45309)}
+.fer-datas{font-variant-numeric:tabular-nums}
+.fer-dias{font-weight:700;margin-left:auto}
+.fer-obs{width:100%;font-size:11.5px;color:var(--text-3)}
+@media(max-width:768px){ .fer-nums{grid-template-columns:1fr 1fr} .fer-dias{margin-left:0} }
+
 /* ===== Pendencias de cadastro ===== */
 .pend-chip{display:inline-flex;align-items:center;margin:2px;border-radius:20px;background:color-mix(in srgb,var(--cor) 10%,transparent);
   border:1px solid color-mix(in srgb,var(--cor) 25%,transparent);font-size:11px;font-weight:600;color:var(--cor);overflow:hidden;transition:.12s}
@@ -3280,7 +3300,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.48 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.49 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -3557,6 +3577,16 @@ async function addLinkToGroup(groupKey, groupLabel){
         toast('✓ Link adicionado','success');
       }
       clearForm();
+      // Contrato anexado: a pendencia "Documento do contrato" olha um cache
+      // carregado uma vez so'. Sem limpar aqui, ela continuava cobrando.
+      try {
+        if(/-contrato$/.test(groupKey)){
+          _pendContratoCache = null;
+          if(typeof _carregarPendContratos === 'function'){
+            _carregarPendContratos().then(function(){ if(typeof _pendRepintar==='function') _pendRepintar(); });
+          }
+        }
+      } catch(e){ console.warn('[pendencia contrato]', e); }
       openLinksManager(groupKey, groupLabel);
       return;
     } catch(e){
@@ -5600,8 +5630,26 @@ function abrirRelatorioEditor(id){
   const r = id ? (_relatorios||[]).find(x=>String(x.id)===String(id)) : null;
   _relEditando = r ? Object.assign({},r) : {empresa:'', client_id:null, data:hojeBrasiliaStr(), texto:''};
   const esc = escapeHtml;
-  const cls = (typeof clients!=='undefined'?clients:[]).filter(c=>c.status!=='cancelado').slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','pt-BR',{sensitivity:'base'}));
-  const ehDoSistema = cls.some(c=>c.name===_relEditando.empresa);
+  const _todosCli = (typeof clients!=='undefined'?clients:[]);
+  const _ordena = (a,b)=> (a||'').localeCompare(b||'','pt-BR',{sensitivity:'base'});
+  const cls = _todosCli.filter(c=> c.status!=='cancelado' && !c.oculto)
+                       .slice().sort((a,b)=>_ordena(a.name,b.name));
+  // Empresas fora do sistema: arquivadas, canceladas, ou que so' existem nos
+  // relatorios antigos (sairam do cadastro). Entram na lista num grupo a parte,
+  // pra dar pra gerar relatorio pra elas sem digitar o nome na mao.
+  const _nomesAtivos = new Set(cls.map(c=>(c.name||'').toLowerCase()));
+  const _ocultosSet = new Map();   // minusculo -> nome como esta' guardado
+  _todosCli.forEach(function(c){
+    const n = (c.name||'').trim(); if(!n) return;
+    if(!_nomesAtivos.has(n.toLowerCase())) _ocultosSet.set(n.toLowerCase(), n);
+  });
+  (_relatorios||[]).forEach(function(r){
+    const n = (r.empresa||'').trim(); if(!n) return;
+    if(!_nomesAtivos.has(n.toLowerCase())) _ocultosSet.set(n.toLowerCase(), n);
+  });
+  const ocultos = [..._ocultosSet.values()].sort(_ordena);
+  const ehDoSistema = cls.some(c=>c.name===_relEditando.empresa)
+                   || ocultos.some(n=>n===_relEditando.empresa);
   let ov=document.getElementById('relModal'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='relModal';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px';
@@ -5617,6 +5665,9 @@ function abrirRelatorioEditor(id){
         <select id="relCli" class="login-input" style="background:var(--surface-2);width:100%" onchange="_relCliChange()">
           <option value="">— outra empresa (digitar) —</option>
           ${cls.map(c=>`<option value="${esc(c.name)}" ${(_relEditando.empresa===c.name)?'selected':''}>${esc(c.name)}</option>`).join('')}
+          ${ocultos.length ? `<optgroup label="Fora do sistema (arquivados e ex-clientes)">
+            ${ocultos.map(n=>`<option value="${esc(n)}" ${(_relEditando.empresa===n)?'selected':''}>${esc(n)}</option>`).join('')}
+          </optgroup>` : ''}
         </select>
         <input id="relEmpresa" class="login-input" placeholder="Nome da empresa" value="${esc(_relEditando.empresa||'')}" style="background:var(--surface-2);width:100%;margin-top:8px;${ehDoSistema?'display:none':''}" />
         <div class="info-label" style="margin:16px 0 5px">Relatório da reunião</div>
@@ -12161,6 +12212,10 @@ async function updateClientField(cliId, field, value){
       try { if(typeof carregarHistObsPlano === 'function') carregarHistObsPlano(cli); } catch(e){}
     }
     toast('✓ Salvo','success');
+    // Se a tela de Pendencias estiver aberta atras da ficha, ela tem que
+    // reconhecer o que acabou de ser preenchido — senao a pessoa salva e
+    // continua vendo a cobranca ali.
+    try { if(typeof _pendRepintar === 'function') _pendRepintar(); } catch(e){}
     return true;
   } catch(e){
     cli[field] = anterior;
@@ -13757,6 +13812,53 @@ if(typeof window!=='undefined'){ window._relacPaneRefresh = _relacPaneRefresh; }
 const _ANIV_MAX = 5;
 // Dados que vieram do formulário do cliente e servem pro contrato.
 // Só a administração vê: tem CPF e RG aí dentro.
+/* Emissao (nota fiscal ou recibo) e melhor data de pagamento: a equipe precisa
+   conseguir preencher pela ficha, nao so' o cliente pelo link do Comercial.
+   Os dias 5, 10 e 15 sao o padrao da casa; se o cliente escolheu outro dia pelo
+   link, esse dia continua na lista pra nao sumir do nada. */
+const _COBRANCA_DIAS = ['05','10','15'];
+function _cobrancaEscolha(cli, qual){
+  const id = 'cob_' + qual + '_' + cli.id;
+  if(qual === 'nf'){
+    const v = cli.precisa_nota_fiscal === true ? 'sim' : cli.precisa_nota_fiscal === false ? 'nao' : '';
+    return '<div class="info-item"><div class="info-label">Emissão</div>' +
+      '<select id="' + id + '" class="info-escolha" onchange="_cobrancaSalvar(' + cli.id + ',\'nf\',this.value)">' +
+        '<option value=""' + (v===''?' selected':'') + '>— a definir —</option>' +
+        '<option value="sim"' + (v==='sim'?' selected':'') + '>Nota fiscal</option>' +
+        '<option value="nao"' + (v==='nao'?' selected':'') + '>Recibo de prestação de serviço</option>' +
+      '</select></div>';
+  }
+  const atual = String(cli.dia_pagamento || '');
+  const dias = _COBRANCA_DIAS.slice();
+  if(atual && dias.indexOf(atual) === -1) dias.push(atual);
+  dias.sort();
+  return '<div class="info-item"><div class="info-label">Melhor data de pagamento</div>' +
+    '<select id="' + id + '" class="info-escolha" onchange="_cobrancaSalvar(' + cli.id + ',\'dia\',this.value)">' +
+      '<option value=""' + (atual===''?' selected':'') + '>— a definir —</option>' +
+      dias.map(function(d){ return '<option value="' + d + '"' + (atual===d?' selected':'') + '>dia ' + d + '</option>'; }).join('') +
+    '</select></div>';
+}
+
+async function _cobrancaSalvar(cliId, qual, valor){
+  const cli = clients.find(function(c){ return c.id === cliId; });
+  if(!cli || !cli._dbId){ toast('Cliente sem cadastro no banco','info'); return; }
+  const campo = qual === 'nf' ? 'precisa_nota_fiscal' : 'dia_pagamento';
+  const novo  = qual === 'nf' ? (valor === 'sim' ? true : valor === 'nao' ? false : null)
+                              : (valor || null);
+  const antes = cli[campo];
+  cli[campo] = novo;                                  // otimista
+  try {
+    const r = await dbUpdate('clients', cli._dbId, { [campo]: novo });
+    if(!r) throw new Error('não gravou');
+    toast('✓ Salvo','success');
+    try { if(typeof _pendRepintar === 'function') _pendRepintar(); } catch(e){}
+  } catch(e){
+    cli[campo] = antes;                               // nao finge que salvou
+    toast('❌ Não salvou: ' + (e.message||'erro'), 'info');
+  }
+}
+if(typeof window !== 'undefined'){ window._cobrancaSalvar = _cobrancaSalvar; }
+
 function blocoDadosContrato(cli){
   if(typeof _ehDaAdministracao === 'function' && !_ehDaAdministracao()) return '';
   const linha = function(rot, val){
@@ -13786,7 +13888,7 @@ function blocoDadosContrato(cli){
     '</div>' +
     '<div class="text-xs text-3" style="margin:16px 0 12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase">Cobrança</div>' +
     '<div class="info-grid">' +
-      linha('Emissão', nf) + linha('Melhor data de pagamento', cli.dia_pagamento ? 'dia ' + cli.dia_pagamento : '') +
+      _cobrancaEscolha(cli, 'nf') + _cobrancaEscolha(cli, 'dia') +
     '</div>' +
   '</div>';
 }
@@ -13851,6 +13953,7 @@ async function salvarAniversarios(cliId){
   cli.aniversario_empresa = empresa;
   const qtd = novos.length + (empresa ? 1 : 0);
   toast(qtd ? ('✓ ' + qtd + ' aniversário(s) salvos · já aparecem na agenda') : '✓ Aniversários limpos','success');
+  try { if(typeof _pendRepintar === 'function') _pendRepintar(); } catch(e){}
 }
 if(typeof window!=='undefined'){ window.salvarAniversarios=salvarAniversarios; window.blocoAniversarios=blocoAniversarios; }
 
@@ -14688,6 +14791,137 @@ function dropCard(e,toCol){if(!dragData||dragData.col===toCol)return;toast('Card
 let _ferias = [];                          // ferias_programadas carregadas do banco
 let _calCurrent = new Date();             // mes atualmente exibido (1o dia do mes)
 _calCurrent.setDate(1); _calCurrent.setHours(0,0,0,0);
+
+/* ===== Ferias: a conta =====
+   Direito: 30 dias por periodo aquisitivo COMPLETO desde a admissao (CLT).
+   Tiradas: periodos de gozo que ja' terminaram.
+   Programadas: os que ainda vao acontecer (ou estao acontecendo).
+   Saldo: direito - tiradas - programadas. */
+const _FER_DIAS_POR_PERIODO = 30;
+function _ferDia(iso){
+  if(!iso) return null;
+  const p = String(iso).slice(0,10).split('-');
+  if(p.length !== 3) return null;
+  const d = new Date(+p[0], +p[1]-1, +p[2]);
+  return isNaN(d.getTime()) ? null : d;
+}
+function _ferDiasEntre(ini, fim){        // conta os dois extremos
+  const a = _ferDia(ini), b = _ferDia(fim);
+  if(!a || !b) return 0;
+  return Math.max(0, Math.round((b - a) / 86400000) + 1);
+}
+function _ferHoje(){ const h = new Date(); return new Date(h.getFullYear(), h.getMonth(), h.getDate()); }
+
+// Periodos aquisitivos completos entre a admissao e hoje
+function _ferPeriodosCompletos(admissao){
+  const a = _ferDia(admissao); if(!a) return 0;
+  const h = _ferHoje();
+  let n = 0, marco = new Date(a.getFullYear()+1, a.getMonth(), a.getDate());
+  while(marco <= h){ n++; marco = new Date(marco.getFullYear()+1, marco.getMonth(), marco.getDate()); }
+  return n;
+}
+// Em que periodo aquisitivo a pessoa esta' agora (o que ela esta' "ganhando")
+function _ferAquisitivoAtual(admissao){
+  const a = _ferDia(admissao); if(!a) return null;
+  const n = _ferPeriodosCompletos(admissao);
+  const ini = new Date(a.getFullYear()+n, a.getMonth(), a.getDate());
+  const fim = new Date(ini.getFullYear()+1, ini.getMonth(), ini.getDate()-1);
+  return { ini, fim };
+}
+
+function blocoFeriasColaborador(m){
+  if(!m) return '';
+  // Os periodos vem do banco: busca UMA vez e redesenha.
+  // Marcar por "_ferias.length" era laco infinito quando ninguem tem ferias
+  // lancadas — nao vinha nada, redesenhava, buscava de novo, sem parar.
+  if(!window._ferBuscou && typeof loadFerias === 'function'){
+    window._ferBuscou = true;
+    loadFerias().then(function(){
+      if(typeof equipeView !== 'undefined' && equipeView === 'perfil' && typeof renderEquipe === 'function'){
+        renderEquipe(document.getElementById('content'));
+      }
+    }).catch(function(){});
+  }
+  const r = _ferResumo(m);
+  const dataBR = function(d){
+    if(!d) return '—';
+    const x = (d instanceof Date) ? d : _ferDia(d);
+    return x ? x.toLocaleDateString('pt-BR') : '—';
+  };
+  const semAdmissao = !r.admissao;
+
+  const numero = function(rot, val, cor, dica){
+    return '<div class="fer-num">' +
+      '<div class="fer-num-val" style="color:' + (cor||'var(--text)') + '">' + val + '</div>' +
+      '<div class="fer-num-rot">' + rot + '</div>' +
+      (dica ? '<div class="fer-num-dica">' + dica + '</div>' : '') + '</div>';
+  };
+
+  return '<div class="card mb-3">' +
+    '<div class="card-header" style="flex-wrap:wrap;gap:8px">' +
+      '<div class="card-title">🏖 Férias</div>' +
+      '<button class="btn btn-sm btn-primary" onclick="abrirModalFerias()">+ Programar férias</button>' +
+    '</div>' +
+    (semAdmissao
+      ? '<div class="text-xs text-3" style="line-height:1.6">Falta a <b>data de entrada na Impulse</b> no cadastro desta pessoa. ' +
+        'Sem ela não dá pra calcular o direito a férias — preencha em "Informações pessoais".</div>'
+      : '<div class="fer-nums">' +
+          numero('Direito acumulado', r.direito + ' dias', 'var(--text)', r.completos + ' ano(s) completo(s)') +
+          numero('Já tirou', r.tiradas + ' dias', 'var(--text-2)') +
+          numero('Programadas', r.programadas + ' dias', 'var(--warn-text,#b45309)') +
+          numero('Saldo', r.saldo + ' dias', r.saldo > 0 ? 'var(--success-text)' : r.saldo < 0 ? 'var(--danger)' : 'var(--text-2)') +
+        '</div>' +
+        '<div class="fer-linha-info">' +
+          '<div><b>Entrou na Impulse:</b> ' + dataBR(r.admissao) + '</div>' +
+          (r.aquis ? '<div><b>Período aquisitivo atual:</b> ' + dataBR(r.aquis.ini) + ' a ' + dataBR(r.aquis.fim) +
+            ' <span class="text-3">— é o tempo em que ela ganha o direito, não quando vai tirar</span></div>' : '') +
+          (r.prazo && r.direito > r.tiradas + r.programadas
+            ? '<div><b>Prazo pra gozar o período anterior:</b> até ' + dataBR(r.prazo) + '</div>' : '') +
+          (r.proxima ? '<div><b>Próximas férias:</b> ' + dataBR(r.proxima.ini) + ' a ' + dataBR(r.proxima.fim) +
+            ' (' + r.proxima.dias + ' dias)</div>' : '<div class="text-3">Nenhum período programado.</div>') +
+        '</div>' +
+        (r.lista.length
+          ? '<div class="fer-lista">' + r.lista.map(function(p){
+              return '<div class="fer-item">' +
+                '<span class="fer-tag ' + (p.passou ? 'fez' : 'vai') + '">' + (p.passou ? 'já tirou' : 'programada') + '</span>' +
+                '<span class="fer-datas">' + dataBR(p.ini) + ' a ' + dataBR(p.fim) + '</span>' +
+                '<span class="fer-dias">' + p.dias + ' dias</span>' +
+                (p.obs ? '<span class="fer-obs">' + escapeHtml(p.obs) + '</span>' : '') +
+              '</div>';
+            }).join('') + '</div>'
+          : '')
+    ) + '</div>';
+}
+if(typeof window !== 'undefined'){ window.blocoFeriasColaborador = blocoFeriasColaborador; }
+
+function _ferResumo(m){
+  const admissao = m && m.since;
+  const meus = (_ferias||[]).filter(function(f){ return f.profile_id && m && f.profile_id === m._dbId; });
+  const hoje = _ferHoje();
+  let tiradas = 0, programadas = 0;
+  const lista = meus.map(function(f){
+    const dias = (f.dias != null && f.dias !== '') ? Number(f.dias) : _ferDiasEntre(f.data_inicio, f.data_fim);
+    const fim = _ferDia(f.data_fim);
+    const passou = fim ? (fim < hoje) : false;
+    if(passou) tiradas += dias; else programadas += dias;
+    return { id:f.id, ini:f.data_inicio, fim:f.data_fim, dias, passou, obs:f.observacoes||'' };
+  }).sort(function(a,b){ return String(b.ini||'').localeCompare(String(a.ini||'')); });
+
+  const completos = _ferPeriodosCompletos(admissao);
+  const direito = completos * _FER_DIAS_POR_PERIODO;
+  const aquis = _ferAquisitivoAtual(admissao);
+  // prazo legal pra gozar: ate 12 meses depois do fim do periodo aquisitivo
+  let prazo = null;
+  if(aquis){
+    const fimAnterior = new Date(aquis.ini.getFullYear(), aquis.ini.getMonth(), aquis.ini.getDate()-1);
+    prazo = new Date(fimAnterior.getFullYear()+1, fimAnterior.getMonth(), fimAnterior.getDate());
+  }
+  const proxima = lista.filter(function(x){ return !x.passou; })
+                       .sort(function(a,b){ return String(a.ini||'').localeCompare(String(b.ini||'')); })[0] || null;
+  return { admissao, completos, direito, tiradas, programadas,
+           saldo: direito - tiradas - programadas, lista, aquis, prazo, proxima };
+}
+if(typeof window !== 'undefined'){ window._ferResumo = _ferResumo; }
 
 async function loadFerias(){
   console.log('[loadFerias] iniciando...');
@@ -17375,6 +17609,7 @@ function renderEquipePerfil(){
 
     <div class="grid-2e">
       <div>
+        ${blocoFeriasColaborador(m)}
         <div class="card mb-3">
           <div class="card-header"><div class="card-title">📋 Informações pessoais</div></div>
           <div class="info-grid">
@@ -36984,7 +37219,7 @@ function _calsCron(cli, mes1){
 // A ÚNICA coisa que o sistema faz sozinho: quando o calendário do mês fica
 // pronto (o cliente aprovou tudo, ou a equipe marcou como pronto), a etiqueta
 // vira "Cal pronto". Calendário ter conteúdo lançado NÃO quer dizer que foi
-// enviado pra aprovação — a regra que fazia isso saiu (v4.48).
+// enviado pra aprovação — a regra que fazia isso saiu (v4.49).
 // E mesmo o "Cal pronto" só entra por cima de status que ainda não decidiram
 // nada: o que a equipe marcou (agendado, trello, só tráfego…) fica de pé.
 const _CRON_AUTO = ['', 'planejado', 'desenvolvimento', 'aguardando-aprov'];
