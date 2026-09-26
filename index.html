@@ -3303,7 +3303,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.53 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.54 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -4164,6 +4164,7 @@ async function loadDataFromSupabase(){
             since: p.contract_start || '',
             salary: parseFloat(p.salary)||0,
             bank: p.bank || '',
+            sem_ferias: p.sem_ferias === true,   // tirado do controle de proposito
             vacationDays: p.vacation_total || 30,
             vacationUsed: p.vacation_used || 0,
             prod: p.productivity || 85,
@@ -16751,30 +16752,42 @@ async function salvarTudoProfile(profileIdx){
   toast('Salvando todas as informações...','info');
   try {
     // Pega todos os inputs editaveis do perfil e força save
-    const fields = {
-      full_name: member.name,
-      cpf: member.cpf,
-      position: member.role,
-      phone: member.phone,
-      email: member.email,
-      address: member.address,
-      contract_type: member.contract_type || 'CLT',
-      contract_start: member.since,
-      salary: parseFloat(member.salary)||0,
-      bank: member.bank,
-      vacation_total: parseInt(member.vacationDays)||30,
-      vacation_used: parseInt(member.vacationUsed)||0,
-      vacation_period_end: member.vacation_period_end,
-      vacation_legal_deadline: member.vacation_legal_deadline,
-      last_vacation: member.lastVacation,
-      productivity: parseInt(member.prod)||0,
-      weekly_tasks: parseInt(member.tasks)||0,
-      promotion_eval: member.promotion_eval,
-      raise_eval: member.raise_eval,
-      areas_develop: member.areas_develop,
-      strengths: member.strengths,
-      next_review: member.next_review
+    // So' vai pro banco o que tem valor de verdade. Antes este payload
+    // inventava o que faltava — contract_type virava 'CLT', ferias viravam 30,
+    // tarefas viravam 0 — e reescrevia por cima do que alguem tinha cadastrado.
+    // O sistema nao decide sozinho o dado de ninguem.
+    const fields = {};
+    const por = function(col, val){
+      if(val === undefined || val === null || val === '') return;   // nao mexe
+      fields[col] = val;
     };
+    const numero = function(col, val){
+      const n = parseInt(val);
+      if(!isNaN(n)) fields[col] = n;
+    };
+    por('full_name', member.name);
+    por('cpf', member.cpf);
+    por('position', member.role);
+    por('phone', member.phone);
+    por('email', member.email);
+    por('address', member.address);
+    por('contract_type', member.contract_type);     // nunca chuta CLT
+    por('contract_start', member.since);
+    por('bank', member.bank);
+    por('vacation_period_end', member.vacation_period_end);
+    por('vacation_legal_deadline', member.vacation_legal_deadline);
+    por('last_vacation', member.lastVacation);
+    por('promotion_eval', member.promotion_eval);
+    por('raise_eval', member.raise_eval);
+    por('areas_develop', member.areas_develop);
+    por('strengths', member.strengths);
+    por('next_review', member.next_review);
+    numero('vacation_total', member.vacationDays);
+    numero('vacation_used', member.vacationUsed);
+    numero('productivity', member.prod);
+    if(typeof member.sem_ferias === 'boolean') fields.sem_ferias = member.sem_ferias;
+    const salario = parseFloat(member.salary);
+    if(!isNaN(salario)) fields.salary = salario;
     // Remove undefined
     Object.keys(fields).forEach(k => { if(fields[k]===undefined || fields[k]==='') delete fields[k]; });
     await _supa.from('profiles').update(fields).eq('id', dbId);
@@ -37359,7 +37372,7 @@ function _calsCron(cli, mes1){
 // A ÚNICA coisa que o sistema faz sozinho: quando o calendário do mês fica
 // pronto (o cliente aprovou tudo, ou a equipe marcou como pronto), a etiqueta
 // vira "Cal pronto". Calendário ter conteúdo lançado NÃO quer dizer que foi
-// enviado pra aprovação — a regra que fazia isso saiu (v4.53).
+// enviado pra aprovação — a regra que fazia isso saiu (v4.54).
 // E mesmo o "Cal pronto" só entra por cima de status que ainda não decidiram
 // nada: o que a equipe marcou (agendado, trello, só tráfego…) fica de pé.
 const _CRON_AUTO = ['', 'planejado', 'desenvolvimento', 'aguardando-aprov'];
