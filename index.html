@@ -1897,6 +1897,42 @@ button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-vis
 .adm-aviso{font-size:10.5px;font-weight:600;line-height:1.35;margin-bottom:4px;padding:3px 7px;border-radius:7px;
   background:color-mix(in srgb,var(--warn,#f59e0b) 16%,transparent);color:var(--warn-text,#b45309)}
 
+.fer-cards{display:none}
+.fer-card{border:1px solid var(--border);border-radius:13px;background:var(--surface);padding:13px;margin-bottom:10px}
+.fer-card-topo{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.fer-card-nome{font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fer-card-cargo{font-size:11.5px;color:var(--text-3)}
+.fer-card-saldo{text-align:right;flex-shrink:0;line-height:1.1}
+.fer-card-saldo b{display:block;font-size:21px;font-weight:800;background:var(--grad,linear-gradient(90deg,#A23BD6,#EC1E79));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.fer-card-saldo span{font-size:10.5px;color:var(--text-3)}
+.fer-card-linhas{display:flex;flex-direction:column;gap:5px;font-size:12.5px;padding-top:9px;border-top:1px solid var(--border)}
+.fer-card-linhas>div{display:flex;justify-content:space-between;gap:10px}
+.fer-card-linhas span{color:var(--text-3)}
+.fer-card-bts{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+.fer-card-bts .btn{flex:1 1 auto;min-height:38px}
+.fer-card-tirar{color:var(--danger)}
+.fer-hist-item{border:1px solid var(--border);border-radius:11px;background:var(--surface);padding:11px 12px;margin-bottom:8px}
+.fer-hist-topo{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:13.5px}
+.fer-hist-tag{font-size:11px;font-weight:700}
+.fer-hist-datas{font-size:12.5px;color:var(--text-2);margin-top:3px}
+.fer-hist-bts{display:flex;gap:6px;margin-top:9px}
+.fer-hist-bts .btn{flex:1;min-height:36px}
+.fer-cabecalho{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.fer-cabecalho-bts{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:768px){
+  .fer-cabecalho>span{flex:0 0 100%}
+  .fer-cabecalho-bts{flex:0 0 100%}
+  .fer-cabecalho-bts .btn{flex:1 1 auto;min-height:38px;white-space:nowrap}
+}
+@media(max-width:768px){
+  .fer-cards{display:block}
+  /* precisa do #content: existe um "#content table{display:block}" global, e
+     seletor de id vence classe — sem isso a tabela continuava aparecendo */
+  #content .fer-tabela,
+  #content table.fer-tabela{display:none}
+}
+
 /* ===== Pendencias de cadastro ===== */
 .pend-chip{display:inline-flex;align-items:center;margin:2px;border-radius:20px;background:color-mix(in srgb,var(--cor) 10%,transparent);
   border:1px solid color-mix(in srgb,var(--cor) 25%,transparent);font-size:11px;font-weight:600;color:var(--cor);overflow:hidden;transition:.12s}
@@ -3303,7 +3339,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.54 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.55 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -9119,6 +9155,25 @@ function _mobileGuard(){
 window._mobileGuard = _mobileGuard;
 window.addEventListener('resize', _mobileGuardAgendar);
 window.addEventListener('orientationchange', _mobileGuardAgendar);
+
+/* Vigia permanente: qualquer redesenho do conteudo re-aplica a protecao.
+   Antes o guard so' rodava ao trocar de aba — um clique num filtro refazia o
+   HTML e levava a protecao junto, e a tela passava pro lado de novo.
+   Observa so' childList (troca de HTML); as classes que o proprio guard poe
+   sao mudanca de ATRIBUTO, entao ele nao se persegue. */
+function _mobileGuardObservar(){
+  const alvo = document.getElementById('content');
+  if(!alvo || window._mbObs) return;
+  try {
+    window._mbObs = new MutationObserver(function(){ _mobileGuardAgendar(); });
+    window._mbObs.observe(alvo, { childList:true, subtree:true });
+  } catch(e){ console.warn('[mobile guard observer]', e); }
+}
+if(typeof document !== 'undefined'){
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _mobileGuardObservar);
+  else _mobileGuardObservar();
+}
+window._mobileGuardObservar = _mobileGuardObservar;
 function toggleNotif(){
   const pop = document.getElementById('notifPop');
   pop.classList.toggle('open');
@@ -15019,6 +15074,72 @@ function _cartaoNumeros(m){
 }
 if(typeof window !== 'undefined'){ window._cartaoNumeros = _cartaoNumeros; }
 
+/* No celular a tabela de ferias (1100px) virava uma fresta rolando pro lado.
+   Aqui ela vira cartao: um por pessoa, com o que a pessoa precisa ver. */
+/* O historico no celular: uma linha por registro, sem tabela de 7 colunas. */
+function _feriasHistCards(registros, equipe){
+  if(!registros || !registros.length) return '';
+  const hoje = _ferHoje();
+  return '<div class="fer-cards">' + registros.map(function(f){
+    const pes = (equipe||[]).find(function(m){ return m._dbId === f.profile_id; })
+             || (team||[]).find(function(m){ return m._dbId === f.profile_id; })
+             || { name:'(fora da equipe)' };
+    const di = _ferDia(f.data_inicio), df = _ferDia(f.data_fim);
+    let estado = 'Programada', cor = 'var(--info-text,#0ea5e9)';
+    if(df && df < hoje){ estado = 'Concluída'; cor = 'var(--success-text)'; }
+    else if(di && di <= hoje && df && df >= hoje){ estado = 'Em curso'; cor = 'var(--warn-text,#b45309)'; }
+    return '<div class="fer-hist-item">' +
+      '<div class="fer-hist-topo"><b>' + escapeHtml(pes.name||'') + '</b>' +
+        '<span class="fer-hist-tag" style="color:' + cor + '">' + estado + '</span></div>' +
+      '<div class="fer-hist-datas">' + (di?di.toLocaleDateString('pt-BR'):'?') + ' a ' +
+        (df?df.toLocaleDateString('pt-BR'):'?') + ' · <b>' + (f.dias||0) + ' dias</b></div>' +
+      '<div class="fer-hist-bts">' +
+        '<button class="btn btn-sm" onclick="openProgramarFeriasModal({editing:\'' + f.id + '\'})">✏️ Editar</button>' +
+        '<button class="btn btn-sm fer-card-tirar" onclick="excluirFerias(\'' + f.id + '\')">🗑 Excluir</button>' +
+      '</div></div>';
+  }).join('') + '</div>';
+}
+if(typeof window !== 'undefined'){ window._feriasHistCards = _feriasHistCards; }
+
+function _feriasCardsHTML(lista, anos, anoAtual, historicoPorPessoa){
+  if(!lista || !lista.length) return '';
+  return '<div class="fer-cards">' + lista.map(function(m){
+    const i = team.indexOf(m);
+    const totalDias = m.vacationDays || 30;
+    const hist = (historicoPorPessoa && historicoPorPessoa[m._dbId]) || {};
+    const usados = hist[anoAtual] || 0;
+    const saldo = Math.max(0, totalDias - usados);
+    const prox = (typeof _ferias!=='undefined'?_ferias:[])
+      .filter(function(f){ return f.profile_id===m._dbId && _ferDia(f.data_inicio) && _ferDia(f.data_inicio) >= _ferHoje(); })
+      .sort(function(a,b){ return String(a.data_inicio).localeCompare(String(b.data_inicio)); })[0];
+    const proxTxt = prox
+      ? (_ferDia(prox.data_inicio).toLocaleDateString('pt-BR') + ' · ' + (prox.dias||_ferDiasEntre(prox.data_inicio,prox.data_fim)) + ' dias')
+      : 'nada programado';
+    return '<div class="fer-card">' +
+      '<div class="fer-card-topo">' +
+        (typeof _avatarFoto === 'function' ? _avatarFoto(m, 34) : '') +
+        '<div style="flex:1;min-width:0">' +
+          '<div class="fer-card-nome">' + escapeHtml(m.name||'') + '</div>' +
+          '<div class="fer-card-cargo">' + escapeHtml(m.role||'—') + '</div>' +
+        '</div>' +
+        '<div class="fer-card-saldo"><b>' + saldo + '</b><span>dias</span></div>' +
+      '</div>' +
+      _admissaoAvisoHTML(m) +
+      '<div class="fer-card-linhas">' +
+        '<div><span>Admissão</span><b>' + (m.since ? _fmtDataBR(m.since) : '—') + '</b></div>' +
+        '<div><span>Tirou em ' + anoAtual + '</span><b>' + usados + ' dias</b></div>' +
+        '<div><span>Próximas férias</span><b>' + proxTxt + '</b></div>' +
+      '</div>' +
+      '<div class="fer-card-bts">' +
+        '<button class="btn btn-sm btn-primary" onclick="openProgramarFeriasModal({profile_id:\'' + (m._dbId||'') + '\'})">🏖 Programar</button>' +
+        '<button class="btn btn-sm" onclick="perfilId=' + i + ';equipeView=\'perfil\';renderEquipe(document.getElementById(\'content\'))">Ver ficha</button>' +
+        '<button class="btn btn-sm fer-card-tirar" onclick="tirarColaboradorDeFerias(\'' + (m._dbId||i) + '\')" title="Tirar do controle de férias">Sem férias</button>' +
+      '</div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+if(typeof window !== 'undefined'){ window._feriasCardsHTML = _feriasCardsHTML; }
+
 function _admissaoSuspeita(m){
   if(!m) return null;
   const d = m.since;
@@ -18155,15 +18276,16 @@ function renderFerias(){
     ${statCard('Saldo médio', saldoMedio, 'dias/pessoa', 'M12 1v22')}
     ${statCard('Alertas', alertas, 'prazo legal próximo', 'M12 9v4', null, alertas>0?'warning':'')}
   </div>
-  <div class="section-title" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
-    <span>Controle por colaborador (apenas quem tem férias — ${teamComFerias.length} pessoa(s))</span>
-    <div style="display:flex;gap:8px">
+  <div class="section-title fer-cabecalho" style="margin-top:0">
+    <span>Controle por colaborador — ${teamComFerias.length} pessoa(s)</span>
+    <div class="fer-cabecalho-bts">
       <button class="btn btn-sm" onclick="openProgramarFeriasModal()" style="font-size:12px;padding:6px 12px">🏖 Programar férias</button>
       <button class="btn btn-sm" onclick="abrirSelecionarColaboradorFerias()" style="font-size:12px;padding:6px 12px">+ Existente da equipe</button>
       <button class="btn btn-sm btn-primary" onclick="openNovoColaboradorModal()" style="font-size:12px;padding:6px 12px">+ Novo colaborador</button>
     </div>
   </div>
-  <div class="card" style="padding:0;overflow-x:auto">
+  ${_feriasCardsHTML(teamComFerias, anos, anoAtual, historicoPorPessoa)}
+  <div class="card fer-tabela" style="padding:0;overflow-x:auto">
     <table class="table" style="min-width:1100px"><thead><tr>
       <th>Colaborador</th>
       <th>Admissão</th>
@@ -18226,7 +18348,8 @@ function renderFerias(){
         .slice()
         .sort((a,b) => (b.data_inicio||'').localeCompare(a.data_inicio||''));
       if(todasFerias.length === 0) return '<div class="text-mu text-sm">Nenhuma férias registrada ainda. Use o botão "Programar férias" pra adicionar.</div>';
-      return '<table class="table" style="width:100%"><thead><tr><th>Colaborador</th><th>Início</th><th>Fim</th><th>Dias</th><th>Ano</th><th>Status</th><th style="width:80px">Ações</th></tr></thead><tbody>' +
+      return _feriasHistCards(todasFerias, teamComFerias) +
+        '<table class="table fer-tabela" style="width:100%"><thead><tr><th>Colaborador</th><th>Início</th><th>Fim</th><th>Dias</th><th>Ano</th><th>Status</th><th style="width:80px">Ações</th></tr></thead><tbody>' +
         todasFerias.map(f => {
           const pes = teamComFerias.find(m => m._dbId === f.profile_id)
                    || (team||[]).find(m => m._dbId === f.profile_id)
@@ -37372,7 +37495,7 @@ function _calsCron(cli, mes1){
 // A ÚNICA coisa que o sistema faz sozinho: quando o calendário do mês fica
 // pronto (o cliente aprovou tudo, ou a equipe marcou como pronto), a etiqueta
 // vira "Cal pronto". Calendário ter conteúdo lançado NÃO quer dizer que foi
-// enviado pra aprovação — a regra que fazia isso saiu (v4.54).
+// enviado pra aprovação — a regra que fazia isso saiu (v4.55).
 // E mesmo o "Cal pronto" só entra por cima de status que ainda não decidiram
 // nada: o que a equipe marcou (agendado, trello, só tráfego…) fica de pé.
 const _CRON_AUTO = ['', 'planejado', 'desenvolvimento', 'aguardando-aprov'];
