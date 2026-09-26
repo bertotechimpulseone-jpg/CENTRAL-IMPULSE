@@ -3303,7 +3303,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.52 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.53 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -14954,6 +14954,59 @@ if(typeof window !== 'undefined'){ window._ferAquisitivoTexto = _ferAquisitivoTe
    Saiu "Tarefas" (weekly_tasks era 10 ou 0, semeado) e "Semana" (weekly_hours
    nem existe no banco: dava 0h pra todo mundo). Ferias so' aparece pra quem
    esta' no controle — nao e' todo mundo que tem. */
+/* Linha do tempo do colaborador: SO' o que aconteceu de verdade — a admissao
+   e os periodos de ferias lancados. As avaliacoes que apareciam aqui (nota
+   9.0, aumento de 12%...) estavam chumbadas no codigo, iguais pra todo mundo. */
+// O botao "+ Nova revisao" nao tinha onclick: era enfeite. Agora marca a data.
+async function marcarProximaRevisao(){
+  const m = team[perfilId];
+  if(!m || !m._dbId){ toast('Colaborador sem cadastro no banco','info'); return; }
+  const r = await pedirDados('Próxima revisão de ' + m.name, [
+    { id:'data', label:'Data da revisão', tipo:'data', valor: m.next_review || '' }
+  ], { ok:'Marcar' });
+  if(!r) return;
+  const val = String(r.data||'').trim() || null;
+  try {
+    const ok = await dbUpdate('profiles', m._dbId, { next_review: val });
+    if(!ok) return;
+    m.next_review = val;
+    toast(val ? '✓ Revisão marcada' : '✓ Revisão desmarcada','success');
+    renderEquipe(document.getElementById('content'));
+  } catch(e){ toast('Não consegui salvar: ' + e.message,'info'); }
+}
+if(typeof window !== 'undefined'){ window.marcarProximaRevisao = marcarProximaRevisao; }
+
+function _jornadaHTML(m){
+  const itens = [];
+  if(m && m.since){
+    const d = _ferDia(m.since);
+    if(d) itens.push({ data:d, titulo:'Entrou na Impulse',
+      desc: m.role ? ('Início como ' + escapeHtml(m.role)) : '' });
+  }
+  (_ferias||[]).filter(function(f){ return f.profile_id === (m&&m._dbId); }).forEach(function(f){
+    const di = _ferDia(f.data_inicio), df = _ferDia(f.data_fim);
+    if(!di) return;
+    const dias = (f.dias != null && f.dias !== '') ? Number(f.dias) : _ferDiasEntre(f.data_inicio, f.data_fim);
+    itens.push({ data:di, titulo:'Férias — ' + dias + ' dias',
+      desc: di.toLocaleDateString('pt-BR') + (df ? ' a ' + df.toLocaleDateString('pt-BR') : '') +
+            (f.observacoes ? ' · ' + escapeHtml(f.observacoes) : '') });
+  });
+  itens.sort(function(a,b){ return a.data - b.data; });
+
+  if(!itens.length){
+    return '<div class="empty-state" style="padding:26px 16px"><div class="ico">🎯</div>' +
+      '<div class="ttl" style="font-size:13px">Nada registrado ainda</div>' +
+      '<div class="desc">A admissão e os períodos de férias aparecem aqui conforme forem lançados.</div></div>';
+  }
+  return '<div class="timeline">' + itens.map(function(it, i){
+    return '<div class="tl-item' + (i===0 ? ' success' : '') + '">' +
+      '<div class="tl-date">' + it.data.toLocaleDateString('pt-BR') + '</div>' +
+      '<div class="tl-title">' + it.titulo + '</div>' +
+      (it.desc ? '<div class="tl-desc">' + it.desc + '</div>' : '') + '</div>';
+  }).join('') + '</div>';
+}
+if(typeof window !== 'undefined'){ window._jornadaHTML = _jornadaHTML; }
+
 function _cartaoNumeros(m){
   if(!m || m.sem_ferias) return '';
   const r = (typeof _ferResumo === 'function') ? _ferResumo(m) : null;
@@ -17687,10 +17740,9 @@ function renderEquipePerfil(){
         <input class="login-input" value="${m.name}" onblur="editProfileField(perfilId,'full_name',this.value)" style="background:transparent;border:none;font-size:22px;font-weight:700;letter-spacing:-.02em;padding:0;width:100%" />
         ${_cargoSelectHTML(m.role, "editProfileField(perfilId,'position',this.value)", 'background:transparent;border:none;font-size:13px;color:var(--text-2);padding:0;width:100%;margin-top:3px;font-family:inherit;cursor:pointer;outline:none')}
         <div class="profile-meta">
-          <span>📅 ${months} meses na agência</span>
-          <span>💼 ${m.tasks} tarefas ativas</span>
+          ${m.since ? `<span>📅 ${months} meses na agência</span>` : ''}
           <span>📊 ${m.prod}% produtividade</span>
-          <span>🏖 ${m.vacationDays-m.vacationUsed} dias de férias disponíveis</span>
+          ${m.sem_ferias ? '' : `<span>🏖 ${_ferResumo(m).saldo} dias de férias em ${new Date().getFullYear()}</span>`}
         </div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -17876,34 +17928,29 @@ function renderEquipePerfil(){
 
         <div class="card mb-3">
           <div class="card-header"><div class="card-title">🎯 Jornada & Evolução</div><span class="badge b-info">Timeline</span></div>
-          <div class="timeline">
-            <div class="tl-item success"><div class="tl-date">${since.toLocaleDateString('pt-BR')}</div><div class="tl-title">Admissão na Nova</div><div class="tl-desc">Início como ${m.role}</div></div>
-            ${m.vacationUsed>0?`<div class="tl-item"><div class="tl-date">DEZ 2024</div><div class="tl-title">Primeiro período de férias</div><div class="tl-desc">${m.vacationUsed} dias de descanso</div></div>`:''}
-            <div class="tl-item"><div class="tl-date">MAR 2025</div><div class="tl-title">Avaliação semestral — Nota 9.0</div><div class="tl-desc">Desempenho acima da média</div></div>
-            <div class="tl-item"><div class="tl-date">SET 2025</div><div class="tl-title">Aumento salarial — +12%</div><div class="tl-desc">Reconhecimento de evolução</div></div>
-            <div class="tl-item"><div class="tl-date">FEV 2026</div><div class="tl-title">Avaliação trimestral — Nota 9.4</div><div class="tl-desc">Liderança em projetos</div></div>
+          ${_jornadaHTML(m)}
           </div>
         </div>
 
         <div class="card mb-3">
-          <div class="card-header"><div class="card-title">📈 Revisão de crescimento</div><button class="btn btn-sm btn-primary">+ Nova revisão</button></div>
-          <div class="text-xs text-mu mb-3">Próxima revisão: <strong>15 jun 2026</strong></div>
+          <div class="card-header"><div class="card-title">📈 Revisão de crescimento</div><button class="btn btn-sm btn-primary" onclick="marcarProximaRevisao()">📅 Marcar próxima revisão</button></div>
+          <div class="text-xs text-mu mb-3">Próxima revisão: <strong>${m.next_review ? _fmtDataBR(m.next_review) : '— não marcada —'}</strong></div>
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label">Possível promoção</div>
-              <input class="login-input" value="${m.promotion_eval||(m.prod>90?'Sim — Sênior':'Em avaliação')}" onblur="editProfileField(perfilId,'promotion_eval',this.value);m.promotion_eval=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
+              <input class="login-input" placeholder="— em branco —" value="${escapeHtml(m.promotion_eval||'')}" onblur="editProfileField(perfilId,'promotion_eval',this.value);m.promotion_eval=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
             </div>
             <div class="info-item">
               <div class="info-label">Possível aumento</div>
-              <input class="login-input" value="${m.raise_eval||(m.prod>88?'—':'Próx. ciclo')}" onblur="editProfileField(perfilId,'raise_eval',this.value);m.raise_eval=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
+              <input class="login-input" placeholder="— em branco —" value="${escapeHtml(m.raise_eval||'')}" onblur="editProfileField(perfilId,'raise_eval',this.value);m.raise_eval=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
             </div>
             <div class="info-item">
               <div class="info-label">Áreas a desenvolver</div>
-              <input class="login-input" value="${m.areas_develop||'Gestão de equipe'}" onblur="editProfileField(perfilId,'areas_develop',this.value);m.areas_develop=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
+              <input class="login-input" placeholder="— em branco —" value="${escapeHtml(m.areas_develop||'')}" onblur="editProfileField(perfilId,'areas_develop',this.value);m.areas_develop=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
             </div>
             <div class="info-item">
               <div class="info-label">Pontos fortes</div>
-              <input class="login-input" value="${m.strengths||'Criatividade, prazo'}" onblur="editProfileField(perfilId,'strengths',this.value);m.strengths=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
+              <input class="login-input" placeholder="— em branco —" value="${escapeHtml(m.strengths||'')}" onblur="editProfileField(perfilId,'strengths',this.value);m.strengths=this.value" style="background:transparent;border:none;font-size:13px;padding:3px 0;width:100%;font-weight:500" />
             </div>
           </div>
         </div>
@@ -37312,7 +37359,7 @@ function _calsCron(cli, mes1){
 // A ÚNICA coisa que o sistema faz sozinho: quando o calendário do mês fica
 // pronto (o cliente aprovou tudo, ou a equipe marcou como pronto), a etiqueta
 // vira "Cal pronto". Calendário ter conteúdo lançado NÃO quer dizer que foi
-// enviado pra aprovação — a regra que fazia isso saiu (v4.52).
+// enviado pra aprovação — a regra que fazia isso saiu (v4.53).
 // E mesmo o "Cal pronto" só entra por cima de status que ainda não decidiram
 // nada: o que a equipe marcou (agendado, trello, só tráfego…) fica de pé.
 const _CRON_AUTO = ['', 'planejado', 'desenvolvimento', 'aguardando-aprov'];
