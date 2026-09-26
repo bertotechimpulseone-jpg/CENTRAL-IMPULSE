@@ -3300,7 +3300,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.50 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.51 · Relatório em menos da metade das folhas: letra e estrutura ajustadas</div>
   </aside>
 
   <div class="main">
@@ -4123,6 +4123,7 @@ async function loadDataFromSupabase(){
           if(p.contract_start) found.since = p.contract_start;
           if(p.salary !== null && p.salary !== undefined) found.salary = parseFloat(p.salary);
           if(p.bank !== null && p.bank !== undefined) found.bank = p.bank;
+          found.sem_ferias = p.sem_ferias === true;   // tirado do controle de ferias de proposito
           if(p.vacation_total !== null && p.vacation_total !== undefined) found.vacationDays = p.vacation_total;
           if(p.vacation_used !== null && p.vacation_used !== undefined) found.vacationUsed = p.vacation_used;
           if(p.vacation_period_end) found.vacation_period_end = p.vacation_period_end;
@@ -14793,11 +14794,14 @@ let _calCurrent = new Date();             // mes atualmente exibido (1o dia do m
 _calCurrent.setDate(1); _calCurrent.setHours(0,0,0,0);
 
 /* ===== Ferias: a conta =====
-   Direito: 30 dias por periodo aquisitivo COMPLETO desde a admissao (CLT).
-   Tiradas: periodos de gozo que ja' terminaram.
-   Programadas: os que ainda vao acontecer (ou estao acontecendo).
-   Saldo: direito - tiradas - programadas. */
+   O controle vale A PARTIR DE 2026: antes disso nao ha' registro do que cada
+   um tirou, entao acumular direito de anos anteriores daria um saldo fantasia.
+   Direito = os dias do ano corrente (30 por padrao, ou o que estiver no
+   cadastro da pessoa). Tiradas e programadas contam so' o ano corrente; o que
+   foi lancado em anos anteriores aparece no historico e nao mexe no saldo. */
 const _FER_DIAS_POR_PERIODO = 30;
+const _FER_ANO_INICIO = 2026;      // ano em que o controle passou a valer
+function _ferAnoDe(iso){ const d = String(iso||'').slice(0,4); return d ? parseInt(d) : 0; }
 function _ferDia(iso){
   if(!iso) return null;
   const p = String(iso).slice(0,10).split('-');
@@ -14866,10 +14870,10 @@ function blocoFeriasColaborador(m){
       ? '<div class="text-xs text-3" style="line-height:1.6">Falta a <b>data de entrada na Impulse</b> no cadastro desta pessoa. ' +
         'Sem ela não dá pra calcular o direito a férias — preencha em "Informações pessoais".</div>'
       : '<div class="fer-nums">' +
-          numero('Direito acumulado', r.direito + ' dias', 'var(--text)', r.completos + ' ano(s) completo(s)') +
-          numero('Já tirou', r.tiradas + ' dias', 'var(--text-2)') +
+          numero('Direito em ' + r.ano, r.direito + ' dias', 'var(--text)', 'por ano') +
+          numero('Já tirou em ' + r.ano, r.tiradas + ' dias', 'var(--text-2)') +
           numero('Programadas', r.programadas + ' dias', 'var(--warn-text,#b45309)') +
-          numero('Saldo', r.saldo + ' dias', r.saldo > 0 ? 'var(--success-text)' : r.saldo < 0 ? 'var(--danger)' : 'var(--text-2)') +
+          numero('Saldo ' + r.ano, r.saldo + ' dias', r.saldo > 0 ? 'var(--success-text)' : r.saldo < 0 ? 'var(--danger)' : 'var(--text-2)') +
         '</div>' +
         '<div class="fer-linha-info">' +
           '<div><b>Entrou na Impulse:</b> ' + dataBR(r.admissao) + '</div>' +
@@ -14879,6 +14883,8 @@ function blocoFeriasColaborador(m){
             ? '<div><b>Prazo pra gozar o período anterior:</b> até ' + dataBR(r.prazo) + '</div>' : '') +
           (r.proxima ? '<div><b>Próximas férias:</b> ' + dataBR(r.proxima.ini) + ' a ' + dataBR(r.proxima.fim) +
             ' (' + r.proxima.dias + ' dias)</div>' : '<div class="text-3">Nenhum período programado.</div>') +
+          '<div class="text-3" style="font-size:11.5px">O controle vale a partir de ' + _FER_ANO_INICIO +
+            ': o que veio antes não entra no saldo, porque não há registro do que foi tirado.</div>' +
         '</div>' +
         (r.lista.length
           ? '<div class="fer-lista">' + r.lista.map(function(p){
@@ -14907,17 +14913,20 @@ function _ferResumo(m){
   const admissao = m && m.since;
   const meus = (_ferias||[]).filter(function(f){ return f.profile_id && m && f.profile_id === m._dbId; });
   const hoje = _ferHoje();
+  const anoAtual = hoje.getFullYear();
   let tiradas = 0, programadas = 0;
   const lista = meus.map(function(f){
     const dias = (f.dias != null && f.dias !== '') ? Number(f.dias) : _ferDiasEntre(f.data_inicio, f.data_fim);
     const fim = _ferDia(f.data_fim);
     const passou = fim ? (fim < hoje) : false;
-    if(passou) tiradas += dias; else programadas += dias;
-    return { id:f.id, ini:f.data_inicio, fim:f.data_fim, dias, passou, obs:f.observacoes||'' };
+    const doAno = _ferAnoDe(f.data_inicio) === anoAtual;   // so' o ano corrente conta no saldo
+    if(doAno){ if(passou) tiradas += dias; else programadas += dias; }
+    return { id:f.id, ini:f.data_inicio, fim:f.data_fim, dias, passou, doAno, obs:f.observacoes||'' };
   }).sort(function(a,b){ return String(b.ini||'').localeCompare(String(a.ini||'')); });
 
   const completos = _ferPeriodosCompletos(admissao);
-  const direito = completos * _FER_DIAS_POR_PERIODO;
+  // direito do ANO, nao acumulado: sem registro do passado, acumular e' chute
+  const direito = (m && m.vacationDays) ? Number(m.vacationDays) : _FER_DIAS_POR_PERIODO;
   const aquis = _ferAquisitivoAtual(admissao);
   // prazo legal pra gozar: ate 12 meses depois do fim do periodo aquisitivo
   let prazo = null;
@@ -14927,7 +14936,7 @@ function _ferResumo(m){
   }
   const proxima = lista.filter(function(x){ return !x.passou; })
                        .sort(function(a,b){ return String(a.ini||'').localeCompare(String(b.ini||'')); })[0] || null;
-  return { admissao, completos, direito, tiradas, programadas,
+  return { admissao, completos, direito, tiradas, programadas, ano: anoAtual,
            saldo: direito - tiradas - programadas, lista, aquis, prazo, proxima };
 }
 if(typeof window !== 'undefined'){ window._ferResumo = _ferResumo; }
@@ -16881,7 +16890,8 @@ async function silentReload(table){
             if(p.contract_start) found.since = p.contract_start;
             if(p.full_name) found.name = p.full_name;
             if(p.position) found.role = p.position;
-            if(p.vacation_total !== null && p.vacation_total !== undefined) found.vacationDays = p.vacation_total;
+            found.sem_ferias = p.sem_ferias === true;   // tirado do controle de ferias de proposito
+          if(p.vacation_total !== null && p.vacation_total !== undefined) found.vacationDays = p.vacation_total;
             if(p.vacation_used !== null && p.vacation_used !== undefined) found.vacationUsed = p.vacation_used;
             if(p.last_vacation !== null && p.last_vacation !== undefined) found.lastVacation = p.last_vacation;
             if(p.productivity !== null && p.productivity !== undefined) found.prod = p.productivity;
@@ -17313,7 +17323,7 @@ async function tirarColaboradorDeFerias(profileDbIdOrIdx){
     if(idx >= 0) mem = team[idx];
   }
   if(!mem){ toast('Colaborador nao encontrado','info'); console.warn('[tirar] team:', team.map(t=>({n:t.name, id:t._dbId}))); return; }
-  if(!confirm('Marcar "' + mem.name + '" como SEM direito a ferias?\n\nEle some da lista mas continua na equipe.')) return;
+  if(!confirm('Tirar "' + mem.name + '" do controle de férias?\n\nEle some desta lista mas continua na equipe, e os registros de férias dele ficam guardados. Dá pra trazer de volta em "+ Existente da equipe".')) return;
 
   // Garante que o colaborador existe no banco antes de atualizar
   if(_supa){
@@ -17327,7 +17337,10 @@ async function tirarColaboradorDeFerias(profileDbIdOrIdx){
       }
       console.log('[tirar] profile criado, _dbId=', dbId);
     }
-    const r = await dbUpdate('profiles', dbId, {contract_type: 'PJ'});
+    // Marca propria. Antes isso gravava contract_type='PJ' e contava com o
+    // filtro por tipo de contrato — que saiu quando Ellen e Julia (MEI)
+    // voltaram pro controle. O botao parou de remover e ninguem entendia.
+    const r = await dbUpdate('profiles', dbId, {sem_ferias: true});
     if(!r){
       console.error('[tirar] dbUpdate retornou null');
       return;
@@ -17335,19 +17348,16 @@ async function tirarColaboradorDeFerias(profileDbIdOrIdx){
   } else {
     toast('⚠ Banco nao conectado, mudanca so local','info');
   }
-  mem.contract_type = 'PJ';
-  toast('✓ ' + mem.name + ' removido da lista de ferias','success');
+  mem.sem_ferias = true;
+  toast('✓ ' + mem.name + ' saiu do controle de férias','success');
   if(typeof renderEquipe === 'function') renderEquipe(document.getElementById('content'));
 }
 
 // COLOCAR colaborador existente NA aba de ferias (muda PJ -> CLT)
 function abrirSelecionarColaboradorFerias(){
-  const semFerias = (team||[]).filter(m => {
-    const tipo = (m.contract_type||'').toUpperCase();
-    return tipo === 'PJ' || tipo === 'MEI' || tipo === 'FREELANCE' || tipo === 'AUTONOMO';
-  });
+  const semFerias = (team||[]).filter(m => !!m.sem_ferias);
   if(semFerias.length === 0){
-    toast('Todos os colaboradores ja estao na lista de ferias','info');
+    toast('Todo mundo já está no controle de férias','info');
     return;
   }
 
@@ -17390,10 +17400,12 @@ async function colocarColaboradorEmFerias(profileDbId){
     toast('⚠ Banco nao conectado','info');
     return;
   }
-  const r = await dbUpdate('profiles', profileDbId, {contract_type: 'CLT'});
+  // Volta pro controle. Nao mexe em contract_type: MEI e PJ tambem tiram
+  // ferias aqui, e tipo de contrato e' fato contratual, nao chave de tela.
+  const r = await dbUpdate('profiles', profileDbId, {sem_ferias: false});
   if(!r) return;
-  mem.contract_type = 'CLT';
-  toast('✓ ' + mem.name + ' adicionado(a) a lista de ferias','success');
+  mem.sem_ferias = false;
+  toast('✓ ' + mem.name + ' voltou pro controle de férias','success');
   const modal = document.getElementById('selFeriasModal');
   if(modal) modal.remove();
   if(typeof renderEquipe === 'function') renderEquipe(document.getElementById('content'));
@@ -17858,11 +17870,11 @@ setInterval(()=>{
 // ============ FÉRIAS ============
 // Modal de gestao de ferias por ano — permite adicionar/editar dias manualmente pra cada colaborador
 function abrirGestaoFeriasAno(ano, profileDbId){
-  // Todo mundo da equipe entra no controle. Filtrar por tipo de contrato
-  // escondia Ellen e Julia (MEI) — e as ferias delas, ja' lancadas, sumiam da
-  // tela como se tivessem se perdido. Quem descansa entra aqui.
-  const teamComFerias = (team||[]).slice();
-  if(teamComFerias.length === 0){ toast('Nenhum colaborador cadastrado','info'); return; }
+  // Todo mundo entra, menos quem foi tirado de proposito pelo botao da aba.
+  // Filtrar por tipo de contrato escondia Ellen e Julia (MEI) e fazia as
+  // ferias delas parecerem perdidas.
+  const teamComFerias = (team||[]).filter(m => !m.sem_ferias);
+  if(teamComFerias.length === 0){ toast('Nenhum colaborador no controle de férias','info'); return; }
 
   // Pega registros existentes do ano
   const registrosAno = (typeof _ferias !== 'undefined' ? _ferias : [])
@@ -17960,7 +17972,7 @@ async function excluirFeriasNoModal(id, ano){
 
 function renderFerias(){
   // Filtra apenas colaboradores que TEM direito a ferias (CLT/Estagio ou vacation_eligible nao false)
-  const teamComFerias = (team||[]).slice();
+  const teamComFerias = (team||[]).filter(m => !m.sem_ferias);
 
   const anoAtual = new Date().getFullYear();
   const ANO_INICIAL = 2023;
@@ -37225,7 +37237,7 @@ function _calsCron(cli, mes1){
 // A ÚNICA coisa que o sistema faz sozinho: quando o calendário do mês fica
 // pronto (o cliente aprovou tudo, ou a equipe marcou como pronto), a etiqueta
 // vira "Cal pronto". Calendário ter conteúdo lançado NÃO quer dizer que foi
-// enviado pra aprovação — a regra que fazia isso saiu (v4.50).
+// enviado pra aprovação — a regra que fazia isso saiu (v4.51).
 // E mesmo o "Cal pronto" só entra por cima de status que ainda não decidiram
 // nada: o que a equipe marcou (agendado, trello, só tráfego…) fica de pé.
 const _CRON_AUTO = ['', 'planejado', 'desenvolvimento', 'aguardando-aprov'];
