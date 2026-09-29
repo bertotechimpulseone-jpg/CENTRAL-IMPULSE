@@ -3339,7 +3339,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.61 · André já tem onde subir a nota — o bloco da nota fiscal virou um só, usado por todas as telas</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.62 · Proposta com indicação: puxa o acordo do parceiro, lança em Parcerias e comissiona só o que sobra</div>
   </aside>
 
   <div class="main">
@@ -19818,6 +19818,23 @@ let orcamento = {
 let orcamentosSalvos = [];
 
 function renderComercial(c){
+  // A seção de indicação do orçamento lê _parcerias. Busca uma única vez —
+  // a trava entra ANTES da chamada, senão vira laço — e redesenha ao chegar.
+  if(_supa && !window._comParceriasBuscadas && !(_parcerias||[]).length){
+    window._comParceriasBuscadas = true;
+    loadParcerias().then(function(){
+      const alvo = document.getElementById('content');
+      if(alvo && /class="page-title">Comercial</.test(alvo.innerHTML)) renderComercial(alvo);
+    }).catch(function(e){ console.warn('[comercial: parcerias]', e); });
+  }
+  // A % de comissão é mostrada na prévia da indicação; sem ela a prévia omite o número.
+  if(_supa && typeof _comissaoPercentCache !== 'undefined' && _comissaoPercentCache === null && !window._comPctBuscada){
+    window._comPctBuscada = true;
+    _comissaoPercent().then(function(){
+      const alvo = document.getElementById('content');
+      if(alvo && /class="page-title">Comercial</.test(alvo.innerHTML)) renderComercial(alvo);
+    }).catch(function(e){ console.warn('[comercial: comissão]', e); });
+  }
   c.innerHTML=`<div class="page active"><div class="page-header"><div><div class="page-title">Comercial</div><div class="page-subtitle">Funil, pipeline e oportunidades de upsell</div></div><div class=\"page-actions\">${searchBar('Buscar lead, cliente...','#content .kanban, #content .grid-2e')}<button class=\"btn\" onclick=\"comTab='orcamento';renderComercial(document.getElementById('content'))">📄 Orçamento</button><button class="btn btn-primary" onclick="openNovoLeadModal()">+ Novo lead</button></div></div>
   <div class="filter-bar">
     <span class="filter-chip ${comTab==='pipeline'?'active':''}" onclick="comTab='pipeline';renderComercial(document.getElementById('content'))">Pipeline</span>
@@ -20465,6 +20482,9 @@ function renderOrcamentoCom(){
           <div class="info-item"><div class="info-label">Prazo</div><input class="login-input" value="${orcamento.prazoEntrega||''}" oninput="orcamento.prazoEntrega=this.value" placeholder="Ex: 30 dias após aprovação" style="background:var(--surface);font-size:12px;padding:7px 9px;border:none" /></div>
           <div class="info-item"><div class="info-label">Condições</div><input class="login-input" value="${orcamento.formaPagamento||''}" oninput="orcamento.formaPagamento=this.value" placeholder="Ex: PIX à vista ou 2x no cartão" style="background:var(--surface);font-size:12px;padding:7px 9px;border:none" /></div>
         </div>
+
+        <div class="section-title">VEIO DE INDICAÇÃO?</div>
+        ${_orcIndicacaoHTML()}
 
         <div class="section-title">OBSERVAÇÕES</div>
         <textarea oninput="orcamento.observacoes=this.value" placeholder="Observações..." style="width:100%;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--surface-2);font-size:12.5px;color:var(--text);font-family:inherit;min-height:70px;resize:vertical">${orcamento.observacoes||''}</textarea>
@@ -21170,6 +21190,24 @@ async function salvarOrcamento(statusOverride){
     valid_until: orcamento.validade || null,
     status: statusOverride || 'enviado'
   };
+  // Indicação de parceiro: guarda o que foi combinado NESTA proposta, não só o
+  // ponteiro pro parceiro — se o acordo dele mudar depois, esta venda não muda.
+  {
+    const _ic = _orcIndicacaoCalculo();
+    if(_ic.par && _ic.temPct){
+      payload.parceria_id = _ic.par.id;
+      payload.indicacao_tipo = _ic.tipo;
+      payload.indicacao_base = _ic.base;
+      payload.indicacao_valor = _ic.valorParceiro;
+      payload.indicacao_parcelas = _ic.parcelas;
+    } else {
+      payload.parceria_id = null;
+      payload.indicacao_tipo = null;
+      payload.indicacao_base = null;
+      payload.indicacao_valor = null;
+      payload.indicacao_parcelas = null;
+    }
+  }
   console.log('[ORC SAVE] Payload:', payload);
 
   try {
@@ -21324,7 +21362,17 @@ async function carregarOrcSalvo(id){
     formaPagamento: b.payment_method || b.conditions || '',
     prazoEntrega: b.delivery_time || b.deadline || '',
     observacoes: b.observations || '',
-    termos: ''
+    termos: '',
+    // a indicação volta como foi combinada nesta proposta
+    indicacao: b.parceria_id ? {
+      parceria_id: b.parceria_id,
+      tipo: b.indicacao_tipo || 'recorrente',
+      pct: (b.indicacao_base && parseFloat(b.indicacao_base) > 0)
+             ? Math.round((parseFloat(b.indicacao_valor)||0) / parseFloat(b.indicacao_base) * 1000) / 10
+             : '',
+      base: b.indicacao_base != null ? b.indicacao_base : '',
+      parcelas: b.indicacao_parcelas || 1
+    } : {}
   };
   toast('Orçamento carregado','success');
   renderComercial(document.getElementById('content'));
@@ -31069,6 +31117,145 @@ if(typeof window!=='undefined'){
 }
 if(typeof _parcFiltroStatus === 'undefined') var _parcFiltroStatus = 'todas';
 
+// Campo numérico do acordo do parceiro. Vazio grava null de propósito:
+// "sem percentual combinado" é diferente de "0%", e o orçamento trata os dois
+// de formas diferentes — com null ele pergunta, com 0 ele calcula zero.
+async function parcEditNumero(parceriaId, campo, valor){
+  const par = (_parcerias||[]).find(function(x){ return String(x.id) === String(parceriaId); });
+  if(!par) return;
+  const txt = String(valor == null ? '' : valor).trim().replace(',','.');
+  const v = txt === '' ? null : parseFloat(txt);
+  if(txt !== '' && (isNaN(v) || v < 0)){ toast('Valor inválido','info'); return; }
+  if((par[campo] == null ? null : parseFloat(par[campo])) === v) return;   // nada mudou
+  try{
+    const { data, error } = await _supa.from('parcerias')
+      .update({ [campo]: v, updated_at: new Date().toISOString() }).eq('id', parceriaId).select();
+    if(error){ toast('Não consegui salvar: ' + error.message,'info'); return; }
+    if(!data || !data.length){ toast('Não foi possível salvar (sem permissão?)','info'); return; }
+    par[campo] = v;
+    toast('✓ Acordo atualizado','success');
+  }catch(e){ console.warn('[parcEditNumero]', e); toast('Não consegui salvar','info'); }
+}
+if(typeof window !== 'undefined'){ window.parcEditNumero = parcEditNumero; }
+
+// ===== INDICAÇÃO DE PARCEIRO NO ORÇAMENTO =====
+// A proposta diz de quem veio a indicação; o acordo daquele parceiro (o % e em
+// quantas parcelas) vem do cadastro dele. O que o parceiro recebe é abatido
+// ANTES de calcular a comissão do comercial — é o que sobra que comissiona.
+function _parceirosAtivos(){
+  return (_parcerias||[])
+    .filter(function(p){ return (p.status||'ativa') === 'ativa'; })
+    .sort(function(a,b){ return String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR'); });
+}
+
+function _parceiroPorId(id){
+  return (_parcerias||[]).find(function(p){ return String(p.id) === String(id); }) || null;
+}
+
+// A conta da indicação. Devolve tudo o que a tela precisa mostrar — e nada
+// é inventado: sem % definido no cadastro do parceiro, o valor fica null.
+function _orcIndicacaoCalculo(){
+  const o = orcamento || {};
+  const ind = o.indicacao || {};
+  const subtotal = (o.itens||[]).reduce(function(s,i){ return s + (i.qtd||1)*(i.valor||0); }, 0);
+  const descontoVal = o.descontoTipo === 'percentual' ? subtotal*((o.desconto||0)/100) : (o.desconto||0);
+  const total = Math.max(0, subtotal - descontoVal);
+  const par = ind.parceria_id ? _parceiroPorId(ind.parceria_id) : null;
+  const tipo = ind.tipo || 'recorrente';
+  // % do cadastro do parceiro; se quem preenche digitou outro, vale o digitado
+  const pctCadastro = par ? (tipo === 'avulso' ? par.pct_avulso : par.pct_recorrente) : null;
+  const pct = (ind.pct !== undefined && ind.pct !== null && ind.pct !== '') ? parseFloat(ind.pct)
+            : (pctCadastro !== null && pctCadastro !== undefined ? parseFloat(pctCadastro) : null);
+  // base: em recorrente é a 1ª mensalidade; em avulso, o total fechado
+  const base = (ind.base !== undefined && ind.base !== null && ind.base !== '') ? parseFloat(ind.base) : total;
+  const temPct = pct !== null && !isNaN(pct);
+  const valorParceiro = temPct ? Math.round(base * pct) / 100 : null;
+  const parcelas = parseInt(ind.parcelas) || (par && par.parcelas_padrao) || 1;
+  const baseComissao = Math.max(0, total - (valorParceiro || 0));
+  return { total, par, tipo, pct, pctCadastro, base, valorParceiro, parcelas, baseComissao, temPct };
+}
+
+function _orcIndicacaoHTML(){
+  const o = orcamento || {};
+  const ind = o.indicacao || {};
+  const lista = _parceirosAtivos();
+  const c = _orcIndicacaoCalculo();
+  const pctCom = (typeof _comissaoPercentCache === 'number') ? _comissaoPercentCache : null;
+
+  if(!ind.parceria_id){
+    return '<div class="info-item" style="padding:11px 13px">' +
+      '<div class="info-label" style="margin-bottom:6px">Parceiro que indicou</div>' +
+      (lista.length
+        ? '<select class="login-input" onchange="orcDefinirIndicacao(this.value)" style="background:var(--surface);font-size:12.5px;padding:8px 9px;border:none;width:100%">' +
+            '<option value="">— não veio de indicação —</option>' +
+            lista.map(function(p){ return '<option value="' + p.id + '">' + escapeHtml(p.nome||'') + '</option>'; }).join('') +
+          '</select>'
+        : '<div class="text-xs text-3">Nenhum parceiro ativo cadastrado. Cadastre em <strong>Parcerias</strong> para poder vincular a indicação aqui.</div>') +
+    '</div>';
+  }
+
+  const par = c.par || {};
+  const acordo = par.condicoes_financeiras || par.combinados || '';
+  return '<div class="info-item" style="padding:12px 13px;border-left:3px solid var(--accent)">' +
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap">' +
+      '<strong style="font-size:13px">🤝 ' + escapeHtml(par.nome||'') + '</strong>' +
+      '<button class="btn btn-sm" onclick="orcDefinirIndicacao(\'\')" style="padding:2px 8px;font-size:11px;color:var(--danger)">tirar indicação</button>' +
+    '</div>' +
+    (acordo ? '<div class="text-xs text-3" style="margin-bottom:10px;line-height:1.5;white-space:pre-wrap">📄 ' + escapeHtml(acordo) + '</div>' : '') +
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px">' +
+      '<div><div class="info-label">Tipo de venda</div>' +
+        '<select class="login-input" onchange="orcIndicacaoCampo(\'tipo\',this.value)" style="background:var(--surface);font-size:12px;padding:6px 8px;border:none;width:100%">' +
+          '<option value="recorrente"' + (c.tipo==='recorrente'?' selected':'') + '>Recorrente (mensalidade)</option>' +
+          '<option value="avulso"' + (c.tipo==='avulso'?' selected':'') + '>Serviço avulso</option>' +
+        '</select></div>' +
+      '<div><div class="info-label">% do parceiro</div>' +
+        '<input class="login-input" type="number" step="0.5" min="0" max="100" value="' + (c.pct !== null && !isNaN(c.pct) ? c.pct : '') + '" placeholder="' + (c.pctCadastro != null ? c.pctCadastro : 'definir no cadastro') + '" oninput="orcIndicacaoCampo(\'pct\',this.value)" style="background:var(--surface);font-size:12px;padding:6px 8px;border:none;width:100%" /></div>' +
+      '<div><div class="info-label">' + (c.tipo === 'recorrente' ? '1ª mensalidade (R$)' : 'Valor base (R$)') + '</div>' +
+        '<input class="login-input" type="number" step="0.01" min="0" value="' + (ind.base !== undefined && ind.base !== null && ind.base !== '' ? ind.base : '') + '" placeholder="' + c.total.toFixed(2) + '" oninput="orcIndicacaoCampo(\'base\',this.value)" title="Em venda recorrente o parceiro recebe sobre a 1ª mensalidade, que pode ser menor que o total da proposta" style="background:var(--surface);font-size:12px;padding:6px 8px;border:none;width:100%" /></div>' +
+      '<div><div class="info-label">Pagar em quantas vezes</div>' +
+        '<input class="login-input" type="number" step="1" min="1" max="24" value="' + c.parcelas + '" oninput="orcIndicacaoCampo(\'parcelas\',this.value)" style="background:var(--surface);font-size:12px;padding:6px 8px;border:none;width:100%" /></div>' +
+    '</div>' +
+    (c.temPct
+      ? '<div style="margin-top:11px;padding:10px 12px;background:var(--surface-2);border-radius:8px;font-size:12.5px;line-height:1.7">' +
+          '<div>🤝 <strong>' + escapeHtml((par.nome||'').split(' ')[0]) + ' recebe R$ ' + c.valorParceiro.toFixed(2) + '</strong>' +
+            ' <span class="text-3">(' + c.pct + '% de R$ ' + c.base.toFixed(2) + ')</span>' +
+            (c.parcelas > 1 ? ' <span class="text-3">em ' + c.parcelas + ' parcelas de R$ ' + (Math.round(c.valorParceiro/c.parcelas*100)/100).toFixed(2) + '</span>' : ' <span class="text-3">em 1 parcela</span>') +
+          '</div>' +
+          '<div>💼 <strong>Comissão do comercial: ' + (pctCom !== null ? pctCom + '% de R$ ' + c.baseComissao.toFixed(2) + ' = R$ ' + (Math.round(c.baseComissao*pctCom)/100).toFixed(2) : 'sobre R$ ' + c.baseComissao.toFixed(2)) + '</strong>' +
+            ' <span class="text-3">(total R$ ' + c.total.toFixed(2) + ' − R$ ' + c.valorParceiro.toFixed(2) + ' do parceiro)</span></div>' +
+          '<div class="text-xs text-3" style="margin-top:5px">Ao aprovar, o valor do parceiro entra em <strong>Parcerias → financeiro</strong> como a pagar.</div>' +
+        '</div>'
+      : '<div style="margin-top:11px;padding:10px 12px;background:var(--warning-soft);border:1px solid var(--warning);border-radius:8px;font-size:12.5px">' +
+          '⚠ Esse parceiro ainda não tem o percentual de <strong>' + (c.tipo === 'recorrente' ? 'venda recorrente' : 'serviço avulso') + '</strong> no cadastro. Digite o % acima, ou preencha na aba <strong>Parcerias</strong> para valer em toda proposta.</div>') +
+  '</div>';
+}
+
+function orcDefinirIndicacao(parceriaId){
+  if(!orcamento.indicacao) orcamento.indicacao = {};
+  if(!parceriaId){ orcamento.indicacao = {}; }
+  else {
+    const par = _parceiroPorId(parceriaId);
+    orcamento.indicacao = {
+      parceria_id: parceriaId,
+      tipo: 'recorrente',
+      pct: '',                                   // vazio = usa o do cadastro
+      base: '',                                  // vazio = usa o total da proposta
+      parcelas: (par && par.parcelas_padrao) || 1
+    };
+  }
+  renderComercial(document.getElementById('content'));
+}
+if(typeof window !== 'undefined'){ window.orcDefinirIndicacao = orcDefinirIndicacao; }
+
+function orcIndicacaoCampo(campo, valor){
+  if(!orcamento.indicacao) orcamento.indicacao = {};
+  orcamento.indicacao[campo] = valor;
+  // só a prévia precisa ser redesenhada — o resto do formulário fica como está
+  const alvo = document.getElementById('content');
+  if(alvo) renderComercial(alvo);
+}
+if(typeof window !== 'undefined'){ window.orcIndicacaoCampo = orcIndicacaoCampo; }
+
 async function loadParcerias(){
   if(!_supa){ _parcerias = []; _parceriasResultados = []; return; }
   try {
@@ -31451,6 +31638,23 @@ function abrirParceriaDetalhe(parceriaId){
           (p.contato_email ? '<div class="info-item"><div class="info-label">Email</div><div class="info-value">' + escapeHtml(p.contato_email) + '</div></div>' : '') +
           (p.contato_telefone ? '<div class="info-item"><div class="info-label">Telefone</div><div class="info-value">' + escapeHtml(p.contato_telefone) + '</div></div>' : '') +
           '<div class="info-item"><div class="info-label">Condições financeiras</div><input value="' + escapeHtml(p.condicoes_financeiras||'').replace(/"/g,'&quot;') + '" placeholder="— clique pra preencher —" onblur="parcEditCampo(\'' + p.id + '\',\'condicoes_financeiras\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed transparent;font-size:13px;font-weight:600;color:var(--text);font-family:inherit;padding:2px 0;outline:none" onfocus="this.style.borderBottomColor=\'var(--accent-border)\'" /></div>' +
+        '</div>' +
+
+        // O acordo em números: é daqui que a proposta puxa o quanto o parceiro
+        // recebe. O texto acima continua valendo como o combinado por escrito.
+        '<div class="card mb-3" style="background:var(--surface-2);padding:12px;border-left:3px solid var(--accent)">' +
+          '<div class="info-label" style="margin-bottom:3px">🧮 Acordo em números <span style="font-weight:400;text-transform:none;letter-spacing:0">· o orçamento usa isso pra calcular sozinho</span></div>' +
+          '<div class="text-xs text-3" style="margin-bottom:9px">Em branco = o sistema não calcula sozinho e pede o % na hora da proposta.</div>' +
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:9px">' +
+            '<div><div class="info-label">% serviço avulso</div>' +
+              '<input type="number" step="0.5" min="0" max="100" value="' + (p.pct_avulso != null ? p.pct_avulso : '') + '" placeholder="—" onblur="parcEditNumero(\'' + p.id + '\',\'pct_avulso\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed var(--border);font-size:14px;font-weight:700;color:var(--text);font-family:inherit;padding:2px 0;outline:none" /></div>' +
+            '<div><div class="info-label">% da 1ª mensalidade</div>' +
+              '<input type="number" step="0.5" min="0" max="100" value="' + (p.pct_recorrente != null ? p.pct_recorrente : '') + '" placeholder="—" onblur="parcEditNumero(\'' + p.id + '\',\'pct_recorrente\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed var(--border);font-size:14px;font-weight:700;color:var(--text);font-family:inherit;padding:2px 0;outline:none" /></div>' +
+            '<div><div class="info-label">Parcelas padrão</div>' +
+              '<input type="number" step="1" min="1" max="24" value="' + (p.parcelas_padrao != null ? p.parcelas_padrao : 1) + '" onblur="parcEditNumero(\'' + p.id + '\',\'parcelas_padrao\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed var(--border);font-size:14px;font-weight:700;color:var(--text);font-family:inherit;padding:2px 0;outline:none" /></div>' +
+            '<div><div class="info-label">Dia do pagamento</div>' +
+              '<input type="number" step="1" min="1" max="31" value="' + (p.dia_pagamento != null ? p.dia_pagamento : '') + '" placeholder="30" onblur="parcEditNumero(\'' + p.id + '\',\'dia_pagamento\',this.value)" style="width:100%;background:transparent;border:none;border-bottom:1px dashed var(--border);font-size:14px;font-weight:700;color:var(--text);font-family:inherit;padding:2px 0;outline:none" /></div>' +
+          '</div>' +
         '</div>' +
 
         '<div class="card mb-3" style="background:var(--surface-2);padding:12px"><div class="info-label" style="margin-bottom:6px">📋 Combinados <span style="font-weight:400;text-transform:none;letter-spacing:0">· clique pra editar, salva sozinho</span></div>' +
@@ -36326,6 +36530,72 @@ async function preCadastrarCliente(origem){
 window.preCadastrarCliente = preCadastrarCliente;
 
 // Orçamento aprovado → comissão automática da executiva comercial, já com o orçamento vinculado.
+// Orçamento com indicação foi aprovado: registra a indicação no parceiro e
+// joga o que ele tem a receber no financeiro da parceria, parcela por parcela.
+// Não mexe em nada se já tiver sido lançado — aprovar de novo não paga duas vezes.
+async function lancarIndicacaoNasParcerias(b){
+  if(!_supa || !b || !b.id || !b.parceria_id) return false;
+  const valor = parseFloat(b.indicacao_valor) || 0;
+  if(valor <= 0) return false;
+
+  // dedup: esse orçamento já lançou?
+  try {
+    const { data: ja } = await _supa.from('parceria_indicacoes').select('id').eq('orcamento_id', b.id).limit(1);
+    if(ja && ja.length) return false;
+  } catch(e){ /* coluna nova pode nao existir num banco antigo — segue */ }
+
+  const par = _parceiroPorId(b.parceria_id) || {};
+  const cliente = (b.client_data && b.client_data.nome) ? b.client_data.nome : (b.numero || 'venda');
+  const parcelas = Math.max(1, parseInt(b.indicacao_parcelas) || 1);
+  const hoje = new Date();
+  const diaPgto = parseInt(par.dia_pagamento) || 30;
+
+  // 1) o registro da indicação, do lado do parceiro
+  try {
+    await _supa.from('parceria_indicacoes').insert({
+      parceria_id: b.parceria_id,
+      direcao: 'recebida',
+      indicado: cliente,
+      empresa: cliente,
+      data: hojeBrasiliaStr(),
+      status: 'fechada',
+      valor_negocio: parseFloat(b.total) || 0,
+      comissao: valor,
+      orcamento_id: b.id,
+      observacao: 'Orçamento ' + (b.numero||'') + ' · ' + (b.indicacao_tipo === 'avulso' ? 'serviço avulso' : 'recorrente') +
+                  ' · base R$ ' + (parseFloat(b.indicacao_base)||0).toFixed(2)
+    });
+  } catch(e){ console.warn('[parceria_indicacoes]', e); }
+
+  // 2) o que ele tem a receber, dividido nas parcelas combinadas
+  const centavos = Math.round(valor * 100);
+  const porParcela = Math.floor(centavos / parcelas);
+  const sobra = centavos - (porParcela * parcelas);   // a diferença vai na 1ª
+  const linhas = [];
+  for(let i = 0; i < parcelas; i++){
+    const venc = new Date(hoje.getFullYear(), hoje.getMonth() + 1 + i, 1);
+    const ultimoDia = new Date(venc.getFullYear(), venc.getMonth()+1, 0).getDate();
+    venc.setDate(Math.min(diaPgto, ultimoDia));
+    linhas.push({
+      parceria_id: b.parceria_id,
+      tipo: 'pagar',
+      descricao: 'Indicação ' + cliente + (parcelas > 1 ? ' — parcela ' + (i+1) + '/' + parcelas : ''),
+      valor: ((porParcela + (i === 0 ? sobra : 0)) / 100),
+      vencimento: venc.toISOString().slice(0,10),
+      pago: false,
+      observacao: 'Gerado do orçamento ' + (b.numero||'') + ' (' + (parseFloat(b.indicacao_base)||0).toFixed(2) + ' × ' +
+                  ((parseFloat(b.indicacao_valor)/ (parseFloat(b.indicacao_base)||1) * 100) || 0).toFixed(0) + '%)'
+    });
+  }
+  const { error } = await _supa.from('parceria_financeiro').insert(linhas);
+  if(error){ console.warn('[parceria_financeiro]', error); toast('Não consegui lançar o valor do parceiro: ' + error.message,'info'); return false; }
+  if(typeof _parcFin !== 'undefined' && Array.isArray(_parcFin)){ try { await loadParcerias(); } catch(e){} }
+  toast('🤝 R$ ' + valor.toFixed(2) + ' de ' + (par.nome||'parceiro') + ' lançado em Parcerias' +
+        (parcelas > 1 ? ' em ' + parcelas + ' parcelas' : ''),'success');
+  return true;
+}
+if(typeof window !== 'undefined'){ window.lancarIndicacaoNasParcerias = lancarIndicacaoNasParcerias; }
+
 async function gerarComissaoDoOrcamento(b){
   try {
     if(!_supa || !b || !b.id) return;
@@ -36334,13 +36604,22 @@ async function gerarComissaoDoOrcamento(b){
     const cliente = (b.client_data && b.client_data.nome) ? b.client_data.nome : '';
     const fechado = parseFloat(b.total) || 0;
     const percent = await _comissaoPercent();
-    const valor = Math.round(fechado * percent) / 100;
+    // Veio de indicação: o que o parceiro recebe é abatido ANTES da comissão.
+    // Quem comissiona é o que sobra pra casa, não o valor cheio da venda.
+    const doParceiro = parseFloat(b.indicacao_valor) || 0;
+    const baseComissao = Math.max(0, fechado - doParceiro);
+    const valor = Math.round(baseComissao * percent) / 100;
+    if(b.parceria_id && doParceiro > 0){
+      try { await lancarIndicacaoNasParcerias(b); } catch(e){ console.warn('[indicacao parceiro]', e); }
+    }
     const com = {
       orcamento_id: String(b.id),
       orc_numero: b.numero || '',
       cliente: cliente,
       fechado: fechado,
       percent: percent,
+      parceiro_abatido: doParceiro || undefined,
+      base_comissao: doParceiro > 0 ? baseComissao : undefined,
       ok_pagamento: false
     };
     const payload = {
@@ -36355,7 +36634,7 @@ async function gerarComissaoDoOrcamento(b){
     if(error){ console.warn('[comissao orc]', error); toast('Orçamento aprovado, mas não consegui criar a comissão: ' + error.message,'info'); return; }
     if(typeof _colaboradorPagamentos !== 'undefined' && Array.isArray(_colaboradorPagamentos)) _colaboradorPagamentos.unshift(data);
     toast(fechado > 0
-      ? '💰 Comissão de R$ ' + valor.toFixed(2) + ' (' + percent + '% de R$ ' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ') criada em Pagamentos'
+      ? '💰 Comissão de R$ ' + valor.toFixed(2) + ' (' + percent + '% de R$ ' + baseComissao.toLocaleString('pt-BR',{minimumFractionDigits:2}) + (doParceiro > 0 ? ', já descontado o parceiro' : '') + ') criada em Pagamentos'
       : '💰 Comissão criada em Pagamentos — esse orçamento está sem valor total','success');
     // cliente novo fechado: ja entra no cadastro com o que o orçamento traz
     try{
