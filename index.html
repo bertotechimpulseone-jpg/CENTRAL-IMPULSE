@@ -3339,7 +3339,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.65 · A indicação de parceiro também no card do pipeline, com a mesma conta da proposta</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.66 · Indicação preenchida depois da venda fechada agora lança o parceiro e corrige a comissão</div>
   </aside>
 
   <div class="main">
@@ -20267,6 +20267,10 @@ async function salvarLeadDetalhe(leadId){
   // Mudou a etapa pra "Fechado" aqui dentro: mesma regra do arrasto.
   if(_fechouAVenda(patch.stage) && !_fechouAVenda(_etapaAntes)){
     try { await gerarComissaoDoLead(lead); } catch(e){ console.warn('[comissao lead etapa]', e); }
+  } else if(_fechouAVenda(patch.stage) || patch.aprovado === true){
+    // Venda JÁ fechada e a indicação foi preenchida agora: sem isso o parceiro
+    // nunca era lançado e a comissão ficava no valor cheio.
+    try { await sincronizarIndicacao(lead, 'lead'); } catch(e){ console.warn('[sincronizar lead]', e); }
   }
   // Orçamento acabou de virar APROVADO → gera a comissão da executiva comercial em Pagamentos
   if(patch.aprovado === true && !_aprovadoAntes){
@@ -21317,6 +21321,12 @@ async function salvarOrcamento(statusOverride){
     if(!result.error && statusOverride === 'aprovado'){
       const salvo = Array.isArray(result.data) ? result.data[0] : result.data;
       if(salvo && salvo.id){ try { await gerarComissaoDoOrcamento(salvo); } catch(e){ console.warn('[comissao orc save]', e); } }
+    } else if(!result.error){
+      // Orçamento já aprovado antes e a indicação entrou agora: acerta as contas
+      const salvo = Array.isArray(result.data) ? result.data[0] : result.data;
+      if(salvo && salvo.id && salvo.status === 'aprovado' && salvo.parceria_id){
+        try { await sincronizarIndicacao(salvo, 'orcamento'); } catch(e){ console.warn('[sincronizar orc]', e); }
+      }
     }
     if(result.error){
       console.error('[ORC SAVE] ERRO Supabase:', result.error);
@@ -36691,6 +36701,52 @@ window.preCadastrarCliente = preCadastrarCliente;
 // Orçamento com indicação foi aprovado: registra a indicação no parceiro e
 // joga o que ele tem a receber no financeiro da parceria, parcela por parcela.
 // Não mexe em nada se já tiver sido lançado — aprovar de novo não paga duas vezes.
+// A indicação costuma ser preenchida DEPOIS que a venda já foi fechada. Como o
+// lançamento só acontecia na hora do fechamento, o parceiro nunca recebia e a
+// comissão ficava congelada no valor cheio. Esta função é o acerto de contas:
+// lança o que falta e corrige a comissão que ainda não foi paga.
+async function sincronizarIndicacao(obj, origem){
+  if(!_supa || !obj || !obj.id) return;
+  const campo = (origem === 'lead') ? 'lead_id' : 'orcamento_id';
+  const doParceiro = parseFloat(obj.indicacao_valor) || 0;
+
+  // 1) o parceiro entra em Parcerias (a própria função não repete o lançamento)
+  if(obj.parceria_id && doParceiro > 0){
+    try { await lancarIndicacaoNasParcerias(obj, origem); } catch(e){ console.warn('[sincronizarIndicacao lançar]', e); }
+  }
+
+  // 2) a comissão que ainda não foi paga passa a valer sobre o que sobra
+  try {
+    const total = parseFloat(obj.total != null ? obj.total : obj.value) || 0;
+    const percent = await _comissaoPercent();
+    const esperado = Math.round(Math.max(0, total - doParceiro) * percent) / 100;
+    const { data } = await _supa.from('colaborador_pagamentos').select('*')
+      .like('observacoes', '%"' + campo + '":"' + String(obj.id) + '"%');
+    const pend = (data||[]).find(function(x){ return !x.status_pago; });
+    if(!pend) return;
+    const atual = parseFloat(pend.valor) || 0;
+    if(Math.abs(atual - esperado) < 0.005) return;      // já está certo
+    let obs = {};
+    try { obs = JSON.parse(pend.observacoes||'{}'); } catch(e){ obs = {}; }
+    obs.comissao = Object.assign({}, obs.comissao, {
+      fechado: total, percent: percent,
+      parceiro_abatido: doParceiro || undefined,
+      base_comissao: doParceiro > 0 ? Math.max(0, total - doParceiro) : undefined
+    });
+    const { data: up, error } = await _supa.from('colaborador_pagamentos')
+      .update({ valor: esperado, observacoes: JSON.stringify(obs) }).eq('id', pend.id).select();
+    if(error || !up || !up.length){ console.warn('[sincronizarIndicacao comissão]', error); return; }
+    pend.valor = esperado; pend.observacoes = JSON.stringify(obs);
+    if(typeof _colaboradorPagamentos !== 'undefined' && Array.isArray(_colaboradorPagamentos)){
+      const i = _colaboradorPagamentos.findIndex(function(x){ return x.id === pend.id; });
+      if(i >= 0){ _colaboradorPagamentos[i].valor = esperado; _colaboradorPagamentos[i].observacoes = pend.observacoes; }
+    }
+    toast('💼 Comissão ajustada de R$ ' + atual.toFixed(2) + ' para R$ ' + esperado.toFixed(2) +
+          (doParceiro > 0 ? ' (descontado o parceiro)' : ''),'success');
+  } catch(e){ console.warn('[sincronizarIndicacao]', e); }
+}
+if(typeof window !== 'undefined'){ window.sincronizarIndicacao = sincronizarIndicacao; }
+
 // Serve pro orçamento E pro card do pipeline: os dois fecham venda.
 // `origem` diz qual coluna usar no dedup — orcamento_id ou lead_id.
 async function lancarIndicacaoNasParcerias(b, origem){
