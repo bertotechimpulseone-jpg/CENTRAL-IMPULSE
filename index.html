@@ -3339,7 +3339,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.64 · O cadastro do parceiro mostra quanto ele tem a receber e quanto já pagamos</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.65 · A indicação de parceiro também no card do pipeline, com a mesma conta da proposta</div>
   </aside>
 
   <div class="main">
@@ -20044,6 +20044,82 @@ window.comKanbanLeave = comKanbanLeave;
 window.comKanbanDrop = comKanbanDrop;
 
 // Detalhe / edição de um lead do pipeline
+// A mesma indicação da proposta, agora no card do pipeline — porque é o card
+// que fecha a venda quando o orçamento não passou pela aba Orçamento.
+function _ldIndicacaoHTML(lead){
+  const lista = (typeof _parceirosAtivos === 'function') ? _parceirosAtivos() : [];
+  const escolhido = lead.parceria_id || '';
+  const par = escolhido && typeof _parceiroPorId === 'function' ? _parceiroPorId(escolhido) : null;
+  const ind = {
+    tipo: lead.indicacao_tipo || 'recorrente',
+    pct: (lead.indicacao_base && parseFloat(lead.indicacao_base) > 0 && lead.indicacao_valor != null)
+           ? Math.round(parseFloat(lead.indicacao_valor) / parseFloat(lead.indicacao_base) * 1000) / 10 : '',
+    base: lead.indicacao_base != null ? lead.indicacao_base : '',
+    parcelas: lead.indicacao_parcelas || (par && par.parcelas_padrao) || 1
+  };
+  return '<div style="border-top:1px solid var(--border);padding-top:14px;margin-top:4px">' +
+    '<div class="info-label" style="margin-bottom:7px">🤝 Veio de indicação?</div>' +
+    (lista.length
+      ? '<select id="ldParceria" class="login-input" style="background:var(--surface-2)" onchange="_ldIndicacaoMudou()">' +
+          '<option value="">— não veio de indicação —</option>' +
+          lista.map(function(p){ return '<option value="' + p.id + '"' + (String(escolhido)===String(p.id)?' selected':'') + '>' + escapeHtml(p.nome||'') + '</option>'; }).join('') +
+        '</select>'
+      : '<div class="text-xs text-3">Nenhum parceiro ativo. Cadastre em <strong>Parcerias</strong> para poder vincular aqui.</div>') +
+    '<div id="ldIndCampos" style="' + (escolhido ? '' : 'display:none;') + 'margin-top:10px">' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">' +
+        '<div><div class="info-label">Tipo de venda</div>' +
+          '<select id="ldIndTipo" class="login-input" style="background:var(--surface-2);font-size:12px;padding:6px 8px" onchange="_ldIndicacaoMudou()">' +
+            '<option value="recorrente"' + (ind.tipo==='recorrente'?' selected':'') + '>Recorrente</option>' +
+            '<option value="avulso"' + (ind.tipo==='avulso'?' selected':'') + '>Avulso</option>' +
+          '</select></div>' +
+        '<div><div class="info-label">% do parceiro</div>' +
+          '<input id="ldIndPct" type="number" step="0.5" min="0" max="100" class="login-input" value="' + (ind.pct !== '' ? ind.pct : '') + '" placeholder="do cadastro" oninput="_ldIndicacaoMudou()" style="background:var(--surface-2);font-size:12px;padding:6px 8px" /></div>' +
+        '<div><div class="info-label">Base (R$)</div>' +
+          '<input id="ldIndBase" type="number" step="0.01" min="0" class="login-input" value="' + (ind.base !== '' ? ind.base : '') + '" placeholder="valor do card" oninput="_ldIndicacaoMudou()" title="Em venda recorrente é a 1ª mensalidade" style="background:var(--surface-2);font-size:12px;padding:6px 8px" /></div>' +
+        '<div><div class="info-label">Parcelas</div>' +
+          '<input id="ldIndParcelas" type="number" step="1" min="1" max="24" class="login-input" value="' + ind.parcelas + '" oninput="_ldIndicacaoMudou()" style="background:var(--surface-2);font-size:12px;padding:6px 8px" /></div>' +
+      '</div>' +
+      '<div id="ldIndPreview" style="margin-top:9px"></div>' +
+    '</div>' +
+  '</div>';
+}
+if(typeof window !== 'undefined'){ window._ldIndicacaoHTML = _ldIndicacaoHTML; }
+
+// Lê o que está na tela do card e devolve a conta — sem redesenhar o modal,
+// que perderia o que a pessoa já tinha digitado nos outros campos.
+function _ldIndicacaoEstado(){
+  const v = function(id){ const e = document.getElementById(id); return e ? e.value : ''; };
+  const parId = v('ldParceria');
+  const par = parId && typeof _parceiroPorId === 'function' ? _parceiroPorId(parId) : null;
+  const total = parseFloat(v('ldValue')) || 0;
+  const c = _indicacaoCalc(total, par, { tipo: v('ldIndTipo') || 'recorrente', pct: v('ldIndPct'), base: v('ldIndBase'), parcelas: v('ldIndParcelas') });
+  return { parId, c };
+}
+
+function _ldIndicacaoMudou(){
+  const campos = document.getElementById('ldIndCampos');
+  const alvo = document.getElementById('ldIndPreview');
+  const { parId, c } = _ldIndicacaoEstado();
+  if(campos) campos.style.display = parId ? '' : 'none';
+  if(!alvo) return;
+  if(!parId){ alvo.innerHTML = ''; return; }
+  const pctCom = (typeof _comissaoPercentCache === 'number') ? _comissaoPercentCache : null;
+  if(!c.temPct){
+    alvo.innerHTML = '<div style="padding:9px 11px;background:var(--warning-soft);border:1px solid var(--warning);border-radius:8px;font-size:12px">' +
+      '⚠ Esse parceiro não tem o percentual de venda ' + (c.tipo === 'avulso' ? 'avulsa' : 'recorrente') + ' no cadastro. Digite o % aqui ou preencha em <strong>Parcerias</strong>.</div>';
+    return;
+  }
+  const nome = escapeHtml(((c.par||{}).nome||'').split(' ')[0]);
+  alvo.innerHTML = '<div style="padding:9px 11px;background:var(--surface-2);border-radius:8px;font-size:12px;line-height:1.65">' +
+    '<div>🤝 <strong>' + nome + ' recebe R$ ' + c.valorParceiro.toFixed(2) + '</strong> <span class="text-3">(' + c.pct + '% de R$ ' + c.base.toFixed(2) + ')' +
+      (c.parcelas > 1 ? ' em ' + c.parcelas + ' parcelas' : ' em 1 parcela') + '</span></div>' +
+    '<div>💼 <strong>Comissão: ' + (pctCom !== null ? pctCom + '% de R$ ' + c.baseComissao.toFixed(2) + ' = R$ ' + (Math.round(c.baseComissao*pctCom)/100).toFixed(2) : 'sobre R$ ' + c.baseComissao.toFixed(2)) + '</strong>' +
+      ' <span class="text-3">(card R$ ' + c.total.toFixed(2) + ' − R$ ' + c.valorParceiro.toFixed(2) + ')</span></div>' +
+    '<div class="text-xs text-3" style="margin-top:3px">Entra em Parcerias quando o card for pra <strong>Fechado</strong>.</div>' +
+  '</div>';
+}
+if(typeof window !== 'undefined'){ window._ldIndicacaoMudou = _ldIndicacaoMudou; }
+
 function abrirLeadDetalhe(leadId){
   const lead = (_leadsCache||[]).find(l => String(l.id) === String(leadId));
   if(!lead){ toast('Lead não encontrado','info'); return; }
@@ -20088,6 +20164,7 @@ function abrirLeadDetalhe(leadId){
         '<div><div class="info-label" style="margin-bottom:5px">Serviço contratado</div><input id="ldServico" class="login-input" value="' + escapeHtml(lead.servico_contratado||'') + '" placeholder="Ex.: Gestão de redes, Tráfego..." style="background:var(--surface-2)" /></div>' +
         '<div><div class="info-label" style="margin-bottom:5px">Válido a partir de</div><input id="ldValido" type="date" class="login-input" value="' + (lead.valido_em||'') + '" style="background:var(--surface-2)" /></div>' +
       '</div>' +
+      _ldIndicacaoHTML(lead) +
       '<div><div class="info-label" style="margin-bottom:5px">Observações</div><textarea id="ldObs" class="login-input" rows="3" placeholder="Anotações livres..." style="background:var(--surface-2);resize:vertical;min-height:64px;font-family:inherit">' + escapeHtml(lead.observacoes||'') + '</textarea></div>' +
       (zap ? '<a href="https://wa.me/55'+zap+'" target="_blank" class="btn btn-sm" style="align-self:flex-start;text-decoration:none">💬 Abrir WhatsApp</a>' : '') +
       // Tarefa com dia: no dia marcado ela aparece sozinha no checklist de quem ficou responsavel
@@ -20122,7 +20199,11 @@ function abrirLeadDetalhe(leadId){
       '</div>' +
     '</div></div>';
   document.body.appendChild(modal);
-  setTimeout(function(){ try{ _leadTarefasRender(lead.id); }catch(e){} }, 60);
+  setTimeout(function(){
+    try{ _leadTarefasRender(lead.id); }catch(e){}
+    // desenha a prévia da indicação de quem já tem parceiro vinculado
+    try{ _ldIndicacaoMudou(); }catch(e){}
+  }, 60);
 }
 window.abrirLeadDetalhe = abrirLeadDetalhe;
 
@@ -20155,6 +20236,20 @@ async function salvarLeadDetalhe(leadId){
   const _svEl = document.getElementById('ldServico'); if(_svEl) patch.servico_contratado = _svEl.value.trim();
   const _vlEl = document.getElementById('ldValido'); if(_vlEl) patch.valido_em = _vlEl.value || null;
   const _obEl = document.getElementById('ldObs'); if(_obEl) patch.observacoes = _obEl.value.trim();
+  // Indicação de parceiro: guarda o combinado DESTE card, não só o ponteiro.
+  if(document.getElementById('ldParceria')){
+    const _ld = _ldIndicacaoEstado();
+    if(_ld.parId && _ld.c.temPct){
+      patch.parceria_id = _ld.parId;
+      patch.indicacao_tipo = _ld.c.tipo;
+      patch.indicacao_base = _ld.c.base;
+      patch.indicacao_valor = _ld.c.valorParceiro;
+      patch.indicacao_parcelas = _ld.c.parcelas;
+    } else {
+      patch.parceria_id = null; patch.indicacao_tipo = null;
+      patch.indicacao_base = null; patch.indicacao_valor = null; patch.indicacao_parcelas = null;
+    }
+  }
   if(_supa){
     let { error } = await _supa.from('leads').update(patch).eq('id', leadId);
     if(error){
@@ -31152,17 +31247,12 @@ function _parceiroPorId(id){
   return (_parcerias||[]).find(function(p){ return String(p.id) === String(id); }) || null;
 }
 
-// A conta da indicação. Devolve tudo o que a tela precisa mostrar — e nada
-// é inventado: sem % definido no cadastro do parceiro, o valor fica null.
-function _orcIndicacaoCalculo(){
-  const o = orcamento || {};
-  const ind = o.indicacao || {};
-  const subtotal = (o.itens||[]).reduce(function(s,i){ return s + (i.qtd||1)*(i.valor||0); }, 0);
-  const descontoVal = o.descontoTipo === 'percentual' ? subtotal*((o.desconto||0)/100) : (o.desconto||0);
-  const total = Math.max(0, subtotal - descontoVal);
-  const par = ind.parceria_id ? _parceiroPorId(ind.parceria_id) : null;
+// A conta da indicação, uma só — usada pela proposta E pelo card do pipeline.
+// Nada é inventado: sem % definido no cadastro do parceiro, o valor fica null.
+function _indicacaoCalc(total, par, ind){
+  ind = ind || {};
+  total = parseFloat(total) || 0;
   const tipo = ind.tipo || 'recorrente';
-  // % do cadastro do parceiro; se quem preenche digitou outro, vale o digitado.
   // O banco devolve numeric como texto — normaliza, senão 50 !== '50' e a tela
   // ofereceria "usar sempre" pra um valor que já é o padrão.
   const _pcRaw = par ? (tipo === 'avulso' ? par.pct_avulso : par.pct_recorrente) : null;
@@ -31172,9 +31262,19 @@ function _orcIndicacaoCalculo(){
   const base = (ind.base !== undefined && ind.base !== null && ind.base !== '') ? parseFloat(ind.base) : total;
   const temPct = pct !== null && !isNaN(pct);
   const valorParceiro = temPct ? Math.round(base * pct) / 100 : null;
-  const parcelas = parseInt(ind.parcelas) || (par && par.parcelas_padrao) || 1;
+  const parcelas = parseInt(ind.parcelas) || (par && parseInt(par.parcelas_padrao)) || 1;
   const baseComissao = Math.max(0, total - (valorParceiro || 0));
   return { total, par, tipo, pct, pctCadastro, base, valorParceiro, parcelas, baseComissao, temPct };
+}
+if(typeof window !== 'undefined'){ window._indicacaoCalc = _indicacaoCalc; }
+
+function _orcIndicacaoCalculo(){
+  const o = orcamento || {};
+  const ind = o.indicacao || {};
+  const subtotal = (o.itens||[]).reduce(function(s,i){ return s + (i.qtd||1)*(i.valor||0); }, 0);
+  const descontoVal = o.descontoTipo === 'percentual' ? subtotal*((o.desconto||0)/100) : (o.desconto||0);
+  const total = Math.max(0, subtotal - descontoVal);
+  return _indicacaoCalc(total, ind.parceria_id ? _parceiroPorId(ind.parceria_id) : null, ind);
 }
 
 function _orcIndicacaoHTML(){
@@ -36591,19 +36691,22 @@ window.preCadastrarCliente = preCadastrarCliente;
 // Orçamento com indicação foi aprovado: registra a indicação no parceiro e
 // joga o que ele tem a receber no financeiro da parceria, parcela por parcela.
 // Não mexe em nada se já tiver sido lançado — aprovar de novo não paga duas vezes.
-async function lancarIndicacaoNasParcerias(b){
+// Serve pro orçamento E pro card do pipeline: os dois fecham venda.
+// `origem` diz qual coluna usar no dedup — orcamento_id ou lead_id.
+async function lancarIndicacaoNasParcerias(b, origem){
   if(!_supa || !b || !b.id || !b.parceria_id) return false;
   const valor = parseFloat(b.indicacao_valor) || 0;
   if(valor <= 0) return false;
+  const campoOrigem = (origem === 'lead') ? 'lead_id' : 'orcamento_id';
 
-  // dedup: esse orçamento já lançou?
+  // dedup: essa mesma venda já lançou?
   try {
-    const { data: ja } = await _supa.from('parceria_indicacoes').select('id').eq('orcamento_id', b.id).limit(1);
+    const { data: ja } = await _supa.from('parceria_indicacoes').select('id').eq(campoOrigem, b.id).limit(1);
     if(ja && ja.length) return false;
   } catch(e){ /* coluna nova pode nao existir num banco antigo — segue */ }
 
   const par = _parceiroPorId(b.parceria_id) || {};
-  const cliente = (b.client_data && b.client_data.nome) ? b.client_data.nome : (b.numero || 'venda');
+  const cliente = (b.client_data && b.client_data.nome) ? b.client_data.nome : (b.name || b.numero || 'venda');
   const parcelas = Math.max(1, parseInt(b.indicacao_parcelas) || 1);
   const hoje = new Date();
   const diaPgto = parseInt(par.dia_pagamento) || 30;
@@ -36617,10 +36720,11 @@ async function lancarIndicacaoNasParcerias(b){
       empresa: cliente,
       data: hojeBrasiliaStr(),
       status: 'fechada',
-      valor_negocio: parseFloat(b.total) || 0,
+      valor_negocio: parseFloat(b.total) || parseFloat(b.value) || 0,
       comissao: valor,
-      orcamento_id: b.id,
-      observacao: 'Orçamento ' + (b.numero||'') + ' · ' + (b.indicacao_tipo === 'avulso' ? 'serviço avulso' : 'recorrente') +
+      [campoOrigem]: b.id,
+      observacao: (origem === 'lead' ? 'Card do pipeline' : 'Orçamento ' + (b.numero||'')) + ' · ' +
+                  (b.indicacao_tipo === 'avulso' ? 'serviço avulso' : 'recorrente') +
                   ' · base R$ ' + (parseFloat(b.indicacao_base)||0).toFixed(2)
     });
   } catch(e){ console.warn('[parceria_indicacoes]', e); }
@@ -36641,7 +36745,8 @@ async function lancarIndicacaoNasParcerias(b){
       valor: ((porParcela + (i === 0 ? sobra : 0)) / 100),
       vencimento: venc.toISOString().slice(0,10),
       pago: false,
-      observacao: 'Gerado do orçamento ' + (b.numero||'') + ' (' + (parseFloat(b.indicacao_base)||0).toFixed(2) + ' × ' +
+      observacao: 'Gerado do ' + (origem === 'lead' ? 'card ' + cliente : 'orçamento ' + (b.numero||'')) +
+                  ' (' + (parseFloat(b.indicacao_base)||0).toFixed(2) + ' × ' +
                   ((parseFloat(b.indicacao_valor)/ (parseFloat(b.indicacao_base)||1) * 100) || 0).toFixed(0) + '%)'
     });
   }
@@ -36750,14 +36855,21 @@ async function gerarComissaoDoLead(lead){
     }
     const fechado = parseFloat(lead.value) || 0;
     const percent = await _comissaoPercent();
-    const valor = Math.round(fechado * percent) / 100;
+    // Mesma regra da proposta: o que o parceiro recebe sai antes da comissão.
+    const doParceiro = parseFloat(lead.indicacao_valor) || 0;
+    const baseComissao = Math.max(0, fechado - doParceiro);
+    const valor = Math.round(baseComissao * percent) / 100;
+    if(lead.parceria_id && doParceiro > 0){
+      try { await lancarIndicacaoNasParcerias(lead, 'lead'); } catch(e){ console.warn('[indicacao lead]', e); }
+    }
     const payload = {
       profile_id: _comissaoProfileId(),
       mes_ref: new Date().toISOString().slice(0,7),
       descricao: 'Comissão — ' + (lead.name || 'venda'),
       valor: valor,
       status_pago: false,
-      observacoes: JSON.stringify({comissao: {lead_id: String(lead.id), cliente: lead.name||'', fechado: fechado, percent: percent, ok_pagamento: false}})
+      observacoes: JSON.stringify({comissao: {lead_id: String(lead.id), cliente: lead.name||'', fechado: fechado, percent: percent,
+        parceiro_abatido: doParceiro || undefined, base_comissao: doParceiro > 0 ? baseComissao : undefined, ok_pagamento: false}})
     };
     const { data, error } = await _supa.from('colaborador_pagamentos').insert(payload).select().single();
     if(error){ console.warn('[comissao]', error); toast('Orçamento aprovado, mas não consegui criar a comissão: ' + error.message,'info'); return; }
@@ -36765,7 +36877,7 @@ async function gerarComissaoDoLead(lead){
     if(fechado <= 0){
       toast('💰 Comissão criada em Pagamentos, mas o card está sem valor — preencha o valor fechado lá','info');
     } else {
-      toast('💰 Comissão de R$ ' + valor.toFixed(2) + ' (' + percent + '% de R$ ' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + ') foi pro pagamento da Fran','success');
+      toast('💰 Comissão de R$ ' + valor.toFixed(2) + ' (' + percent + '% de R$ ' + baseComissao.toLocaleString('pt-BR',{minimumFractionDigits:2}) + (doParceiro > 0 ? ', já descontado o parceiro' : '') + ') foi pro pagamento da Fran','success');
     }
   } catch(e){ console.warn('[gerarComissaoDoLead]', e); }
 }
