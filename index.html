@@ -3339,7 +3339,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.66 · Indicação preenchida depois da venda fechada agora lança o parceiro e corrige a comissão</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.67 · A comissão explica a conta quando houve indicação, e liberar pagamento pode ser desfeito</div>
   </aside>
 
   <div class="main">
@@ -36089,7 +36089,9 @@ async function renderPagamentos(c){
               : ehGestor
               ? (isPago
                   ? '<button class="btn btn-sm" onclick="atualizarPagVarCampo(\'' + p.id + '\',\'status_pago\',false)" title="Desmarcar como pago" style="padding:3px 10px;font-size:11px;color:var(--success)">✓ Pago</button>'
-                  : '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:3px 10px;font-size:11px" title="Liberado pela administração — pode pagar">Marcar pago</button>' + _pagLiberadoSelo(p))
+                  : '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:3px 10px;font-size:11px" title="Liberado pela administração — pode pagar">Marcar pago</button>' +
+                    _pagLiberadoSelo(p) +
+                    '<button class="btn btn-sm" onclick="pagamentoDesfazerLiberacao(\'' + p.id + '\')" title="Tirar a liberação — volta a aguardar o OK" style="padding:1px 7px;font-size:10px;margin-top:3px;color:var(--text-3)">↺ desfazer liberação</button>')
               : (isPago ? '<span class="badge b-success">Pago</span>' : '<span class="badge b-info" title="Liberado pela administração — aguardando o financeiro">✔✔ Liberado</span>')
             ) + '</td>' +
             '<td style="padding:8px">' + (ehGestor
@@ -36161,7 +36163,9 @@ async function renderPagamentos(c){
                           ? '<button class="btn btn-sm" onclick="pagamentoLiberar(\'' + p.id + '\')" title="Duplo check da administração — libera o financeiro pra pagar" style="padding:2px 8px;font-size:10.5px;color:var(--accent);border-color:var(--accent)">✔✔ Liberar pgto</button>'
                           : '<span class="badge b-warning" title="Aguardando o OK da administração">Aguardando OK</span>')
                       : (ehGestor
-                          ? '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:2px 8px;font-size:10.5px" title="Liberado pela administração — pode pagar">Marcar pago</button>' + _pagLiberadoSelo(p)
+                          ? '<button class="btn btn-sm btn-primary" onclick="marcarComoPago(\'' + p.id + '\')" style="padding:2px 8px;font-size:10.5px" title="Liberado pela administração — pode pagar">Marcar pago</button>' +
+                            _pagLiberadoSelo(p) +
+                            '<button class="btn btn-sm" onclick="pagamentoDesfazerLiberacao(\'' + p.id + '\')" title="Tirar a liberação" style="padding:1px 6px;font-size:9.5px;margin-top:2px;color:var(--text-3)">↺ desfazer</button>'
                           : '<span class="badge b-info" title="Liberado pela administração — aguardando o financeiro">✔✔ Liberado</span>');
                     return '<tr><td style="padding:5px">' + (colab?colab.name:(p.nome_manual?escapeHtml(p.nome_manual)+' <span class="badge b-purple" style="font-size:8px">Freela</span>':'(deletado)')) + '</td>' +
                       '<td style="padding:5px">' + escapeHtml(p.descricao||'') + '</td>' +
@@ -36731,6 +36735,7 @@ async function sincronizarIndicacao(obj, origem){
     obs.comissao = Object.assign({}, obs.comissao, {
       fechado: total, percent: percent,
       parceiro_abatido: doParceiro || undefined,
+      parceiro_nome: doParceiro > 0 ? ((_parceiroPorId(obj.parceria_id)||{}).nome || undefined) : undefined,
       base_comissao: doParceiro > 0 ? Math.max(0, total - doParceiro) : undefined
     });
     const { data: up, error } = await _supa.from('colaborador_pagamentos')
@@ -36838,6 +36843,7 @@ async function gerarComissaoDoOrcamento(b){
       fechado: fechado,
       percent: percent,
       parceiro_abatido: doParceiro || undefined,
+      parceiro_nome: doParceiro > 0 ? ((_parceiroPorId(b.parceria_id)||{}).nome || undefined) : undefined,
       base_comissao: doParceiro > 0 ? baseComissao : undefined,
       ok_pagamento: false
     };
@@ -36925,7 +36931,9 @@ async function gerarComissaoDoLead(lead){
       valor: valor,
       status_pago: false,
       observacoes: JSON.stringify({comissao: {lead_id: String(lead.id), cliente: lead.name||'', fechado: fechado, percent: percent,
-        parceiro_abatido: doParceiro || undefined, base_comissao: doParceiro > 0 ? baseComissao : undefined, ok_pagamento: false}})
+        parceiro_abatido: doParceiro || undefined,
+        parceiro_nome: doParceiro > 0 ? ((_parceiroPorId(lead.parceria_id)||{}).nome || undefined) : undefined,
+        base_comissao: doParceiro > 0 ? baseComissao : undefined, ok_pagamento: false}})
     };
     const { data, error } = await _supa.from('colaborador_pagamentos').insert(payload).select().single();
     if(error){ console.warn('[comissao]', error); toast('Orçamento aprovado, mas não consegui criar a comissão: ' + error.message,'info'); return; }
@@ -36954,15 +36962,38 @@ function _comissaoDescricaoHTML(p, com, ehGestor){
     ? ''
     : (p.status_pago ? '' : '<div style="font-size:10.5px;color:var(--warning-text);margin-top:3px">⏳ Aguardando o OK da administração pra pagar</div>');
 
+  // Veio de indicação: a comissão é sobre o que SOBRA, e a conta precisa
+  // mostrar isso por extenso — senão o valor parece errado a quem confere.
+  const doParceiro = parseFloat(com.parceiro_abatido) || 0;
+  const nomeParceiro = com.parceiro_nome ? String(com.parceiro_nome) : 'parceiro';
+  const _moeda = function(v){ return 'R$ ' + (parseFloat(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); };
+  const _linhaAbate = function(bruto, liquido, resultado){
+    return '<div style="font-size:11px;color:var(--text-3);margin-top:3px">' +
+        '💼 Fechado <strong style="color:var(--text-2)">' + _moeda(bruto) + '</strong>' +
+        ' − <strong style="color:var(--warning-text)">' + _moeda(doParceiro) + '</strong> (indicação de ' + escapeHtml(nomeParceiro) + ')' +
+        ' = <strong style="color:var(--text-2)">' + _moeda(liquido) + '</strong></div>' +
+      '<div style="font-size:11px;color:var(--text-3);margin-top:1px">' +
+        '↳ ' + _moeda(liquido) + ' × ' + pct + '% = <strong style="color:var(--success-text)">' + _moeda(resultado) + '</strong></div>';
+  };
+
   let calculo = '';
   if(orc){
-    const esperado = Math.round(fechado * pct)/100;
+    const baseLiq = doParceiro > 0
+      ? (com.base_comissao != null ? parseFloat(com.base_comissao) : Math.max(0, fechado - doParceiro))
+      : fechado;
+    const esperado = Math.round(baseLiq * pct)/100;
     const lancado = parseFloat(p.valor)||0;
     const diverge = Math.abs(esperado - lancado) > 0.01;
-    calculo = '<div style="font-size:11px;color:var(--text-3);margin-top:3px">' +
-      '💼 Fechado <strong style="color:var(--text-2)">R$ ' + fechado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong>' +
-      ' × ' + pct + '% = <strong style="color:var(--success-text)">R$ ' + esperado.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</strong></div>' +
+    calculo = (doParceiro > 0
+      ? _linhaAbate(fechado, baseLiq, esperado)
+      : '<div style="font-size:11px;color:var(--text-3);margin-top:3px">' +
+          '💼 Fechado <strong style="color:var(--text-2)">' + _moeda(fechado) + '</strong>' +
+          ' × ' + pct + '% = <strong style="color:var(--success-text)">' + _moeda(esperado) + '</strong></div>') +
       (diverge ? '<div style="font-size:10.5px;color:var(--warning-text);margin-top:2px">⚠ O valor lançado (R$ ' + lancado.toFixed(2) + ') não bate com esse orçamento — confira qual é o certo</div>' : '');
+  } else if(doParceiro > 0){
+    // sem orçamento vinculado, mas com indicação: a conta continua explicada
+    const baseLiq = com.base_comissao != null ? parseFloat(com.base_comissao) : Math.max(0, fechado - doParceiro);
+    calculo = _linhaAbate(fechado, baseLiq, parseFloat(p.valor)||0);
   } else if(com.origem_ambigua){
     calculo = '<div style="font-size:11px;color:var(--warning-text);margin-top:3px">⚠ ' + com.origem_ambigua + ' orçamentos desse cliente — aprove o certo no Comercial pra vincular</div>';
   } else {
@@ -37488,6 +37519,37 @@ async function pagamentoLiberar(id){
   toast('✔✔ Liberado pro financeiro pagar','success');
   renderPagamentos(document.getElementById('content'));
 }
+
+// Liberar é reversível: quem libera por engano precisa poder voltar atrás.
+// Só vale pro que ainda NÃO foi pago — desfazer depois de pago seria mentir
+// sobre um dinheiro que já saiu.
+async function pagamentoDesfazerLiberacao(id){
+  const p = (_colaboradorPagamentos||[]).find(x => String(x.id) === String(id));
+  if(!p) return;
+  if(p.status_pago){ toast('Esse pagamento já foi pago — desmarque o pago antes','info'); return; }
+  const colab = (typeof getColabPorId==='function' ? getColabPorId(p.profile_id) : null);
+  const quem = colab ? colab.name : (p.nome_manual || 'colaborador');
+  if(!confirm('Tirar a liberação do pagamento de R$ ' + (parseFloat(p.valor)||0).toFixed(2) + ' para ' + quem + '?' +
+      String.fromCharCode(10,10) + (p.descricao||'') + String.fromCharCode(10,10) +
+      'O financeiro deixa de conseguir marcar como pago até alguém liberar de novo.')) return;
+  const { data, error } = await _supa.from('colaborador_pagamentos')
+    .update({ liberado: false, liberado_por: null, liberado_em: null }).eq('id', id).select();
+  if(error || !data || !data.length){ toast('Não consegui tirar a liberação: ' + (error ? error.message : 'sem permissão'),'info'); return; }
+  // comissão antiga guardava o OK dentro do JSON de observações — limpa lá também,
+  // senão _pagLiberado continuaria dizendo que está liberado
+  try {
+    const o = JSON.parse(p.observacoes||'{}');
+    if(o && o.comissao && o.comissao.ok_pagamento){
+      o.comissao.ok_pagamento = false; delete o.comissao.ok_por; delete o.comissao.ok_em;
+      const r = await _supa.from('colaborador_pagamentos').update({observacoes: JSON.stringify(o)}).eq('id', id).select();
+      if(r && !r.error) p.observacoes = JSON.stringify(o);
+    }
+  } catch(e){ /* observacoes em texto livre: nada a limpar */ }
+  p.liberado = false; p.liberado_por = null; p.liberado_em = null;
+  toast('↺ Liberação desfeita — voltou a aguardar o OK','success');
+  renderPagamentos(document.getElementById('content'));
+}
+if(typeof window !== 'undefined'){ window.pagamentoDesfazerLiberacao = pagamentoDesfazerLiberacao; }
 
 // Mantido pelo nome antigo (comissões) — mesmo duplo check
 
