@@ -114,6 +114,10 @@ module.exports = async (req, res) => {
     form.append('model', MODELO);
     form.append('language', 'pt');
     form.append('response_format', 'json');
+    // Nomes da equipe viram "prompt" do Whisper: ele passa a transcrever os
+    // nomes próprios certos (Heidy, Haisa...) em vez de chutar foneticamente.
+    const nomes = (req.headers['x-nomes'] || '').toString().replace(/[^ -~]/g, '').slice(0, 200).trim();
+    if (nomes) form.append('prompt', 'Feedback interno da equipe Impulse. Nomes: ' + nomes + '.');
 
     const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
