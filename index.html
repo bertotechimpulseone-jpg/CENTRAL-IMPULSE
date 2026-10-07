@@ -1238,6 +1238,7 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
 .check-body{flex:1;min-width:0}
 .check-title{font-size:13px;font-weight:500;line-height:1.35}
 .check-meta{display:flex;gap:10px;align-items:center;margin-top:6px;font-size:11px;color:var(--text-3);flex-wrap:wrap}
+.check-registro{color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:99px;padding:1px 8px;font-weight:600}
 
 /* Team profile */
 .profile-head{
@@ -3405,7 +3406,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.75 · Registro de autoria: checklist mostra quem marcou e quando; histórico do calendário destaca o autor</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.76 · Checklist mostra em cada item quem adicionou e quando (➕ nome · data hora), visível, não só no hover</div>
   </aside>
 
   <div class="main">
@@ -4441,7 +4442,8 @@ async function loadDataFromSupabase(){
             done: t.done||false,
             done_at: t.done_at||null,
             concluido_por: t.concluido_por||null,
-            criado_por: t.criado_por||null
+            criado_por: t.criado_por||null,
+            created_at: t.created_at||null
           });
         }
       });
@@ -14816,7 +14818,7 @@ function renderChecklistView(){
           // "quem": nome como foi gravado; se veio e-mail (do gatilho), mostra só o começo
           const _soNome = (v) => { v = (v||'').trim(); if(!v) return ''; return v.indexOf('@')>=0 ? v.split('@')[0] : v; };
           const renderItem = (t) => `
-            <div class="check-item ${t.done?'done':''}" onclick="openEditarTarefaModal('${currentCollab}',${t._origIdx})" title="${t.criado_por?('Criada por '+escapeHtml(_soNome(t.criado_por))+'. '):''}Clique pra editar" style="cursor:pointer">
+            <div class="check-item ${t.done?'done':''}" onclick="openEditarTarefaModal('${currentCollab}',${t._origIdx})" title="Clique pra editar" style="cursor:pointer">
               <div class="check-box ${t.done?'checked':''}" onclick="event.stopPropagation();toggleCheck('${currentCollab}',${t._origIdx})"></div>
               <div class="check-body">
                 <div class="check-title">${t.fixa?'<span title="Tarefa fixa" style="color:var(--accent);font-weight:800;margin-right:5px">🔁</span>':''}${escapeHtml(t.t||'')}</div>
@@ -14824,6 +14826,7 @@ function renderChecklistView(){
                   ${prioBadge(t.p)}
                   <span>🕐 ${t.time||'—'}</span>
                   <span>📌 ${escapeHtml(t.client||'—')}</span>
+                  ${(t.criado_por||t.created_at) ? `<span class="check-registro" title="Quem adicionou e quando">➕ ${t.criado_por?escapeHtml(_soNome(t.criado_por)):'—'}${t.created_at?' · '+fmtDataHora(t.created_at):''}</span>` : ''}
                   ${t.done && t.done_at ? `<span style="color:var(--success-text);font-weight:600">✓ ${t.concluido_por?escapeHtml(_soNome(t.concluido_por))+' · ':''}${fmtDataHora(t.done_at)}</span>` : ''}
                 </div>
               </div>
