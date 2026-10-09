@@ -9694,7 +9694,14 @@ function _placarPontosMes(ano, mes){
     const fn = (m.name||'').trim().split(/\s+/)[0];
     const minhas  = tasks.filter(t => t.is_daily && t.assigned_to === m._dbId && _placarMesDaTarefa(t) === chaveMes);
     const feitas  = minhas.filter(t => t.done);
-    const comData = feitas.filter(t => t.due_date && t.done_at);
+    // Pontualidade só vale pra tarefa que tinha prazo REAL: criada até a data combinada.
+    // Tarefa lançada DEPOIS do próprio prazo é registro retroativo de trabalho já feito
+    // (a pessoa anota em lote o que fez) — nunca houve janela pra "entregar no prazo".
+    // Fica fora do bloco, nem a favor nem contra, igual a quem não tem data combinada.
+    // Sem isso, quem lança em tempo real parece pontual e quem lança em lote parece
+    // sempre atrasado, fazendo o mesmo trabalho.
+    const comData = feitas.filter(t => t.due_date && t.done_at
+      && _placarDiaLocal(t.created_at) <= String(t.due_date).slice(0,10));
     const noPrazo = comData.filter(t => _placarDiaLocal(t.done_at) <= String(t.due_date).slice(0,10));
 
     const entrega = minhas.length  ? Math.round(feitas.length  / minhas.length  * 100) : null;
