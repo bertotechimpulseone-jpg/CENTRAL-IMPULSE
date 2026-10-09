@@ -9671,6 +9671,11 @@ function renderCaptacoesPrazoCard(){
 // porque amostra pequena vira injustiça nos dois sentidos.
 const _PLACAR_GRAD = 'linear-gradient(90deg,#FF2E9A,#7C5CFF,#2FE3E3)';   // degradê da marca
 const _PLACAR_MIN_TAREFAS = 5;
+// Peso da dificuldade no bloco de Complexidade (0 a 100). Quem faz tarefa mais
+// difícil pontua mais nesse bloco. A dificuldade é calibrada pela GESTÃO ao criar/
+// editar a tarefa (se cada um marcasse a própria, todos virariam "complexa").
+// Edite estes três números pra calibrar o peso. 'normal' é o padrão de toda tarefa.
+const _PLACAR_PESO_COMPLEX = { rapida: 40, normal: 70, complexa: 100 };
 
 // Data no fuso de casa. done_at vem em UTC: quem fecha às 22h vira "amanhã" se
 // a gente cortar a string crua, e a entrega no dia viraria atraso.
@@ -9711,9 +9716,15 @@ function _placarPontosMes(ano, mes){
       .filter(f => f.score>0 && f.date && new Date(f.date+'T12:00:00')>=ini && new Date(f.date+'T12:00:00')<fim);
     const qualidade = fbs.length ? Math.round(fbs.reduce((s,f)=>s+f.score,0)/fbs.length*10) : null;
 
-    const blocos = [entrega, prazo, qualidade].filter(v => v !== null);
+    // Complexidade = média da dificuldade das tarefas ENTREGUES (só conta o que foi feito).
+    // Rende mais quem entrega tarefa difícil; quem só faz tarefa fácil pontua menos aqui.
+    // Mede a dificuldade TÍPICA, não o volume — não reabre o "quem fez mais tarefa ganha".
+    const pesos = feitas.map(t => _PLACAR_PESO_COMPLEX[t.complexidade] != null ? _PLACAR_PESO_COMPLEX[t.complexidade] : _PLACAR_PESO_COMPLEX.normal);
+    const complexidade = pesos.length ? Math.round(pesos.reduce((a,b)=>a+b,0)/pesos.length) : null;
+
+    const blocos = [entrega, prazo, qualidade, complexidade].filter(v => v !== null);
     const pts = blocos.length ? Math.round(blocos.reduce((a,b)=>a+b,0)/blocos.length) : 0;
-    return { m, nome:m.name, fn, pts, entrega, prazo, qualidade,
+    return { m, nome:m.name, fn, pts, entrega, prazo, qualidade, complexidade,
              chk: feitas.length, atrib: minhas.length, noPrazo: noPrazo.length, comData: comData.length };
   })
   .filter(r => !ocult.includes(r.fn))
@@ -9787,6 +9798,80 @@ function _placarAbrirAcumulado(){
     </div>`;
   document.body.appendChild(ov);
 }
+
+// ===== CALIBRAR DIFICULDADE (só gestão) =====
+// A dificuldade pesa no placar, mas quem faz a tarefa loga tudo como "normal".
+// Aqui a gestão reclassifica rápido as tarefas ENTREGUES no mês, por pessoa.
+// Salva na hora em tasks.complexidade e redesenha o placar.
+const _PLACAR_NIVEIS = [['rapida','🟢 Rápida'],['normal','🟡 Normal'],['complexa','🔴 Complexa']];
+async function _placarSetComplex(taskId, nivel){
+  if(typeof isAdmin==='function' && !isAdmin()) return;
+  const t = (window._tasksRaw||[]).find(x => x.id === taskId);
+  const antes = t ? t.complexidade : null;
+  if(t) t.complexidade = nivel;                                  // otimista: UI responde na hora
+  try {
+    const { error } = await _supa.from('tasks').update({ complexidade: nivel }).eq('id', taskId);
+    if(error) throw error;
+  } catch(e){ if(t) t.complexidade = antes; toast('Não salvou: '+(e.message||e),'info'); }
+  _placarCalibrarPinta();                                        // atualiza os botões do modal
+  const cont = document.getElementById('content');              // e o placar embaixo
+  if(cont && typeof renderPlacarDashboard==='function'){ const ph=document.getElementById('placarDashHost'); if(ph) ph.innerHTML = renderPlacarDashboard(); }
+}
+function _placarCalibrarPinta(){
+  document.querySelectorAll('#placarCalibModal [data-tk]').forEach(row => {
+    const id = row.getAttribute('data-tk');
+    const t = (window._tasksRaw||[]).find(x => String(x.id) === String(id));
+    const atual = (t && t.complexidade) || 'normal';
+    row.querySelectorAll('[data-nivel]').forEach(b => {
+      const on = b.getAttribute('data-nivel') === atual;
+      b.style.background = on ? 'var(--surface-2)' : 'transparent';
+      b.style.borderColor = on ? 'var(--primary)' : 'var(--border)';
+      b.style.opacity = on ? '1' : '.55';
+      b.style.fontWeight = on ? '700' : '500';
+    });
+  });
+}
+function _placarCalibrarAbrir(){
+  if(typeof isAdmin==='function' && !isAdmin()){ toast('Apenas administradores','info'); return; }
+  const h = new Date(); const chaveMes = h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0');
+  const tasks = (window._tasksRaw||[]).filter(t => t.is_daily && t.done && _placarMesDaTarefa(t)===chaveMes);
+  // agrupa por responsável, na ordem do time
+  const porPessoa = {};
+  tasks.forEach(t => { (porPessoa[t.assigned_to] = porPessoa[t.assigned_to]||[]).push(t); });
+  const nomeDe = (id) => { const m=(team||[]).find(x=>x._dbId===id); return m ? m.name : 'Sem responsável'; };
+  const grupos = Object.keys(porPessoa)
+    .map(id => ({ id, nome: nomeDe(id), itens: porPessoa[id] }))
+    .sort((a,b)=> a.nome.localeCompare(b.nome));
+  const nomeMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][h.getMonth()];
+  let ov=document.getElementById('placarCalibModal'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='placarCalibModal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px';
+  ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
+  const btnNivel = (t,nv,lbl) => `<button data-nivel="${nv}" onclick="_placarSetComplex('${t.id}','${nv}')" style="flex:1;padding:6px 4px;font-size:11px;border:1px solid var(--border);background:transparent;border-radius:8px;cursor:pointer;white-space:nowrap">${lbl}</button>`;
+  ov.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:620px;width:100%;max-height:88dvh;overflow:auto;box-shadow:var(--shadow)">
+      <div style="padding:16px 20px;background:${_PLACAR_GRAD};color:#fff;display:flex;justify-content:space-between;align-items:center;gap:10px;position:sticky;top:0">
+        <div><div style="font-size:17px;font-weight:800">⚖ Calibrar dificuldade · ${nomeMes}</div><div style="font-size:12px;opacity:.92;margin-top:2px">você define o peso de cada tarefa no placar · salva na hora</div></div>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.2);border:none;color:#fff" onclick="document.getElementById('placarCalibModal')?.remove()">✕</button>
+      </div>
+      <div style="padding:14px 18px">
+        ${grupos.length ? grupos.map(g => `
+          <div style="margin-bottom:16px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px;color:var(--text-2)">${escapeHtml(g.nome)} <span class="text-3" style="font-weight:400">· ${g.itens.length} entregue${g.itens.length!==1?'s':''}</span></div>
+            ${g.itens.map(t => `
+              <div data-tk="${t.id}" style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
+                <div style="flex:1;min-width:0;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${escapeHtml(t.title||'')}">${escapeHtml(t.title||'(sem título)')}</div>
+                <div style="display:flex;gap:4px;flex-shrink:0;width:230px">${_PLACAR_NIVEIS.map(n=>btnNivel(t,n[0],n[1])).join('')}</div>
+              </div>`).join('')}
+          </div>`).join('') : '<div style="color:var(--text-3);text-align:center;padding:24px">Nenhuma tarefa entregue neste mês ainda.</div>'}
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+  _placarCalibrarPinta();
+}
+window._placarCalibrarAbrir = _placarCalibrarAbrir;
+window._placarSetComplex = _placarSetComplex;
+
 // Popup do TOP 3 — aparece no ÚLTIMO dia do mês, uma vez, antes de usar o sistema
 function _placarPopupTop3SeUltimoDia(){
   try {
@@ -9857,7 +9942,8 @@ function renderPlacarDashboard(){
     <div class="card" style="margin-bottom:14px">
       <div class="card-header">
         <div class="card-title">🏆 Placar do mês · ${nomeMes}</div>
-        <span class="text-xs text-3" title="Entrega, prazo e qualidade, cada um de 0 a 100. O índice é a média deles." style="cursor:help">entrega · prazo · qualidade</span>
+        <span class="text-xs text-3" title="Entrega, prazo, qualidade e complexidade, cada um de 0 a 100. O índice é a média dos que existem." style="cursor:help">entrega · prazo · qualidade · dificuldade</span>
+        ${ehAdm ? `<span class="card-link" onclick="_placarCalibrarAbrir()">⚖ Calibrar dificuldade</span>` : ''}
         ${ehAdm ? `<span class="card-link" onclick="_placarAbrirAcumulado()">Acumulado →</span>` : ''}
       </div>
       ${rows.length ? rows.map((r,i)=>{
@@ -10246,7 +10332,7 @@ function renderDashboard(c){
         ${statCard('Checklists pendentes', String(checklistsPendentes.length), 'colaboradores', 'M9 11l3 3L22 4', '', '', 'abrirListaDashboard(\'checklists\')')}
       </div>
 
-      ${typeof renderPlacarDashboard==='function'?renderPlacarDashboard():''}
+      <div id="placarDashHost">${typeof renderPlacarDashboard==='function'?renderPlacarDashboard():''}</div>
 
       <!-- Linha 1: Calendário (esquerda) + Aniversariantes + Lembretes (direita) -->
       <div class="grid-2e">
@@ -28972,6 +29058,7 @@ function openNovaTarefaModal(opts){
         </div>
         <div style="grid-column:span 2"><div class="info-label" style="margin-bottom:5px">Cliente <span class="text-xs text-3" style="font-weight:400;text-transform:none;letter-spacing:0">· a tarefa aparece na aba Tarefas do cadastro dele</span></div><select id="ntkCli" class="login-input" style="background:var(--surface-2)"><option value="">Geral / Interno (sem cliente)</option>${sortAlfa(clients, 'name').map(c=>`<option value="${c._dbId}" ${opts.preset_client===c._dbId?'selected':''}>${escapeHtml(_nomeCli ? _nomeCli(c) : c.name)}</option>`).join('')}</select></div>
         <div><div class="info-label" style="margin-bottom:5px">Prioridade</div><select id="ntkPrio" class="login-input" style="background:var(--surface-2)"><option value="urgent">🔴 Urgente</option><option value="high">🟠 Alta</option><option value="med" selected>🔵 Média</option><option value="low">⚪ Baixa</option></select></div>
+        <div><div class="info-label" style="margin-bottom:5px">Dificuldade <span class="text-3" style="font-weight:400" title="Pesa no placar do mês. Calibrada pela gestão, não por quem faz a tarefa.">· placar</span></div><select id="ntkComplex" class="login-input" style="background:var(--surface-2)"><option value="rapida">🟢 Rápida</option><option value="normal" selected>🟡 Normal</option><option value="complexa">🔴 Complexa</option></select></div>
         <div><div class="info-label" style="margin-bottom:5px">Status</div><select id="ntkStatus" class="login-input" style="background:var(--surface-2)"><option value="todo" ${presetStatus==='todo'?'selected':''}>📋 A fazer</option><option value="doing" ${presetStatus==='doing'?'selected':''}>🎬 Em andamento</option><option value="review" ${presetStatus==='review'?'selected':''}>👁 Em revisão</option><option value="done" ${presetStatus==='done'?'selected':''}>✅ Concluída</option></select></div>
         <div><div class="info-label" style="margin-bottom:5px">Horário</div><input id="ntkTime" class="login-input" type="time" value="09:00" style="background:var(--surface-2)" /></div>
         <div><div class="info-label" style="margin-bottom:5px">Data</div><input id="ntkDate" class="login-input" type="date" value="${hojeBrasiliaStr()}" style="background:var(--surface-2)" /></div>
@@ -29003,6 +29090,7 @@ async function salvarNovaTarefa(){
   const data = {
     title, assigned_to: assId, client_id: cliId,
     priority: document.getElementById('ntkPrio').value,
+    complexidade: document.getElementById('ntkComplex')?.value || 'normal',
     scheduled_time: document.getElementById('ntkTime').value,
     due_date: document.getElementById('ntkDate').value,
     tag, status,
