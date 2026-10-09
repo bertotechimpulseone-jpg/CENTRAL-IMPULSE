@@ -1341,14 +1341,19 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   color:var(--text);transition:.15s;flex-shrink:0;
   -webkit-tap-highlight-color:transparent;touch-action:manipulation;
 }
+/* Menu: botão com contorno visível, pra ler como "abre o menu" */
+.mobile-menu-btn{border-color:var(--border-strong);background:var(--surface-2)}
+/* Voltar: pílula com rótulo, inconfundível. Só aparece quando há pra onde voltar. */
 .mobile-back-btn{
-  display:none;width:44px;height:44px;border-radius:10px;
-  background:transparent;border:1px solid transparent;
+  display:none;height:40px;padding:0 14px 0 11px;gap:5px;border-radius:999px;
+  background:var(--accent);border:none;
   align-items:center;justify-content:center;cursor:pointer;
-  color:var(--text);transition:.15s;flex-shrink:0;
-  -webkit-tap-highlight-color:transparent;touch-action:manipulation;
+  color:#fff;font:700 13.5px 'Sora',sans-serif;transition:.15s;flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation;box-shadow:0 4px 14px rgba(236,30,121,.4);
 }
-.mobile-menu-btn:active{background:var(--surface-3);transform:scale(.94)}
+.mobile-back-btn svg{width:18px;height:18px;pointer-events:none}
+.mobile-back-btn:active{transform:scale(.95)}
+.mobile-menu-btn:active,.mobile-refresh-btn:active{background:var(--surface-3);transform:scale(.94)}
 .mobile-menu-btn svg{width:22px;height:22px;pointer-events:none}
 .mobile-brand{display:none;align-items:center;gap:8px;flex-shrink:0;pointer-events:none}
 .mobile-brand .brand-logo{width:30px;height:30px;font-size:11px;border-radius:7px}
@@ -1391,8 +1396,10 @@ tr.precif-arrastando .precif-alca{color:var(--accent);cursor:grabbing}
   }
 
   .mobile-menu-btn{display:inline-flex}
-  .mobile-refresh-btn{display:inline-flex}
-  .refresh-desktop{display:none}
+  /* Atualizar vai pro grupo da direita (perto do sino), pra esquerda ficar só
+     com Menu e Voltar — os dois controles de navegação, sem competir. */
+  .mobile-refresh-btn{display:none!important}
+  .refresh-desktop{display:inline-flex}
   .mobile-brand{display:flex}
   .sidebar-close{display:inline-flex}
 
@@ -3406,7 +3413,7 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
       </button>
     </div>
-    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.77 · "O que mudou" do calendário mostra quem alterou, dia e hora (padrão em todos os calendários)</div>
+    <div class="ver-tag" title="Versão do sistema" style="text-align:center;border-top:1px solid var(--border);font-family:monospace">v4.78 · Celular: botão "Voltar" claro (pílula rosa), topo menos amontoado, e menos travamento (observer com freio)</div>
   </aside>
 
   <div class="main">
@@ -3415,7 +3422,8 @@ input:focus,select:focus,textarea:focus,.login-input:focus{outline:none;border-c
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <button class="mobile-back-btn" id="mobileBackBtn" onclick="voltarPagina()" aria-label="Voltar" type="button" style="display:none">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        <span class="mb-back-txt">Voltar</span>
       </button>
       <button class="mobile-refresh-btn" id="mobileRefreshBtn" onclick="atualizarPaginaAtual()" aria-label="Atualizar" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/></svg>
@@ -3835,6 +3843,13 @@ async function loadCustomLinks(){
 }
 
 function applyCustomLinks(){
+  // Sem nenhum link customizado configurado não há o que marcar: evita um
+  // querySelectorAll no documento inteiro a cada redesenho (dreno no celular).
+  if(!_customLinks || !Object.keys(_customLinks).length){
+    const marcados = document.querySelectorAll('[data-has-link]');
+    if(marcados.length) marcados.forEach(function(el){ delete el.dataset.hasLink; if(el.title) el.title = el.title.replace(/ · 🔗 .*$/, ''); });
+    return;
+  }
   // Marca elementos que tem link customizado
   document.querySelectorAll('[data-link-key]').forEach(el => {
     const key = el.dataset.linkKey;
@@ -4047,8 +4062,15 @@ document.addEventListener('click', e => {
   }
 }, true); // capture mode pra rodar antes de outros handlers
 
-// Re-aplicar links a cada renderizacao (observer)
-const _renderObs = new MutationObserver(() => applyCustomLinks());
+// Re-aplicar links a cada renderizacao — com FREIO: um render grande dispara
+// centenas de mutações; sem debounce, applyCustomLinks (um querySelectorAll no
+// doc todo) rodava centenas de vezes seguidas e travava o celular. Agora roda
+// uma vez só, quando as mutações assentam.
+let _renderObsTimer = null;
+const _renderObs = new MutationObserver(() => {
+  if(_renderObsTimer) return;                // já agendado: coalesce
+  _renderObsTimer = setTimeout(function(){ _renderObsTimer = null; try{ applyCustomLinks(); }catch(e){} }, 250);
+});
 setTimeout(() => {
   const cEl = document.getElementById('content');
   if(cEl) _renderObs.observe(cEl, {childList: true, subtree: true});
