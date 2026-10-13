@@ -39204,6 +39204,19 @@ function _calListaHTML(cals, cli){
     const linksMesHTML = _mesesCal.length>1
       ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center"><span class="text-xs text-3" style="font-weight:600">🔗 Link por mês:</span>${_mesesCal.map(mm=>`<button class="btn btn-sm" type="button" onclick="copiarLinkCalendarioMes('${cal.token}',${_yyCal*100+mm})" title="Copiar o link que abre direto em ${_AM[mm]}">${_AM[mm]}</button>`).join('')}</div>`
       : '';
+    // Meses que o cliente enxerga no link. Ocultar um mês antigo tira ele da navegação
+    // do cliente (o conteúdo continua no banco, dá pra reexibir a qualquer momento).
+    const _mesKeysCal=[...new Set((cal.posts||[]).map(p=>{const m=String(p.data||'').match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/);if(!m)return 0;let a=m[3]?parseInt(m[3],10):_yyCal;if(a<100)a+=2000;return a*100+parseInt(m[2],10);}).filter(Boolean))].sort((a,b)=>a-b);
+    const _ocultos=Array.isArray(cal.meses_ocultos)?cal.meses_ocultos.map(Number):[];
+    const _nOcul=_mesKeysCal.filter(k=>_ocultos.indexOf(k)!==-1).length;
+    const visMesHTML = _mesKeysCal.length
+      ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center">
+          <span class="text-xs text-3" style="font-weight:600" title="Clique num mês pra ocultar do cliente. Fica guardado, dá pra reexibir.">👁 Cliente vê:</span>
+          ${_mesKeysCal.map(k=>{const oc=_ocultos.indexOf(k)!==-1;const nome=_AM[k%100]+'/'+String(Math.floor(k/100)).slice(2);
+            return `<button class="btn btn-sm" type="button" onclick="_calToggleMesOculto('${cal.id}',${k})" title="${oc?'Oculto do cliente. Clique pra mostrar de novo.':'Visível pro cliente. Clique pra ocultar.'}" style="${oc?'opacity:.5;text-decoration:line-through;border-style:dashed':''}">${oc?'🚫':'👁'} ${nome}</button>`;}).join('')}
+          ${_nOcul?`<span class="text-xs" style="color:var(--text-3)">· ${_nOcul} oculto${_nOcul>1?'s':''} do cliente</span>`:''}
+        </div>`
+      : '';
     return `<div class="card" style="margin-bottom:10px;padding:14px 16px">
       <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
         <div style="flex:1;min-width:180px">
@@ -39225,12 +39238,38 @@ function _calListaHTML(cals, cli){
         ${c.editados?`<span class="badge b-default" title="O cliente editou o texto">✏️ ${c.editados} editados</span>`:''}
       </div>
       ${linksMesHTML}
+      ${visMesHTML}
       <div style="height:6px;border-radius:99px;background:var(--surface-2);margin-top:10px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:var(--success);transition:width .4s"></div>
       </div>
     </div>`;
   }).join('');
 }
+
+// Ocultar / reexibir um mês do calendário para o CLIENTE. O mês sai da navegação
+// do link público (o cliente não abre mais), mas o conteúdo continua no banco e
+// na visão da equipe — é só esconder, nunca apagar. Mesmo padrão dos "ocultos".
+async function _calToggleMesOculto(calId, mesKey){
+  mesKey = Number(mesKey);
+  let cal = (typeof _calendarios!=='undefined'?_calendarios:[]).find(c=>c.id===calId);
+  if(!cal){ try{ const {data}=await _supa.from('calendarios').select('*').eq('id',calId).maybeSingle(); cal=data; }catch(e){} }
+  if(!cal){ toast('Calendário não encontrado.','info'); return; }
+  let oc = Array.isArray(cal.meses_ocultos)?cal.meses_ocultos.map(Number):[];
+  const tava = oc.indexOf(mesKey)!==-1;
+  oc = tava ? oc.filter(k=>k!==mesKey) : oc.concat(mesKey);
+  cal.meses_ocultos = oc;                         // otimista: a lista repinta já
+  try {
+    const { error } = await _supa.from('calendarios').update({ meses_ocultos: oc }).eq('id', calId);
+    if(error) throw error;
+    toast(tava?'Mês liberado pro cliente de novo':'Mês oculto do cliente','success');
+  } catch(e){ cal.meses_ocultos = tava ? oc.concat(mesKey) : oc.filter(k=>k!==mesKey); toast('Não salvou: '+(e.message||e),'info'); }
+  // Repinta onde a lista estiver aberta (modal do cliente OU aba de calendários)
+  const cli = (typeof clients!=='undefined') ? (clients.find(x=>x._dbId===cal.cliente_id) || clients.find(x=>x.id===cal.cliente_id)) : null;
+  const box = document.getElementById('calClienteLista');
+  if(box && cli && typeof _calListaHTML==='function'){ box.innerHTML = _calListaHTML(_calendarios, cli); }
+  else if(typeof renderCalendariosClientes==='function' && document.getElementById('content')){ try{ renderCalendariosClientes(document.getElementById('content')); }catch(e){} }
+}
+if(typeof window!=='undefined'){ window._calToggleMesOculto = _calToggleMesOculto; }
 
 // Abre o calendário do mês numa aba nova, exatamente como o cliente enxerga
 function abrirCalendarioVisual(token){
@@ -40739,7 +40778,13 @@ async function renderPublicAprovarCalendario(token){
     const kHoje = h.getFullYear()*100 + (h.getMonth()+1);
     const ini = kHoje >= INICIO ? new Date(h.getFullYear(), h.getMonth(), 1) : new Date(Math.floor(INICIO/100), (INICIO%100)-1, 1);
     for(let n=0; n<12; n++){ const d = new Date(ini.getFullYear(), ini.getMonth()+n, 1); st.add(d.getFullYear()*100 + (d.getMonth()+1)); }
-    return [...st].filter(k=>k && k >= INICIO).sort((a,b)=>a-b);
+    let arr = [...st].filter(k=>k && k >= INICIO).sort((a,b)=>a-b);
+    // Meses que a equipe ocultou: o cliente não navega mais pra eles (o conteúdo
+    // segue no banco, só some da visão dele). Se por acaso ocultar TUDO, não deixo
+    // o link vazio — mantenho os meses como estavam.
+    const oc = (window._calPublico && Array.isArray(window._calPublico.meses_ocultos)) ? window._calPublico.meses_ocultos.map(Number) : [];
+    if(oc.length){ const vis = arr.filter(k => oc.indexOf(k) === -1); if(vis.length) arr = vis; }
+    return arr;
   }
 
   /* ===== Histórico na tela do cliente =====
