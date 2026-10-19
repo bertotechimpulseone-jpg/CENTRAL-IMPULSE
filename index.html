@@ -6943,6 +6943,8 @@ function canAccess(pageId){
   // Desabafo (feedback anônimo) e Dúvidas são universais: todos os autenticados acessam
   if(pageId === 'desabafo') return true;
   if(pageId === 'duvidas') return true;
+  // Painel Comercial: mesma porta do Comercial (quem vê o pipeline, vê o painel)
+  if(pageId === 'painel') return canAccess('comercial');
   // Atalhos: só a administração. Os links levam direto pra abas restritas.
   if(pageId === 'atalhos') return (typeof isAdmin === 'function') ? isAdmin() : false;
   if(pageId === 'melhorias') return _melhoriasTemAcesso();
@@ -7943,7 +7945,7 @@ const _RAIL = [
   { id:'op',  nome:'Operacional', ico:'<path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/>',
     itens:['clientes','briefings','calendarios','calendario','solicitacoes','captacao','cronograma','operacional','relatorios','reunioes','fluxo','trafego','materiais','duvidas'] },
   { id:'com', nome:'Comercial',   ico:'<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>',
-    itens:['comercial','relacionamento','parcerias'] },
+    itens:['painel','comercial','relacionamento','parcerias'] },
   { id:'int', nome:'Interna',     ico:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/>',
     itens:['i3','equipe','feedback','desabafo','melhorias','atalhos','patrimonio','pesquisa','desligamento','pagamentos','financeiro','usuarios','acessos','config'] }
 ];
@@ -7960,6 +7962,7 @@ const navItems = [
     {id:'parcerias',label:'Parcerias',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m22 11-3-3-3 3"/><path d="M19 8v10"/>'},
     {id:'relatorios',label:'Relatórios',icon:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/>'},
     {id:'reunioes',label:'Reuniões',icon:'<rect x="2" y="6" width="13" height="12" rx="2"/><path d="M15 10.5l5-2.6a1 1 0 0 1 1.5.9v6.4a1 1 0 0 1-1.5.9l-5-2.6z"/>'},
+    {id:'painel',label:'Painel Comercial',icon:'<path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="6" rx="1"/><rect x="12" y="8" width="3" height="9" rx="1"/><rect x="17" y="5" width="3" height="12" rx="1"/>'},
     {id:'comercial',label:'Comercial',icon:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'},
     {id:'solicitacoes',label:'Solicitações',icon:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'},
     {id:'captacao',label:'Captação',icon:'<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>',badge:'3'},
@@ -9206,7 +9209,7 @@ function renderPage(page){
     operacional:renderOperacional,calendario:renderCalendario,conteudo:renderConteudo,trafego:renderTrafegoPago,relacionamento:renderRelacionamento,parcerias:renderParcerias,i3:renderI3,
     reunioes:renderReunioes,equipe:renderEquipe,automacao:renderAutomacao,
     arquivos:renderArquivos,config:renderConfig,
-    captacao:renderCaptacao,comercial:renderComercial,
+    captacao:renderCaptacao,comercial:renderComercial,painel:renderPainel,
     cronograma:renderCronograma,
     fluxo:renderFluxo,
     usuarios:renderUsuarios,
@@ -19967,6 +19970,296 @@ async function _funisSalvar(cfg){
 }
 function _funilEtapas(f){ const c=_funis()[f]; return (c && c.etapas) || []; }
 function _funilLabel(f){ const c=_funis()[f]; return (c && c.label) || f; }
+
+// ====================== PAINEL COMERCIAL ======================
+// Dashboard do comercial ligado a dados REAIS: leads, orçamentos (budgets) e o
+// funil configurável. KPIs, funil com conversão, oportunidades que pedem ação
+// (próxima ação/prazo editáveis direto no lead) e duas listas semanais que a
+// equipe preenche (tabela painel_acoes). Métricas sem fonte real no sistema
+// (reuniões realizadas, origem do lead) ficaram DE FORA de propósito — a regra
+// aqui é só dado real, nada de número de enfeite.
+let _painelPeriodo = 'mes';      // 'semana' | 'mes' | 'tudo'
+let _painelResp = '';            // '' = todos | responsible_id
+let _painelDados = null;         // {leads, budgets, acoes, metas}
+const _PAINEL_FUNIL = 'venda';
+const _PAINEL_STATUS = {
+  nao_iniciado:['Não iniciado','var(--text-3)','var(--surface-2)'],
+  em_andamento:['Em andamento','#2563eb','rgba(37,99,235,.14)'],
+  pendente:['Pendente','#d97706','rgba(217,119,6,.15)'],
+  concluido:['Concluído','#16a34a','rgba(22,163,74,.15)']
+};
+function _painelIniPeriodo(){
+  const h = new Date();
+  if(_painelPeriodo==='semana'){ const d=new Date(h); const dow=(d.getDay()+6)%7; d.setDate(d.getDate()-dow); d.setHours(0,0,0,0); return d; }
+  if(_painelPeriodo==='mes'){ return new Date(h.getFullYear(), h.getMonth(), 1); }
+  return new Date(2000,0,1);
+}
+function _painelNoPeriodo(iso){ if(!iso) return false; const d=new Date(iso); return !isNaN(d) && d >= _painelIniPeriodo(); }
+function _painelNome(id){ const m=(typeof team!=='undefined'?team:[]).find(x=>x._dbId===id); return m?m.name:'—'; }
+function _painelIni(m){ const n=String(m||'').trim().split(/\s+/); return (((n[0]||'')[0]||'')+((n[1]||'')[0]||'')).toUpperCase()||'?'; }
+function _painelPerLabel(){ return _painelPeriodo==='semana'?'esta semana':_painelPeriodo==='mes'?'este mês':'no total'; }
+
+async function renderPainel(container){
+  if(!container) return;
+  container.innerHTML = '<div style="padding:46px;text-align:center;color:var(--text-3)">⏳ Carregando o painel…</div>';
+  try {
+    const [lq, bq, aq, mq] = await Promise.all([
+      _supa.from('leads').select('*').limit(1000),
+      _supa.from('budgets').select('id,status,total,created_at,lead_id').order('created_at',{ascending:false}).limit(600),
+      _supa.from('painel_acoes').select('*').order('ordem',{ascending:true}).order('created_at',{ascending:true}),
+      _supa.from('app_settings').select('value').eq('key','painel_metas').maybeSingle()
+    ]);
+    let metas = {leads:30,propostas:20,vendas:8,receita:30000};
+    try { if(mq.data && mq.data.value) metas = Object.assign(metas, JSON.parse(mq.data.value)); } catch(e){}
+    _painelDados = { leads:(lq.data||[]), budgets:(bq.data||[]), acoes:(aq.data||[]), metas };
+  } catch(e){
+    console.error('[painel]', e);
+    container.innerHTML = '<div style="padding:34px;text-align:center;color:var(--text-3)">Não consegui carregar o painel agora. Recarregue a página.</div>';
+    return;
+  }
+  _painelInjetarCSS();
+  _painelPintar(container);
+}
+function _painelInjetarCSS(){
+  if(document.getElementById('painelCSS')) return;
+  const st=document.createElement('style'); st.id='painelCSS';
+  st.textContent = `
+    #painelPage .pnl-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+    #painelPage .pnl-kpi{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px}
+    #painelPage .pnl-kpi .lbl{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--text-2);font-weight:600}
+    #painelPage .pnl-kpi .ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(236,30,121,.12);flex-shrink:0}
+    #painelPage .pnl-kpi .big{font-family:'Sora','Inter',sans-serif;font-size:30px;font-weight:800;letter-spacing:-.03em;margin:7px 0 10px}
+    #painelPage .pnl-kpi .meta{font-size:11px;color:var(--text-3);margin-bottom:5px}
+    #painelPage .pnl-bar{height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+    #painelPage .pnl-bar>div{height:100%;border-radius:99px;background:linear-gradient(90deg,#F97316,#EC1E79 60%,#A23BD6)}
+    #painelPage .pnl-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+    #painelPage .pnl-funil{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+    #painelPage .pnl-step{flex:1;min-width:92px;background:var(--surface-2);border-radius:13px;padding:12px 10px;text-align:center;position:relative}
+    #painelPage .pnl-step.on{background:linear-gradient(160deg,rgba(236,30,121,.16),rgba(162,59,214,.10));border:1px solid rgba(236,30,121,.3)}
+    #painelPage .pnl-step .et{font-size:11px;color:var(--text-2);font-weight:600;min-height:28px;display:flex;align-items:center;justify-content:center}
+    #painelPage .pnl-step .qt{font-family:'Sora',sans-serif;font-size:25px;font-weight:800;margin:3px 0}
+    #painelPage .pnl-step .cv{font-size:10.5px;color:var(--text-3)}
+    #painelPage .pnl-tbl{width:100%;border-collapse:collapse;font-size:13px}
+    #painelPage .pnl-tbl th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);font-weight:700;padding:6px 8px;border-bottom:1px solid var(--border)}
+    #painelPage .pnl-tbl td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle}
+    #painelPage .pnl-tbl input,#painelPage .pnl-tbl select{background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:5px 7px;font-size:12.5px;color:var(--text);width:100%;font-family:inherit}
+    #painelPage .pnl-av{width:26px;height:26px;border-radius:50%;display:inline-grid;place-items:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+    #painelPage .pnl-chip{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700}
+    #painelPage .pnl-seg{display:inline-flex;background:var(--surface-2);border-radius:10px;padding:3px;gap:2px}
+    #painelPage .pnl-seg button{border:none;background:transparent;color:var(--text-2);font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:8px;cursor:pointer}
+    #painelPage .pnl-seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+    @media(max-width:860px){#painelPage .pnl-kpis{grid-template-columns:1fr 1fr}#painelPage .pnl-grid2{grid-template-columns:1fr}}
+  `;
+  document.head.appendChild(st);
+}
+
+function _painelPintar(container){
+  const d = _painelDados; if(!d){ return; }
+  const ehAdm = (typeof isAdmin==='function') && isAdmin();
+  const _resp = _painelResp;
+  const leadDe = (id)=> d.leads.find(l=>l.id===id);
+  const passaResp = (l)=> !_resp || l.responsible_id===_resp;
+  const ativos = d.leads.filter(l=>!l.recusado_em && passaResp(l));
+  // --- KPIs reais ---
+  const leadsNovos = ativos.filter(l=>_painelNoPeriodo(l.created_at)).length;
+  const propostas = d.budgets.filter(b=>{ const l=b.lead_id?leadDe(b.lead_id):null; if(_resp && (!l || l.responsible_id!==_resp)) return false; return _painelNoPeriodo(b.created_at); }).length;
+  const ganhos = ativos.filter(l=>l.aprovado && _painelNoPeriodo(l.valido_em||l.created_at));
+  const vendas = ganhos.length;
+  const receita = ganhos.reduce((s,l)=>s+(Number(l.value)||0),0);
+  const metaBar = (v,m)=> m>0?Math.min(100,Math.round(v/m*100)):0;
+  const kpi = (ico,lbl,val,metaV,metaTxt)=>`
+    <div class="pnl-kpi">
+      <div class="lbl"><span>${lbl}</span><span class="ico">${ico}</span></div>
+      <div class="big">${val}</div>
+      <div class="meta">Meta do mês: ${metaTxt}</div>
+      <div class="pnl-bar"><div style="width:${metaBar(val, metaV)}%"></div></div>
+    </div>`;
+  const kpiReceita = `
+    <div class="pnl-kpi">
+      <div class="lbl"><span>Receita ganha</span><span class="ico">🏆</span></div>
+      <div class="big" style="font-size:24px">${_cartMoeda(receita)}</div>
+      <div class="meta">Meta do mês: ${_cartMoeda(d.metas.receita)}</div>
+      <div class="pnl-bar"><div style="width:${metaBar(receita,d.metas.receita)}%"></div></div>
+    </div>`;
+  const kpisHTML = `
+    ${kpi('👥','Leads novos',leadsNovos,d.metas.leads,d.metas.leads)}
+    ${kpi('📄','Propostas enviadas',propostas,d.metas.propostas,d.metas.propostas)}
+    ${kpi('✅','Vendas fechadas',vendas,d.metas.vendas,d.metas.vendas)}
+    ${kpiReceita}`;
+
+  // --- Funil (cumulativo: quem está numa etapa já passou pelas anteriores) ---
+  const etapas = _funilEtapas(_PAINEL_FUNIL);
+  const noFunil = ativos.filter(l=>l.funil===_PAINEL_FUNIL || (!l.funil && _PAINEL_FUNIL==='venda'));
+  const idxDe = {}; etapas.forEach((e,i)=>idxDe[e.key]=i);
+  const porEtapa = etapas.map(()=>0);
+  noFunil.forEach(l=>{ const i=idxDe[l.stage]; if(i!=null) porEtapa[i]++; });
+  const cumul = etapas.map((_,i)=> porEtapa.slice(i).reduce((a,b)=>a+b,0));
+  const funilHTML = etapas.map((e,i)=>{
+    const qt=cumul[i]; const conv = i===0?100:(cumul[i-1]?Math.round(cumul[i]/cumul[i-1]*100):0);
+    return `<div class="pnl-step${i===0?' on':''}">
+      <div class="et">${escapeHtml(e.label)}</div>
+      <div class="qt">${qt}</div>
+      <div class="cv">${conv}% conversão</div>
+    </div>`;
+  }).join('<div style="align-self:center;color:var(--text-3)">›</div>');
+
+  // --- Oportunidades que pedem ação (leads ativos, fora de 'fechado') ---
+  const hojeStr = new Date().toLocaleDateString('sv-SE');
+  const opp = noFunil.filter(l=>l.stage!=='fechado')
+    .sort((a,b)=>{
+      const pa=a.proxima_acao_prazo||'9999', pb=b.proxima_acao_prazo||'9999';
+      if(pa!==pb) return pa<pb?-1:1;
+      const ord={urgent:0,high:1,med:2,low:3}; return (ord[a.priority]??2)-(ord[b.priority]??2);
+    }).slice(0,10);
+  const oppRows = opp.length ? opp.map(l=>{
+    const nome=_painelNome(l.responsible_id); const cor=(team.find(x=>x._dbId===l.responsible_id)||{}).color||'#888';
+    const et=(etapas.find(e=>e.key===l.stage)||{}).label||l.stage||'—';
+    const atrasada = l.proxima_acao_prazo && l.proxima_acao_prazo < hojeStr;
+    return `<tr>
+      <td style="font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(l.name||l.contact_name||'Lead')}</td>
+      <td><span class="pnl-chip" style="background:rgba(124,92,255,.14);color:#7C5CFF">${escapeHtml(et)}</span></td>
+      <td><span style="display:inline-flex;align-items:center;gap:6px"><span class="pnl-av" style="background:${cor}">${_painelIni(nome)}</span><span style="font-size:12px">${escapeHtml((nome||'').split(' ')[0])}</span></span></td>
+      <td style="min-width:150px"><input value="${escapeHtml(l.proxima_acao||'')}" placeholder="próxima ação…" onchange="_painelSalvarLead('${l.id}','proxima_acao',this.value)"></td>
+      <td style="white-space:nowrap">
+        <input type="date" value="${l.proxima_acao_prazo||''}" onchange="_painelSalvarLead('${l.id}','proxima_acao_prazo',this.value)" style="width:140px">
+        ${atrasada?'<div><span class="pnl-chip" style="background:rgba(225,29,72,.14);color:#e11d48;margin-top:3px">Atrasada</span></div>':''}
+      </td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:18px">Nenhuma oportunidade em aberto neste filtro.</td></tr>';
+
+  // --- Listas semanais que a equipe preenche (painel_acoes) ---
+  const listaTbl = (tipo, titulo, colAcao)=>{
+    const itens = d.acoes.filter(a=>a.tipo===tipo);
+    const rows = itens.length ? itens.map(a=>{
+      const st=_PAINEL_STATUS[a.status]||_PAINEL_STATUS.nao_iniciado;
+      const opts=(typeof team!=='undefined'?team:[]).map(m=>`<option value="${m._dbId}" ${m._dbId===a.responsible_id?'selected':''}>${escapeHtml((m.name||'').split(' ')[0])}</option>`).join('');
+      const stOpts=Object.keys(_PAINEL_STATUS).map(k=>`<option value="${k}" ${k===a.status?'selected':''}>${_PAINEL_STATUS[k][0]}</option>`).join('');
+      return `<tr>
+        <td style="min-width:160px"><input value="${escapeHtml(a.texto||'')}" onchange="_painelSalvarAcao('${a.id}','texto',this.value)"></td>
+        <td><select onchange="_painelSalvarAcao('${a.id}','responsible_id',this.value)"><option value="">—</option>${opts}</select></td>
+        <td><input type="date" value="${a.prazo||''}" onchange="_painelSalvarAcao('${a.id}','prazo',this.value)" style="width:140px"></td>
+        <td><select onchange="_painelSalvarAcao('${a.id}','status',this.value)" style="color:${st[1]}">${stOpts}</select></td>
+        <td style="width:34px"><button class="icon-btn" title="Remover" onclick="_painelDelAcao('${a.id}')" style="color:var(--danger)">✕</button></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:16px">Nada aqui ainda. Clique em “+ Adicionar”.</td></tr>`;
+    return `<div class="card">
+      <div class="card-header" style="margin-bottom:8px"><div class="card-title" style="font-size:15px">${titulo}</div>
+        <button class="btn btn-sm" onclick="_painelAddAcao('${tipo}')">+ Adicionar</button></div>
+      <div style="overflow-x:auto"><table class="pnl-tbl">
+        <thead><tr><th>${colAcao}</th><th>Responsável</th><th>Prazo</th><th>Status</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>
+    </div>`;
+  };
+
+  // --- filtros (período + responsável; origem e produto estão vazios no sistema) ---
+  const respOpts = '<option value="">Todos os responsáveis</option>' + (typeof team!=='undefined'?team:[])
+    .filter(m=>d.leads.some(l=>l.responsible_id===m._dbId))
+    .map(m=>`<option value="${m._dbId}" ${m._dbId===_resp?'selected':''}>${escapeHtml(m.name)}</option>`).join('');
+
+  container.innerHTML = `
+  <div id="painelPage">
+    <div class="page-header" style="margin-bottom:16px">
+      <div>
+        <div class="page-title">Painel Comercial</div>
+        <div class="page-subtitle">Resultados ${_painelPerLabel()} e o que precisa de foco.</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="pnl-seg">
+          <button class="${_painelPeriodo==='semana'?'on':''}" onclick="_painelSetPeriodo('semana')">Semana</button>
+          <button class="${_painelPeriodo==='mes'?'on':''}" onclick="_painelSetPeriodo('mes')">Mês</button>
+          <button class="${_painelPeriodo==='tudo'?'on':''}" onclick="_painelSetPeriodo('tudo')">Tudo</button>
+        </div>
+        <select onchange="_painelSetResp(this.value)" style="background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:7px 10px;color:var(--text);font-size:13px;font-family:inherit">${respOpts}</select>
+        ${ehAdm?`<button class="btn btn-sm" onclick="_painelEditarMetas()" title="Definir as metas do mês">🎯 Metas</button>`:''}
+      </div>
+    </div>
+
+    <div class="pnl-kpis">${kpisHTML}</div>
+
+    <div class="pnl-grid2">
+      <div class="card">
+        <div class="card-header" style="margin-bottom:12px"><div class="card-title">Funil de vendas <span class="text-xs text-3" style="font-weight:400">(${_painelPerLabel()})</span></div></div>
+        <div class="pnl-funil">${funilHTML || '<div class="text-3" style="padding:14px">Sem leads no funil.</div>'}</div>
+      </div>
+      <div class="card">
+        <div class="card-header" style="margin-bottom:8px"><div class="card-title">Oportunidades que pedem ação</div></div>
+        <div style="overflow-x:auto"><table class="pnl-tbl">
+          <thead><tr><th>Lead</th><th>Etapa</th><th>Responsável</th><th>Próxima ação</th><th>Prazo</th></tr></thead>
+          <tbody>${oppRows}</tbody></table></div>
+      </div>
+    </div>
+
+    <div class="pnl-grid2">
+      ${listaTbl('plano','Plano de ação da semana','Ação')}
+      ${listaTbl('pontos','Pontos para segunda-feira','Ponto')}
+    </div>
+  </div>`;
+}
+
+function _painelSetPeriodo(p){ _painelPeriodo=p; _painelPintar(document.getElementById('content')); }
+function _painelSetResp(r){ _painelResp=r; _painelPintar(document.getElementById('content')); }
+
+async function _painelSalvarLead(id, campo, valor){
+  const l=_painelDados && _painelDados.leads.find(x=>x.id===id); if(l) l[campo]= valor||null;
+  try{ const o={}; o[campo]=valor||null; const {error}=await _supa.from('leads').update(o).eq('id',id); if(error) throw error; }
+  catch(e){ toast('Não salvou: '+(e.message||e),'info'); }
+  if(campo==='proxima_acao_prazo') _painelPintar(document.getElementById('content'));   // muda ordenação/atraso
+}
+async function _painelAddAcao(tipo){
+  const ordem=( _painelDados.acoes.filter(a=>a.tipo===tipo).length )+1;
+  const nova={ tipo, texto:'', responsible_id:null, prazo:null, status:'nao_iniciado', ordem, created_by:(typeof _meuEmailApp==='function'?_meuEmailApp():null) };
+  try{
+    const {data,error}=await _supa.from('painel_acoes').insert(nova).select().single();
+    if(error) throw error; _painelDados.acoes.push(data);
+    _painelPintar(document.getElementById('content'));
+  }catch(e){ toast('Não consegui adicionar: '+(e.message||e),'info'); }
+}
+async function _painelSalvarAcao(id, campo, valor){
+  const a=_painelDados.acoes.find(x=>x.id===id); if(a) a[campo]= (campo==='responsible_id'||campo==='prazo')?(valor||null):valor;
+  try{ const o={}; o[campo]=(campo==='responsible_id'||campo==='prazo')?(valor||null):valor; const {error}=await _supa.from('painel_acoes').update(o).eq('id',id); if(error) throw error; }
+  catch(e){ toast('Não salvou: '+(e.message||e),'info'); }
+  if(campo==='status') _painelPintar(document.getElementById('content'));   // atualiza a cor
+}
+async function _painelDelAcao(id){
+  if(!confirm('Remover esta linha?')) return;
+  try{ const {error}=await _supa.from('painel_acoes').delete().eq('id',id); if(error) throw error;
+    _painelDados.acoes=_painelDados.acoes.filter(a=>a.id!==id); _painelPintar(document.getElementById('content'));
+  }catch(e){ toast('Não consegui remover: '+(e.message||e),'info'); }
+}
+function _painelEditarMetas(){
+  if(!(typeof isAdmin==='function'&&isAdmin())){ toast('Apenas administradores','info'); return; }
+  const m=_painelDados.metas;
+  let ov=document.getElementById('painelMetasModal'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='painelMetasModal'; ov.className='modal-bg open';
+  ov.innerHTML=`<div class="modal" style="max-width:380px">
+    <div class="card-header" style="margin-bottom:12px"><div class="card-title">🎯 Metas do mês</div>
+      <button class="icon-btn" onclick="document.getElementById('painelMetasModal').remove()">✕</button></div>
+    <div style="display:grid;gap:10px">
+      <label class="text-xs text-3">Leads novos<input id="mtLeads" type="number" class="login-input" value="${m.leads}" style="background:var(--surface-2);margin-top:3px"></label>
+      <label class="text-xs text-3">Propostas enviadas<input id="mtProp" type="number" class="login-input" value="${m.propostas}" style="background:var(--surface-2);margin-top:3px"></label>
+      <label class="text-xs text-3">Vendas fechadas<input id="mtVend" type="number" class="login-input" value="${m.vendas}" style="background:var(--surface-2);margin-top:3px"></label>
+      <label class="text-xs text-3">Receita (R$)<input id="mtRec" type="number" class="login-input" value="${m.receita}" style="background:var(--surface-2);margin-top:3px"></label>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button class="btn" onclick="document.getElementById('painelMetasModal').remove()">Cancelar</button>
+      <button class="btn btn-primary" onclick="_painelSalvarMetas()">Salvar</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+}
+async function _painelSalvarMetas(){
+  const g=(id)=>Number(document.getElementById(id).value)||0;
+  const metas={leads:g('mtLeads'),propostas:g('mtProp'),vendas:g('mtVend'),receita:g('mtRec')};
+  _painelDados.metas=metas;
+  try{ await _supa.from('app_settings').upsert({key:'painel_metas',value:JSON.stringify(metas),updated_at:new Date().toISOString()},{onConflict:'key'}); }
+  catch(e){ toast('Não salvou as metas: '+(e.message||e),'info'); }
+  const ov=document.getElementById('painelMetasModal'); if(ov) ov.remove();
+  _painelPintar(document.getElementById('content'));
+}
+if(typeof window!=='undefined'){
+  window.renderPainel=renderPainel; window._painelSetPeriodo=_painelSetPeriodo; window._painelSetResp=_painelSetResp;
+  window._painelSalvarLead=_painelSalvarLead; window._painelAddAcao=_painelAddAcao; window._painelSalvarAcao=_painelSalvarAcao;
+  window._painelDelAcao=_painelDelAcao; window._painelEditarMetas=_painelEditarMetas; window._painelSalvarMetas=_painelSalvarMetas;
+}
 
 // ===== Editor de etapas: o Vini muda os passos de qualquer funil =====
 function abrirEditorEtapas(){
