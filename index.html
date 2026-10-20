@@ -19972,16 +19972,17 @@ function _funilEtapas(f){ const c=_funis()[f]; return (c && c.etapas) || []; }
 function _funilLabel(f){ const c=_funis()[f]; return (c && c.label) || f; }
 
 // ====================== PAINEL COMERCIAL ======================
-// Dashboard do comercial ligado a dados REAIS: leads, orçamentos (budgets) e o
-// funil configurável. KPIs, funil com conversão, oportunidades que pedem ação
-// (próxima ação/prazo editáveis direto no lead) e duas listas semanais que a
-// equipe preenche (tabela painel_acoes). Métricas sem fonte real no sistema
-// (reuniões realizadas, origem do lead) ficaram DE FORA de propósito — a regra
-// aqui é só dado real, nada de número de enfeite.
+// Dashboard do comercial ligado a dados REAIS: leads, orçamentos (budgets),
+// reuniões (meetings) e os funis configuráveis. KPIs, funil com conversão (por
+// funil: pré-venda/venda/carteira), oportunidades que pedem ação (etapa, nome e
+// próxima ação editáveis direto; a próxima ação vira TAREFA no checklist do
+// responsável) e duas listas semanais que a equipe preenche (painel_acoes).
+// Origem do lead segue fora dos filtros (campo vazio no banco). Reuniões entrou
+// a pedido da equipe: conta a tabela meetings no período (0 até registrarem).
 let _painelPeriodo = 'mes';      // 'semana' | 'mes' | 'tudo'
 let _painelResp = '';            // '' = todos | responsible_id
-let _painelDados = null;         // {leads, budgets, acoes, metas}
-const _PAINEL_FUNIL = 'venda';
+let _painelFunil = 'venda';      // 'prevenda' | 'venda' | 'carteira'
+let _painelDados = null;         // {leads, budgets, acoes, metas, meetings}
 const _PAINEL_STATUS = {
   nao_iniciado:['Não iniciado','var(--text-3)','var(--surface-2)'],
   em_andamento:['Em andamento','#2563eb','rgba(37,99,235,.14)'],
@@ -20003,15 +20004,16 @@ async function renderPainel(container){
   if(!container) return;
   container.innerHTML = '<div style="padding:46px;text-align:center;color:var(--text-3)">⏳ Carregando o painel…</div>';
   try {
-    const [lq, bq, aq, mq] = await Promise.all([
+    const [lq, bq, aq, mq, rq] = await Promise.all([
       _supa.from('leads').select('*').limit(1000),
       _supa.from('budgets').select('id,status,total,created_at,lead_id').order('created_at',{ascending:false}).limit(600),
       _supa.from('painel_acoes').select('*').order('ordem',{ascending:true}).order('created_at',{ascending:true}),
-      _supa.from('app_settings').select('value').eq('key','painel_metas').maybeSingle()
+      _supa.from('app_settings').select('value').eq('key','painel_metas').maybeSingle(),
+      _supa.from('meetings').select('id,scheduled_at,done,type').limit(1000)
     ]);
-    let metas = {leads:30,propostas:20,vendas:8,receita:30000};
+    let metas = {leads:30,reunioes:12,propostas:20,vendas:8,receita:30000};
     try { if(mq.data && mq.data.value) metas = Object.assign(metas, JSON.parse(mq.data.value)); } catch(e){}
-    _painelDados = { leads:(lq.data||[]), budgets:(bq.data||[]), acoes:(aq.data||[]), metas };
+    _painelDados = { leads:(lq.data||[]), budgets:(bq.data||[]), acoes:(aq.data||[]), metas, meetings:((rq&&rq.data)||[]) };
   } catch(e){
     console.error('[painel]', e);
     container.innerHTML = '<div style="padding:34px;text-align:center;color:var(--text-3)">Não consegui carregar o painel agora. Recarregue a página.</div>';
@@ -20024,7 +20026,10 @@ function _painelInjetarCSS(){
   if(document.getElementById('painelCSS')) return;
   const st=document.createElement('style'); st.id='painelCSS';
   st.textContent = `
-    #painelPage .pnl-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+    #painelPage .pnl-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:16px}
+    @media(max-width:1100px){#painelPage .pnl-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    #painelPage .pnl-nomelink{font-weight:600;color:var(--text);cursor:pointer;text-decoration:none;border-bottom:1px dashed var(--border-strong)}
+    #painelPage .pnl-nomelink:hover{color:var(--accent)}
     #painelPage .pnl-kpi{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px}
     #painelPage .pnl-kpi .lbl{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;color:var(--text-2);font-weight:600}
     #painelPage .pnl-kpi .ico{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:rgba(236,30,121,.12);flex-shrink:0}
@@ -20061,35 +20066,44 @@ function _painelPintar(container){
   const passaResp = (l)=> !_resp || l.responsible_id===_resp;
   const ativos = d.leads.filter(l=>!l.recusado_em && passaResp(l));
   // --- KPIs reais ---
+  const agora = new Date();
   const leadsNovos = ativos.filter(l=>_painelNoPeriodo(l.created_at)).length;
+  const reunioes = (d.meetings||[]).filter(m=>{ const dt=new Date(m.scheduled_at); return !isNaN(dt) && dt>=_painelIniPeriodo() && dt<=agora; }).length;
   const propostas = d.budgets.filter(b=>{ const l=b.lead_id?leadDe(b.lead_id):null; if(_resp && (!l || l.responsible_id!==_resp)) return false; return _painelNoPeriodo(b.created_at); }).length;
   const ganhos = ativos.filter(l=>l.aprovado && _painelNoPeriodo(l.valido_em||l.created_at));
   const vendas = ganhos.length;
   const receita = ganhos.reduce((s,l)=>s+(Number(l.value)||0),0);
   const metaBar = (v,m)=> m>0?Math.min(100,Math.round(v/m*100)):0;
-  const kpi = (ico,lbl,val,metaV,metaTxt)=>`
+  const kpi = (ico,lbl,val,metaV)=>`
     <div class="pnl-kpi">
       <div class="lbl"><span>${lbl}</span><span class="ico">${ico}</span></div>
       <div class="big">${val}</div>
-      <div class="meta">Meta do mês: ${metaTxt}</div>
+      <div class="meta">Meta do mês: ${metaV}</div>
       <div class="pnl-bar"><div style="width:${metaBar(val, metaV)}%"></div></div>
     </div>`;
   const kpiReceita = `
     <div class="pnl-kpi">
       <div class="lbl"><span>Receita ganha</span><span class="ico">🏆</span></div>
-      <div class="big" style="font-size:24px">${_cartMoeda(receita)}</div>
+      <div class="big" style="font-size:22px">${_cartMoeda(receita)}</div>
       <div class="meta">Meta do mês: ${_cartMoeda(d.metas.receita)}</div>
       <div class="pnl-bar"><div style="width:${metaBar(receita,d.metas.receita)}%"></div></div>
     </div>`;
   const kpisHTML = `
-    ${kpi('👥','Leads novos',leadsNovos,d.metas.leads,d.metas.leads)}
-    ${kpi('📄','Propostas enviadas',propostas,d.metas.propostas,d.metas.propostas)}
-    ${kpi('✅','Vendas fechadas',vendas,d.metas.vendas,d.metas.vendas)}
+    ${kpi('👥','Leads novos',leadsNovos,d.metas.leads)}
+    ${kpi('📅','Reuniões realizadas',reunioes,d.metas.reunioes)}
+    ${kpi('📄','Propostas enviadas',propostas,d.metas.propostas)}
+    ${kpi('✅','Vendas fechadas',vendas,d.metas.vendas)}
     ${kpiReceita}`;
 
+  // --- Seletor de funil (pré-venda / venda / carteira) ---
+  const funis = _funis();
+  const funilSegHTML = '<div class="pnl-seg">' + Object.keys(funis).map(k=>
+    `<button class="${k===_painelFunil?'on':''}" onclick="_painelSetFunil('${k}')">${(funis[k].icone||'')} ${escapeHtml(funis[k].label||k)}</button>`
+  ).join('') + '</div>';
+
   // --- Funil (cumulativo: quem está numa etapa já passou pelas anteriores) ---
-  const etapas = _funilEtapas(_PAINEL_FUNIL);
-  const noFunil = ativos.filter(l=>l.funil===_PAINEL_FUNIL || (!l.funil && _PAINEL_FUNIL==='venda'));
+  const etapas = _funilEtapas(_painelFunil);
+  const noFunil = ativos.filter(l=> (l.funil||'venda')===_painelFunil);
   const idxDe = {}; etapas.forEach((e,i)=>idxDe[e.key]=i);
   const porEtapa = etapas.map(()=>0);
   noFunil.forEach(l=>{ const i=idxDe[l.stage]; if(i!=null) porEtapa[i]++; });
@@ -20103,29 +20117,32 @@ function _painelPintar(container){
     </div>`;
   }).join('<div style="align-self:center;color:var(--text-3)">›</div>');
 
-  // --- Oportunidades que pedem ação (leads ativos, fora de 'fechado') ---
+  // --- Oportunidades: ESPELHO do funil — tira a 1ª etapa (recém-entrou) e a
+  // última (já fechou); sobram os negócios em movimento que pedem ação. ---
+  const primeira = etapas[0] && etapas[0].key, ultima = etapas[etapas.length-1] && etapas[etapas.length-1].key;
   const hojeStr = new Date().toLocaleDateString('sv-SE');
-  const opp = noFunil.filter(l=>l.stage!=='fechado')
+  const stageOpts = (atual)=> etapas.map(e=>`<option value="${e.key}" ${e.key===atual?'selected':''}>${escapeHtml(e.label)}</option>`).join('');
+  const respOptsLead = (sel)=> '<option value="">—</option>' + (typeof team!=='undefined'?team:[]).map(m=>`<option value="${m._dbId}" ${m._dbId===sel?'selected':''}>${escapeHtml((m.name||'').split(' ')[0])}</option>`).join('');
+  const opp = noFunil.filter(l=>l.stage!==primeira && l.stage!==ultima)
     .sort((a,b)=>{
       const pa=a.proxima_acao_prazo||'9999', pb=b.proxima_acao_prazo||'9999';
       if(pa!==pb) return pa<pb?-1:1;
       const ord={urgent:0,high:1,med:2,low:3}; return (ord[a.priority]??2)-(ord[b.priority]??2);
-    }).slice(0,10);
+    }).slice(0,12);
   const oppRows = opp.length ? opp.map(l=>{
-    const nome=_painelNome(l.responsible_id); const cor=(team.find(x=>x._dbId===l.responsible_id)||{}).color||'#888';
-    const et=(etapas.find(e=>e.key===l.stage)||{}).label||l.stage||'—';
+    const respAcao = l.proxima_acao_resp || l.responsible_id || '';
     const atrasada = l.proxima_acao_prazo && l.proxima_acao_prazo < hojeStr;
     return `<tr>
-      <td style="font-weight:600;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(l.name||l.contact_name||'Lead')}</td>
-      <td><span class="pnl-chip" style="background:rgba(124,92,255,.14);color:#7C5CFF">${escapeHtml(et)}</span></td>
-      <td><span style="display:inline-flex;align-items:center;gap:6px"><span class="pnl-av" style="background:${cor}">${_painelIni(nome)}</span><span style="font-size:12px">${escapeHtml((nome||'').split(' ')[0])}</span></span></td>
-      <td style="min-width:150px"><input value="${escapeHtml(l.proxima_acao||'')}" placeholder="próxima ação…" onchange="_painelSalvarLead('${l.id}','proxima_acao',this.value)"></td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a class="pnl-nomelink" onclick="abrirLeadDetalhe('${l.id}')" title="Abrir o contato do lead">${escapeHtml(l.name||l.contact_name||'Lead')}</a></td>
+      <td><select onchange="_painelSalvarProxAcao('${l.id}','stage',this.value)" style="min-width:120px">${stageOpts(l.stage)}</select></td>
+      <td><select onchange="_painelSalvarProxAcao('${l.id}','proxima_acao_resp',this.value)" style="min-width:100px">${respOptsLead(respAcao)}</select></td>
+      <td style="min-width:150px"><input value="${escapeHtml(l.proxima_acao||'')}" placeholder="próxima ação…" onchange="_painelSalvarProxAcao('${l.id}','proxima_acao',this.value)"></td>
       <td style="white-space:nowrap">
-        <input type="date" value="${l.proxima_acao_prazo||''}" onchange="_painelSalvarLead('${l.id}','proxima_acao_prazo',this.value)" style="width:140px">
+        <input type="date" value="${l.proxima_acao_prazo||''}" onchange="_painelSalvarProxAcao('${l.id}','proxima_acao_prazo',this.value)" style="width:140px">
         ${atrasada?'<div><span class="pnl-chip" style="background:rgba(225,29,72,.14);color:#e11d48;margin-top:3px">Atrasada</span></div>':''}
       </td>
     </tr>`;
-  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:18px">Nenhuma oportunidade em aberto neste filtro.</td></tr>';
+  }).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--text-3);padding:18px">Nenhuma oportunidade em movimento neste funil.</td></tr>';
 
   // --- Listas semanais que a equipe preenche (painel_acoes) ---
   const listaTbl = (tipo, titulo, colAcao)=>{
@@ -20178,8 +20195,8 @@ function _painelPintar(container){
 
     <div class="pnl-grid2">
       <div class="card">
-        <div class="card-header" style="margin-bottom:12px"><div class="card-title">Funil de vendas <span class="text-xs text-3" style="font-weight:400">(${_painelPerLabel()})</span></div></div>
-        <div class="pnl-funil">${funilHTML || '<div class="text-3" style="padding:14px">Sem leads no funil.</div>'}</div>
+        <div class="card-header" style="margin-bottom:12px;gap:10px;flex-wrap:wrap"><div class="card-title">Funil ${escapeHtml((funis[_painelFunil]&&funis[_painelFunil].label)||'')}</div>${funilSegHTML}</div>
+        <div class="pnl-funil">${funilHTML || '<div class="text-3" style="padding:14px">Sem leads neste funil.</div>'}</div>
       </div>
       <div class="card">
         <div class="card-header" style="margin-bottom:8px"><div class="card-title">Oportunidades que pedem ação</div></div>
@@ -20198,12 +20215,48 @@ function _painelPintar(container){
 
 function _painelSetPeriodo(p){ _painelPeriodo=p; _painelPintar(document.getElementById('content')); }
 function _painelSetResp(r){ _painelResp=r; _painelPintar(document.getElementById('content')); }
+function _painelSetFunil(f){ _painelFunil=f; _painelPintar(document.getElementById('content')); }
 
 async function _painelSalvarLead(id, campo, valor){
   const l=_painelDados && _painelDados.leads.find(x=>x.id===id); if(l) l[campo]= valor||null;
   try{ const o={}; o[campo]=valor||null; const {error}=await _supa.from('leads').update(o).eq('id',id); if(error) throw error; }
   catch(e){ toast('Não salvou: '+(e.message||e),'info'); }
   if(campo==='proxima_acao_prazo') _painelPintar(document.getElementById('content'));   // muda ordenação/atraso
+}
+
+// Salva o campo da oportunidade E mantém a tarefa do checklist em sincronia:
+// a "próxima ação" vira uma tarefa no checklist do responsável escolhido.
+async function _painelSalvarProxAcao(id, campo, valor){
+  const l=_painelDados && _painelDados.leads.find(x=>x.id===id); if(!l) return;
+  l[campo]= valor||null;
+  try{ const o={}; o[campo]=valor||null; const {error}=await _supa.from('leads').update(o).eq('id',id); if(error) throw error; }
+  catch(e){ toast('Não salvou: '+(e.message||e),'info'); }
+  if(campo!=='stage') await _painelSyncTask(l);      // ação/prazo/responsável mexem na tarefa
+  if(campo==='proxima_acao_prazo' || campo==='stage') _painelPintar(document.getElementById('content'));
+}
+// Cria/atualiza/remove a tarefa ligada à próxima ação do lead (coluna leads.proxima_acao_task_id).
+async function _painelSyncTask(l){
+  const acao=(l.proxima_acao||'').trim();
+  const resp=l.proxima_acao_resp || l.responsible_id || null;
+  try {
+    if(acao && resp){
+      const payload={ title:acao, assigned_to:resp, due_date:l.proxima_acao_prazo||null, is_daily:true, priority:(l.priority||'med'), done:false };
+      if(l.proxima_acao_task_id){
+        await _supa.from('tasks').update({ title:acao, assigned_to:resp, due_date:l.proxima_acao_prazo||null }).eq('id', l.proxima_acao_task_id);
+      } else {
+        const { data, error } = await _supa.from('tasks').insert(payload).select().single();
+        if(error) throw error;
+        l.proxima_acao_task_id = data.id;
+        await _supa.from('leads').update({ proxima_acao_task_id:data.id }).eq('id', l.id);
+        toast('Vira tarefa no checklist de '+((team.find(x=>x._dbId===resp)||{}).name||'').split(' ')[0],'success');
+      }
+    } else if(l.proxima_acao_task_id){
+      // apagou a ação -> remove a tarefa ligada
+      await _supa.from('tasks').delete().eq('id', l.proxima_acao_task_id);
+      await _supa.from('leads').update({ proxima_acao_task_id:null }).eq('id', l.id);
+      l.proxima_acao_task_id=null;
+    }
+  } catch(e){ console.warn('[painel task]', e); toast('A ação salvou, mas não consegui sincronizar a tarefa.','info'); }
 }
 async function _painelAddAcao(tipo){
   const ordem=( _painelDados.acoes.filter(a=>a.tipo===tipo).length )+1;
@@ -20231,24 +20284,30 @@ function _painelEditarMetas(){
   const m=_painelDados.metas;
   let ov=document.getElementById('painelMetasModal'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='painelMetasModal'; ov.className='modal-bg open';
-  ov.innerHTML=`<div class="modal" style="max-width:380px">
-    <div class="card-header" style="margin-bottom:12px"><div class="card-title">🎯 Metas do mês</div>
+  ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
+  const campo=(id,lbl,val,pre)=>`<label style="display:block"><span style="font-size:12.5px;color:var(--text-2);font-weight:600">${lbl}</span>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:5px">${pre?`<span style="color:var(--text-3);font-size:14px">${pre}</span>`:''}
+    <input id="${id}" type="number" min="0" class="login-input" value="${val}" style="background:var(--surface-2);font-size:16px;padding:11px 12px"></div></label>`;
+  ov.innerHTML=`<div class="modal" style="max-width:560px;width:100%">
+    <div class="card-header" style="margin-bottom:6px"><div><div class="card-title" style="font-size:18px">🎯 Metas do mês</div>
+      <div class="text-xs text-3" style="margin-top:2px">Elas viram a barra de progresso de cada indicador do painel.</div></div>
       <button class="icon-btn" onclick="document.getElementById('painelMetasModal').remove()">✕</button></div>
-    <div style="display:grid;gap:10px">
-      <label class="text-xs text-3">Leads novos<input id="mtLeads" type="number" class="login-input" value="${m.leads}" style="background:var(--surface-2);margin-top:3px"></label>
-      <label class="text-xs text-3">Propostas enviadas<input id="mtProp" type="number" class="login-input" value="${m.propostas}" style="background:var(--surface-2);margin-top:3px"></label>
-      <label class="text-xs text-3">Vendas fechadas<input id="mtVend" type="number" class="login-input" value="${m.vendas}" style="background:var(--surface-2);margin-top:3px"></label>
-      <label class="text-xs text-3">Receita (R$)<input id="mtRec" type="number" class="login-input" value="${m.receita}" style="background:var(--surface-2);margin-top:3px"></label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+      ${campo('mtLeads','Leads novos',m.leads,'')}
+      ${campo('mtReun','Reuniões realizadas',m.reunioes,'')}
+      ${campo('mtProp','Propostas enviadas',m.propostas,'')}
+      ${campo('mtVend','Vendas fechadas',m.vendas,'')}
+      <div style="grid-column:span 2">${campo('mtRec','Receita ganha',m.receita,'R$')}</div>
     </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">
       <button class="btn" onclick="document.getElementById('painelMetasModal').remove()">Cancelar</button>
-      <button class="btn btn-primary" onclick="_painelSalvarMetas()">Salvar</button>
+      <button class="btn btn-primary" onclick="_painelSalvarMetas()">Salvar metas</button>
     </div></div>`;
   document.body.appendChild(ov);
 }
 async function _painelSalvarMetas(){
   const g=(id)=>Number(document.getElementById(id).value)||0;
-  const metas={leads:g('mtLeads'),propostas:g('mtProp'),vendas:g('mtVend'),receita:g('mtRec')};
+  const metas={leads:g('mtLeads'),reunioes:g('mtReun'),propostas:g('mtProp'),vendas:g('mtVend'),receita:g('mtRec')};
   _painelDados.metas=metas;
   try{ await _supa.from('app_settings').upsert({key:'painel_metas',value:JSON.stringify(metas),updated_at:new Date().toISOString()},{onConflict:'key'}); }
   catch(e){ toast('Não salvou as metas: '+(e.message||e),'info'); }
@@ -20257,6 +20316,7 @@ async function _painelSalvarMetas(){
 }
 if(typeof window!=='undefined'){
   window.renderPainel=renderPainel; window._painelSetPeriodo=_painelSetPeriodo; window._painelSetResp=_painelSetResp;
+  window._painelSetFunil=_painelSetFunil; window._painelSalvarProxAcao=_painelSalvarProxAcao;
   window._painelSalvarLead=_painelSalvarLead; window._painelAddAcao=_painelAddAcao; window._painelSalvarAcao=_painelSalvarAcao;
   window._painelDelAcao=_painelDelAcao; window._painelEditarMetas=_painelEditarMetas; window._painelSalvarMetas=_painelSalvarMetas;
 }
@@ -20516,7 +20576,7 @@ function renderPipelineCom(){
     return `<div class="kanban-col" ondragover="comKanbanOver(event,this)" ondragleave="comKanbanLeave(this)" ondrop="comKanbanDrop(event,'${st.key}',this)">
       <div class="kanban-head"><div class="kanban-title">${escapeHtml(st.label)} <span class="kanban-count">${list.length}</span></div></div>
       ${colSum>0?`<div style="font-size:11.5px;margin:-2px 2px 9px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:6px 9px">R$ <strong>${colSum.toLocaleString('pt-BR')}</strong></div>`:''}
-      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${(function(){ const b=_leadOrcamento(l); return b ? _orcSelo(b.status, ' title="Orçamento ' + escapeHtml(b.numero||'') + '"') : ''; })()}${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div>${l.ig?`<a href="${_igLink(l.ig)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir o perfil no Instagram" style="display:inline-block;font-size:11.5px;color:var(--accent);text-decoration:none;margin-bottom:4px">@${escapeHtml(l.ig)}</a>`:''}<div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
+      <div class="kanban-cards">${list.map(l=>`<div class="kanban-card" data-search="${escapeHtml((l.n||'')+' '+(l.resp||'')+' '+(l.ig||''))}" draggable="true" ondragstart="comKanbanDrag(event,'${l.id}')" ondragend="comKanbanDragEnd(this)" onclick="abrirLeadDetalhe('${l.id}')" style="cursor:grab">${(function(){ const b=_leadOrcamento(l); return b ? _orcSelo(b.status, ' title="Orçamento ' + escapeHtml(b.numero||'') + '"') : ''; })()}${prioBadge(l.p)}${l.ap?'<span style="display:inline-block;margin-left:6px;background:var(--success);color:#fff;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:999px">✓ APROVADO</span>':''}<div class="kanban-card-title" style="margin-top:6px">${escapeHtml(l.n)}</div>${l.ig?`<a href="${_igLink(l.ig)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" title="Abrir o perfil no Instagram" style="display:inline-block;font-size:11.5px;color:var(--accent);text-decoration:none;margin-bottom:4px">@${escapeHtml(l.ig)}</a>`:''}<div class="text-xs text-3" style="margin-bottom:7px">R$ ${l.v.toLocaleString('pt-BR')}/mês</div><div class="kanban-card-foot"><span>👤 ${escapeHtml(l.resp)}</span><div class="avatar" style="background:${team.find(t=>t.name.startsWith(l.resp))?.color||'#999'}">${(l.resp[0]||'?').toUpperCase()}</div></div></div>`).join('')}
       <div class="kanban-add" onclick="openNovoLeadModal('${st.key}')">+ Adicionar card</div></div></div>`;
   }).join('')}</div>`;
 }
