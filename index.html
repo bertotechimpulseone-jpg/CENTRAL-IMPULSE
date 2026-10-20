@@ -39787,6 +39787,23 @@ function _calChamadaLonga(chamada, legenda){
 /* Aplica o padrao da casa num post (muda o objeto no lugar). Devolve true se
    mexeu em algo. Vale pro construtor, pra pagina do cliente e pra correcao de
    dados antigos. */
+/* Slide repetido e bug de duplicacao (clique duplo no "+ Adicionar slide",
+   arrastar que clonou, colar duas vezes). Mantem o primeiro e tira os iguais.
+   Slide vazio nao conta: e campo que a pessoa ainda vai escrever. */
+function _calDedupSlides(p){
+  if(!p || !Array.isArray(p.slides)) return false;
+  const vistos = Object.create(null); const limpo = [];
+  p.slides.forEach(function(sl){
+    const t = String(sl || '').trim();
+    if(!t){ limpo.push(sl); return; }
+    const k = t.toLowerCase().replace(/\s+/g,' ');
+    if(vistos[k]) return;
+    vistos[k] = 1; limpo.push(sl);
+  });
+  if(limpo.length === p.slides.length) return false;
+  p.slides = limpo;
+  return true;
+}
 function _calPadronizarPost(p){
   if(!p || p.formato === '__material') return false;
   let mudou = false;
@@ -39809,11 +39826,12 @@ function _calPadronizarPost(p){
       }
     }
   }
+  if(_calDedupSlides(p)) mudou = true;
   const lc = _calChamadaLonga(p.chamada, p.legenda);
   if(lc){ p.chamada = lc.chamada; p.legenda = lc.legenda; mudou = true; }
   return mudou;
 }
-if(typeof window !== 'undefined'){ window._calChamadaLonga = _calChamadaLonga; window._calPadronizarPost = _calPadronizarPost; }
+if(typeof window !== 'undefined'){ window._calChamadaLonga = _calChamadaLonga; window._calPadronizarPost = _calPadronizarPost; window._calDedupSlides = _calDedupSlides; }
 
 // ===== Regra: fim de semana so recebe data comemorativa =====
 function _calEhComemorativa(p){
@@ -40237,6 +40255,10 @@ function _calNovoDia(dia){
           return `<button type="button" class="cn-fmt" data-f="${f}" onclick="_calNovoFmt('${f}')" style="border:1px solid ${on?c:'var(--border)'};background:${on?c+'22':'var(--surface-2)'};color:${on?c:'var(--text-2)'};border-radius:99px;padding:7px 13px;font-size:12.5px;font-weight:700;cursor:pointer">${f}</button>`;
         }).join('')}
       </div>
+      <label class="text-xs text-3" style="display:block">Destaques padrão <span style="color:var(--text-3);font-weight:400">(clica e vira um Destaque com o título certo)</span></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">
+        ${_CAL_DESTAQUES.map(d=>`<button type="button" class="btn btn-sm" onclick="_cnDestaque('${d.replace(/'/g,"\\'")}')">${d}</button>`).join('')}
+      </div>
       <label class="text-xs text-3" style="display:block">Chamada <span style="color:var(--text-3);font-weight:400">(o título do conteúdo)</span></label>
       <textarea id="cnChamada" rows="2" placeholder="Ex: Tesoura, lança ou mastro? O guia rápido pra escolher a certa." style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:var(--text);margin:5px 0 14px;resize:vertical">${escapeHtml(p.chamada||'')}</textarea>
 
@@ -40303,7 +40325,9 @@ function _cnSlidesPintar(){
 }
 function _cnSlideAdd(){
   window._cnSlides = window._cnSlides || [];
-  window._cnSlides.push('');
+  // clique repetido no botao criava slide vazio em cima de slide vazio
+  const ult = window._cnSlides[window._cnSlides.length - 1];
+  if(!window._cnSlides.length || String(ult || '').trim()) window._cnSlides.push('');
   _cnSlidesPintar();
   const ins = document.querySelectorAll('#cnSlides .cn-sl-in');
   if(ins.length) ins[ins.length-1].focus();
@@ -40322,6 +40346,18 @@ function _cnSlidesDaLegenda(){
   toast('✓ ' + r.slides.length + ' slides separados da descrição.','success');
 }
 
+/* Destaques que todo cliente tem. O time clica, vira post de Destaque com o
+   titulo certo, e escreve o texto embaixo. Padroniza o nome entre os clientes. */
+const _CAL_DESTAQUES = ['Quem Somos','Serviços','Como Contratar','Fale com a Gente','Onde Atendemos','Trabalhe Conosco','Dúvidas Frequentes','Depoimentos'];
+function _cnDestaque(t){
+  const ch = document.getElementById('cnChamada'); if(!ch) return;
+  const atual = (ch.value || '').trim();
+  if(atual && atual !== t && !confirm('Trocar a chamada "' + atual + '" por "' + t + '"?')) return;
+  ch.value = t;
+  _calNovoFmt('Destaque');
+  const lg = document.getElementById('cnLegenda');
+  if(lg && !(lg.value || '').trim()) lg.focus();
+}
 function _calNovoFmt(f){
   window._calNovoFmtSel = f;
   document.querySelectorAll('#cnFmts .cn-fmt').forEach(b=>{
@@ -41571,7 +41607,9 @@ async function renderPublicAprovarCalendario(token){
     _slPintar();
     const addSl = document.getElementById('calAddSlide');
     if(addSl) addSl.onclick = ()=>{
-      p.slides.push(''); marcar(); _slPintar();
+      const _ult = p.slides[p.slides.length-1];
+      if(!p.slides.length || String(_ult||'').trim()) p.slides.push('');
+      marcar(); _slPintar();
       const tas = slBox.querySelectorAll('.cal-slide-in'); const ultimo = tas[tas.length-1];
       if(ultimo) ultimo.focus();
       salvarDepois(i,'editou_slide','Adicionou o slide '+p.slides.length);
